@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — KabTakAayush</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    :root {
+      --black:    #0a0a0a;
+      --soft:     #141412;
+      --soft2:    #1c1c19;
+      --gold:     #e3b23c;
+      --gold-dim: #a8822c;
+      --cream:    #f3ede1;
+      --grey:     #8c887e;
+      --line:     rgba(243,237,225,0.1);
+      --red:      #c0392b;
+      --ease:     cubic-bezier(0.23,1,0.32,1);
+    }
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      background: var(--black);
+      color: var(--cream);
+      font-family: 'Archivo', sans-serif;
+      min-height: 100vh;
+      padding: 64px 56px 120px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Header ── */
+    .header-label {
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--grey);
+      margin-bottom: 12px;
+    }
+    .header-row {
+      display: flex;
+      align-items: baseline;
+      gap: 24px;
+      flex-wrap: wrap;
+      margin-bottom: 32px;
+    }
+    h1 {
+      font-family: 'Anton', sans-serif;
+      font-size: clamp(36px, 6vw, 72px);
+      text-transform: uppercase;
+      color: var(--gold);
+      line-height: 1;
+    }
+    .project-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--soft);
+      border: 1px solid var(--line);
+      border-radius: 40px;
+      padding: 6px 8px 6px 14px;
+      font-size: 13px;
+      color: var(--grey);
+      flex-shrink: 0;
+    }
+    .project-badge strong {
+      font-family: 'Anton', sans-serif;
+      font-size: 18px;
+      color: var(--cream);
+      letter-spacing: 0.04em;
+    }
+    .badge-adj {
+      display: flex;
+      gap: 2px;
+    }
+    .badge-btn {
+      background: var(--soft2);
+      border: 1px solid var(--line);
+      color: var(--grey);
+      font-size: 14px;
+      line-height: 1;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 140ms, border-color 140ms;
+    }
+    .badge-btn:hover { color: var(--cream); border-color: var(--gold-dim); }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 48px;
+      border-bottom: 1px solid var(--line);
+    }
+    .tab {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      color: var(--grey); font-family: 'Archivo', sans-serif;
+      font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+      padding: 12px 18px; cursor: pointer; margin-bottom: -1px;
+      transition: color 160ms var(--ease), border-color 160ms var(--ease);
+    }
+    .tab:hover { color: var(--cream); }
+    .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* ── Divider ── */
+    .rule { border: none; border-top: 1px solid var(--line); margin: 48px 0; }
+
+    /* ── Form top grid ── */
+    .form-top {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      max-width: 960px;
+      margin-bottom: 40px;
+    }
+
+    /* ── Drop zone (thumbnail) ── */
+    .drop-zone {
+      border: 1px dashed rgba(243,237,225,0.18);
+      background: var(--soft);
+      border-radius: 8px;
+      aspect-ratio: 4/3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 200ms var(--ease), background 200ms var(--ease);
+      user-select: none;
+    }
+    .drop-zone:hover, .drop-zone.over { border-color: var(--gold-dim); background: #1a1a17; }
+    .drop-zone.over { border-style: solid; }
+    .drop-icon { font-size: 26px; opacity: 0.3; pointer-events: none; transition: opacity 180ms; }
+    .drop-label {
+      font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--grey); text-align: center; line-height: 1.6;
+      pointer-events: none; transition: opacity 180ms;
+    }
+    .drop-preview {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; display: none; pointer-events: none;
+    }
+    .drop-zone.loaded .drop-icon,
+    .drop-zone.loaded .drop-label { opacity: 0; }
+    .drop-zone.loaded .drop-preview { display: block; }
+    .drop-clear {
+      position: absolute; top: 10px; right: 10px;
+      background: rgba(10,10,10,0.75); border: 1px solid var(--line);
+      color: var(--cream); font-size: 11px; letter-spacing: 0.08em;
+      text-transform: uppercase; padding: 5px 9px; border-radius: 4px;
+      cursor: pointer; display: none; backdrop-filter: blur(6px);
+    }
+    .drop-zone.loaded .drop-clear { display: block; }
+
+    /* ── Fields ── */
+    .fields { display: flex; flex-direction: column; gap: 28px; }
+    .field-label {
+      display: block; font-size: 10px; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--grey); margin-bottom: 9px;
+    }
+    .field-input {
+      width: 100%; background: var(--soft); border: 1px solid var(--line);
+      color: var(--cream); font-family: 'Archivo', sans-serif;
+      font-size: 16px; padding: 13px 16px; border-radius: 6px; outline: none;
+      transition: border-color 180ms var(--ease); appearance: none;
+    }
+    textarea.field-input { resize: vertical; min-height: 96px; line-height: 1.6; }
+    .field-input:focus { border-color: var(--gold-dim); }
+    .field-input::placeholder { color: rgba(140,136,126,0.45); }
+
+    /* ── Type chips ── */
+    .type-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+    .type-option { position: relative; }
+    .type-option input { position: absolute; opacity: 0; width: 0; height: 0; }
+    .type-chip {
+      display: flex; align-items: center; justify-content: center;
+      text-align: center; background: var(--soft); border: 1px solid var(--line);
+      border-radius: 6px; padding: 13px 6px; cursor: pointer;
+      font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--grey); line-height: 1.3;
+      transition: border-color 160ms var(--ease), color 160ms var(--ease), background 160ms var(--ease);
+    }
+    .type-option input:checked ~ .type-chip {
+      border-color: var(--gold); color: var(--gold); background: rgba(227,178,60,0.06);
+    }
+    .type-chip:hover { border-color: var(--gold-dim); color: var(--cream); }
+
+    /* ── Gallery section ── */
+    .gallery-section { max-width: 960px; margin-bottom: 36px; }
+    .gallery-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .gallery-clear-all {
+      background: none; border: none; color: var(--grey); font-size: 11px;
+      letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
+      padding: 4px 0; transition: color 140ms;
+    }
+    .gallery-clear-all:hover { color: var(--red); }
+
+    .gallery-drop {
+      border: 1px dashed rgba(243,237,225,0.18);
+      background: var(--soft);
+      border-radius: 8px;
+      min-height: 140px;
+      padding: 28px;
+      cursor: pointer;
+      transition: border-color 200ms var(--ease), background 200ms var(--ease);
+      position: relative;
+    }
+    .gallery-drop:hover, .gallery-drop.over { border-color: var(--gold-dim); background: #1a1a17; }
+    .gallery-drop.over { border-style: solid; }
+    .gallery-drop.has-files { cursor: default; }
+
+    .gallery-empty {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 10px; pointer-events: none;
+    }
+    .gallery-empty-icon { font-size: 24px; opacity: 0.3; }
+    .gallery-empty-label {
+      font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--grey); text-align: center; line-height: 1.6;
+    }
+    .gallery-add-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--soft2); border: 1px solid var(--line);
+      color: var(--grey); font-family: 'Archivo', sans-serif;
+      font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+      padding: 8px 14px; border-radius: 4px; cursor: pointer;
+      transition: border-color 140ms, color 140ms;
+      pointer-events: all;
+    }
+    .gallery-add-btn:hover { border-color: var(--gold-dim); color: var(--cream); }
+
+    /* Hide empty state when files present */
+    .gallery-drop.has-files .gallery-empty { display: none; }
+
+    /* File grid */
+    .file-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 12px;
+      display: none;
+    }
+    .gallery-drop.has-files .file-grid { display: grid; }
+
+    .file-card {
+      background: var(--soft2);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+      aspect-ratio: 1;
+    }
+    .file-card img {
+      width: 100%; height: 100%; object-fit: cover;
+      display: block;
+    }
+    .file-card .file-icon {
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 6px;
+    }
+    .file-icon-glyph { font-size: 28px; opacity: 0.4; }
+    .file-icon-name {
+      font-size: 10px; color: var(--grey); text-align: center;
+      padding: 0 6px; word-break: break-all; line-height: 1.3;
+    }
+    .file-badge {
+      position: absolute; bottom: 4px; left: 4px;
+      background: rgba(10,10,10,0.82); border: 1px solid rgba(243,237,225,0.15);
+      color: var(--gold); font-size: 9px; letter-spacing: 0.06em;
+      font-family: 'Courier New', monospace;
+      padding: 2px 6px; border-radius: 3px; pointer-events: none;
+    }
+    .file-card.bad { border-color: var(--red); }
+    .file-card.bad .file-badge { color: var(--red); border-color: rgba(192,57,43,0.4); }
+    .file-remove {
+      position: absolute; top: 4px; right: 4px;
+      background: rgba(10,10,10,0.8); border: 1px solid rgba(243,237,225,0.15);
+      color: var(--cream); font-size: 10px; width: 20px; height: 20px;
+      border-radius: 50%; cursor: pointer; display: flex;
+      align-items: center; justify-content: center;
+      opacity: 0; transition: opacity 140ms;
+    }
+    .file-card:hover .file-remove { opacity: 1; }
+
+    .gallery-drop-add {
+      display: none;
+      margin-top: 14px;
+    }
+    .gallery-drop.has-files .gallery-drop-add { display: block; }
+
+    /* ── Notice / warning ── */
+    .notice {
+      max-width: 960px; margin-bottom: 28px;
+      border: 1px solid var(--gold-dim); border-radius: 6px;
+      background: rgba(227,178,60,0.06); color: var(--cream);
+      padding: 14px 18px; font-size: 13px; line-height: 1.55;
+      display: none;
+    }
+    .notice.show { display: block; }
+    .notice.warn { border-color: var(--red); background: rgba(192,57,43,0.08); }
+    .notice strong { color: var(--gold); }
+    .notice.warn strong { color: var(--red); }
+    .notice ul { margin: 6px 0 0 18px; }
+
+    /* ── Generate button ── */
+    .btn-generate {
+      width: 100%; max-width: 960px;
+      background: var(--gold); color: var(--black);
+      font-family: 'Anton', sans-serif; font-size: 20px;
+      text-transform: uppercase; letter-spacing: 0.04em;
+      border: none; padding: 18px 24px; border-radius: 6px;
+      cursor: pointer; transition: opacity 180ms var(--ease);
+    }
+    .btn-generate:hover { opacity: 0.88; }
+    .btn-generate:active { opacity: 0.72; }
+    .btn-generate:disabled { opacity: 0.5; cursor: progress; }
+
+    /* ── Progress ── */
+    .progress {
+      max-width: 960px; margin-top: 18px; display: none;
+    }
+    .progress.show { display: block; }
+    .progress-label {
+      font-size: 12px; letter-spacing: 0.08em; color: var(--grey);
+      margin-bottom: 8px; text-transform: uppercase;
+    }
+    .progress-track {
+      height: 6px; background: var(--soft2); border-radius: 3px; overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%; width: 0%; background: var(--gold);
+      transition: width 200ms var(--ease);
+    }
+
+    /* ── Output ── */
+    .output { max-width: 960px; display: none; }
+    .output.visible { display: block; }
+    .output-block { margin-bottom: 40px; }
+    .output-heading {
+      font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--grey); margin-bottom: 14px;
+    }
+    .output-step { color: var(--gold-dim); margin-right: 6px; }
+    .code-box {
+      background: var(--soft); border: 1px solid var(--line); border-radius: 6px;
+      padding: 22px 24px; font-family: 'Courier New', monospace; font-size: 13px;
+      line-height: 1.7; color: var(--cream); white-space: pre; overflow-x: auto;
+    }
+    .copy-row { display: flex; align-items: center; gap: 16px; margin-top: 12px; }
+    .copy-btn {
+      background: transparent; border: 1px solid var(--gold-dim); color: var(--gold);
+      font-family: 'Archivo', sans-serif; font-size: 11px; letter-spacing: 0.14em;
+      text-transform: uppercase; padding: 9px 18px; border-radius: 4px;
+      cursor: pointer; transition: background 160ms var(--ease);
+    }
+    .copy-btn:hover { background: rgba(227,178,60,0.08); }
+    .copy-confirm { font-size: 12px; color: var(--gold); opacity: 0; transition: opacity 200ms; }
+    .copy-confirm.show { opacity: 1; }
+
+    /* ── Checklist ── */
+    .checklist { display: flex; flex-direction: column; gap: 10px; }
+    .check-item {
+      display: flex; align-items: flex-start; gap: 14px; padding: 14px 18px;
+      background: var(--soft); border: 1px solid var(--line); border-radius: 6px;
+      font-size: 14px; line-height: 1.5;
+    }
+    .check-num {
+      font-family: 'Anton', sans-serif; font-size: 20px; color: var(--gold);
+      line-height: 1; flex-shrink: 0; margin-top: 1px;
+    }
+    .check-text { color: var(--cream); }
+    .check-text code {
+      font-family: 'Courier New', monospace; font-size: 12px;
+      background: rgba(243,237,225,0.06); padding: 1px 6px;
+      border-radius: 3px; color: var(--gold-dim);
+    }
+    .check-sub { font-size: 12px; color: var(--grey); margin-top: 4px; }
+
+    .field-hint { font-size: 11px; color: var(--grey); margin-top: 8px; line-height: 1.5; }
+
+    @media (max-width: 680px) {
+      body { padding: 48px 24px 80px; }
+      .form-top { grid-template-columns: 1fr; gap: 36px; }
+      .type-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <p class="header-label">KabTakAayush — Admin</p>
+  <div class="header-row">
+    <h1>Admin</h1>
+    <div class="project-badge" id="badge-wrap">
+      Will be <strong id="badge-num">—</strong>
+      <div class="badge-adj">
+        <button class="badge-btn" id="badge-dec" title="Previous number">−</button>
+        <button class="badge-btn" id="badge-inc" title="Next number">+</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab switcher -->
+  <div class="tabs">
+    <button class="tab" id="tab-project" data-tab="project">Project Upload</button>
+    <button class="tab" id="tab-reel" data-tab="reel">Homepage Reel</button>
+  </div>
+
+  <!-- ════════ SECTION 1 — PROJECT UPLOAD ════════ -->
+  <div class="section" id="section-project">
+    <form id="project-form">
+
+      <!-- Top: thumbnail + fields -->
+      <div class="form-top">
+        <div>
+          <label class="field-label">Thumbnail (Cover Image)</label>
+          <div class="drop-zone" id="thumb-zone">
+            <span class="drop-icon">↑</span>
+            <p class="drop-label">Drop cover image here<br />or click to choose</p>
+            <img class="drop-preview" id="thumb-preview" alt="" />
+            <button type="button" class="drop-clear" id="thumb-clear">✕ Clear</button>
+            <input type="file" id="thumb-file" accept="image/*" style="display:none" />
+          </div>
+        </div>
+
+        <div class="fields">
+          <div>
+            <label class="field-label" for="proj-title">Title</label>
+            <input class="field-input" type="text" id="proj-title"
+                   placeholder="e.g. Last Light, Versova" required />
+          </div>
+          <div>
+            <label class="field-label" for="proj-location">Location</label>
+            <input class="field-input" type="text" id="proj-location"
+                   placeholder="e.g. Versova, Mumbai" />
+          </div>
+          <div>
+            <label class="field-label">Project Type</label>
+            <div class="type-grid">
+              <label class="type-option">
+                <input type="radio" name="proj-type" value="photo" checked />
+                <span class="type-chip">Photo</span>
+              </label>
+              <label class="type-option">
+                <input type="radio" name="proj-type" value="video" />
+                <span class="type-chip">Video</span>
+              </label>
+              <label class="type-option">
+                <input type="radio" name="proj-type" value="photo+video" />
+                <span class="type-chip">Photo + Video</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Description -->
+      <div class="gallery-section">
+        <label class="field-label" for="proj-desc">Description</label>
+        <textarea class="field-input" id="proj-desc"
+                  placeholder="A short line or two about the project…"></textarea>
+      </div>
+
+      <!-- Gallery media -->
+      <div class="gallery-section">
+        <div class="gallery-header">
+          <label class="field-label" style="margin:0">Gallery — Images &amp; Videos</label>
+          <button type="button" class="gallery-clear-all" id="gallery-clear-all">Clear all</button>
+        </div>
+
+        <div class="gallery-drop" id="gallery-drop">
+          <div class="gallery-empty">
+            <span class="gallery-empty-icon">⬆</span>
+            <p class="gallery-empty-label">Drop images &amp; videos here<br />or click to choose</p>
+            <button type="button" class="gallery-add-btn" id="gallery-pick">Choose files</button>
+          </div>
+          <div class="file-grid" id="file-grid"></div>
+          <div class="gallery-drop-add">
+            <button type="button" class="gallery-add-btn" id="gallery-add-more">+ Add more files</button>
+          </div>
+          <input type="file" id="gallery-file" accept="image/*,video/*" multiple style="display:none" />
+        </div>
+        <p class="field-hint">Images are re-encoded to JPEG (longest edge capped at 2400px). Videos must be MP4 — other containers are excluded with a warning.</p>
+      </div>
+
+      <div class="notice" id="proj-notice"></div>
+
+      <button type="submit" class="btn-generate" id="proj-generate">Generate ZIP →</button>
+
+      <div class="progress" id="proj-progress">
+        <div class="progress-label" id="proj-progress-label">Working…</div>
+        <div class="progress-track"><div class="progress-bar" id="proj-progress-bar"></div></div>
+      </div>
+
+    </form>
+
+    <hr class="rule" />
+
+    <!-- Output -->
+    <div class="output" id="proj-output">
+      <div class="output-block">
+        <p class="output-heading">
+          <span class="output-step">01</span>
+          Paste into <code style="font-family:monospace;color:var(--gold-dim)">projects.html</code>
+          — inside <code style="font-family:monospace;color:var(--gold-dim)">&lt;ul class="index__list"&gt;</code>
+        </p>
+        <div class="code-box" id="html-out"></div>
+        <div class="copy-row">
+          <button class="copy-btn" data-target="html-out" data-confirm="html-confirm">Copy HTML</button>
+          <span class="copy-confirm" id="html-confirm">Copied ✓</span>
+        </div>
+      </div>
+
+      <div class="output-block">
+        <p class="output-heading">
+          <span class="output-step">02</span>
+          Paste into <code style="font-family:monospace;color:var(--gold-dim)">projects-data.js</code>
+          — last item of <code style="font-family:monospace;color:var(--gold-dim)">PROJECTS</code>
+        </p>
+        <div class="code-box" id="data-out"></div>
+        <div class="copy-row">
+          <button class="copy-btn" data-target="data-out" data-confirm="data-confirm">Copy entry</button>
+          <span class="copy-confirm" id="data-confirm">Copied ✓</span>
+        </div>
+      </div>
+
+      <div class="output-block">
+        <p class="output-heading"><span class="output-step">03</span> Install &amp; ship</p>
+        <div class="checklist">
+          <div class="check-item">
+            <span class="check-num">1</span>
+            <div>
+              <div class="check-text">Extract <code id="zip-hint">project-XX.zip</code> at the repository <strong>root</strong> — it merges into <code>assets/</code>.</div>
+              <div class="check-sub">Creates <code>assets/projects/XX/thumbnail/thumbnail.jpg</code>, <code>images/01.jpg…</code> and <code>videos/01.mp4…</code> with the correct names automatically.</div>
+            </div>
+          </div>
+          <div class="check-item">
+            <span class="check-num">2</span>
+            <div>
+              <div class="check-text">Paste the data entry into <code>projects-data.js</code> as the last item of <code>PROJECTS</code> (before the closing <code>];</code>).</div>
+            </div>
+          </div>
+          <div class="check-item">
+            <span class="check-num">3</span>
+            <div>
+              <div class="check-text">Paste the <code>&lt;li&gt;</code> into <code>projects.html</code> inside <code>&lt;ul class="index__list"&gt;</code>.</div>
+            </div>
+          </div>
+          <div class="check-item">
+            <span class="check-num">4</span>
+            <div>
+              <div class="check-text">Commit and push — Vercel redeploys automatically.</div>
+              <div class="check-sub">Usually live in under 30 seconds.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ SECTION 2 — HOMEPAGE REEL ════════ -->
+  <div class="section" id="section-reel">
+    <form id="reel-form">
+
+      <div class="gallery-section">
+        <label class="field-label" for="reel-count">Current reel count</label>
+        <input class="field-input" type="number" id="reel-count" min="0" max="98" style="max-width:200px" />
+        <p class="field-hint">New images are numbered from this count + 1 upward, padded to two digits. Numbering supports up to 99 (the site pads to two digits).</p>
+      </div>
+
+      <div class="gallery-section">
+        <div class="gallery-header">
+          <label class="field-label" style="margin:0">Reel Images</label>
+          <button type="button" class="gallery-clear-all" id="reel-clear-all">Clear all</button>
+        </div>
+
+        <div class="gallery-drop" id="reel-drop">
+          <div class="gallery-empty">
+            <span class="gallery-empty-icon">⬆</span>
+            <p class="gallery-empty-label">Drop reel images here<br />or click to choose</p>
+            <button type="button" class="gallery-add-btn" id="reel-pick">Choose files</button>
+          </div>
+          <div class="file-grid" id="reel-grid"></div>
+          <div class="gallery-drop-add">
+            <button type="button" class="gallery-add-btn" id="reel-add-more">+ Add more images</button>
+          </div>
+          <input type="file" id="reel-file" accept="image/*" multiple style="display:none" />
+        </div>
+        <p class="field-hint">Images are re-encoded to JPEG (longest edge capped at 2400px).</p>
+      </div>
+
+      <div class="notice" id="reel-notice"></div>
+
+      <button type="submit" class="btn-generate" id="reel-generate">Generate ZIP →</button>
+
+      <div class="progress" id="reel-progress">
+        <div class="progress-label" id="reel-progress-label">Working…</div>
+        <div class="progress-track"><div class="progress-bar" id="reel-progress-bar"></div></div>
+      </div>
+
+    </form>
+
+    <hr class="rule" />
+
+    <div class="output" id="reel-output">
+      <div class="output-block">
+        <p class="output-heading"><span class="output-step">01</span> Install &amp; configure</p>
+        <div class="checklist">
+          <div class="check-item">
+            <span class="check-num">1</span>
+            <div>
+              <div class="check-text">Extract <code id="reel-zip-hint">reel-add-XX-XX.zip</code> at the repository <strong>root</strong> — it merges into <code>assets/reel/</code>.</div>
+            </div>
+          </div>
+          <div class="check-item">
+            <span class="check-num">2</span>
+            <div>
+              <div class="check-text">Open <code>index.html</code> and change the config line to exactly:</div>
+              <div class="code-box" id="reel-line-out" style="margin-top:10px"></div>
+              <div class="copy-row">
+                <button class="copy-btn" data-target="reel-line-out" data-confirm="reel-line-confirm">Copy line</button>
+                <span class="copy-confirm" id="reel-line-confirm">Copied ✓</span>
+              </div>
+            </div>
+          </div>
+          <div class="check-item">
+            <span class="check-num">3</span>
+            <div>
+              <div class="check-text">Optionally raise <code>SLOTS</code> in the same config for a denser void.</div>
+            </div>
+          </div>
+          <div class="check-item">
+            <span class="check-num">4</span>
+            <div>
+              <div class="check-text">Commit and push — Vercel redeploys automatically.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ════════════════════════════════════════════
+       SHARED HELPERS
+    ════════════════════════════════════════════ */
+    function pad(n) { return String(n).padStart(2, '0'); }
+
+    function esc(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    // Escape single quotes (and backslashes) for JS string literals in the data entry
+    function jsStr(s) {
+      return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, ' ');
+    }
+
+    var MAX_EDGE = 2400;
+    var JPEG_Q   = 0.88;
+
+    /* Re-encode any decodable image File to a JPEG Blob, longest edge ≤ MAX_EDGE.
+       Tries createImageBitmap (with from-image orientation), falls back to
+       <img> + FileReader if it rejects. Returns a Promise<Blob>. */
+    function imageToJpegBlob(file) {
+      return loadBitmap(file).then(function (src) {
+        var w = src.width, h = src.height;
+        var scale = Math.min(1, MAX_EDGE / Math.max(w, h)); // never up
+        var tw = Math.max(1, Math.round(w * scale));
+        var th = Math.max(1, Math.round(h * scale));
+        var canvas = document.createElement('canvas');
+        canvas.width = tw; canvas.height = th;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(src, 0, 0, tw, th);
+        if (src.close) { try { src.close(); } catch (e) {} }
+        return new Promise(function (resolve, reject) {
+          canvas.toBlob(function (blob) {
+            if (blob) resolve(blob); else reject(new Error('toBlob failed'));
+          }, 'image/jpeg', JPEG_Q);
+        });
+      });
+    }
+
+    /* Returns a Promise resolving to a drawable source (ImageBitmap or HTMLImageElement). */
+    function loadBitmap(file) {
+      if (typeof createImageBitmap === 'function') {
+        try {
+          return createImageBitmap(file, { imageOrientation: 'from-image' })
+            .catch(function () { return loadViaImg(file); });
+        } catch (e) {
+          return loadViaImg(file);
+        }
+      }
+      return loadViaImg(file);
+    }
+
+    function loadViaImg(file) {
+      return new Promise(function (resolve, reject) {
+        var r = new FileReader();
+        r.onload = function (e) {
+          var img = new Image();
+          img.onload = function () { resolve(img); };
+          img.onerror = function () { reject(new Error('image decode failed')); };
+          img.src = e.target.result;
+        };
+        r.onerror = function () { reject(new Error('read failed')); };
+        r.readAsDataURL(file);
+      });
+    }
+
+    /* Is this File an acceptable MP4 video? (video/mp4, or .mp4 with empty MIME) */
+    function isMp4(file) {
+      var name = (file.name || '').toLowerCase();
+      if (file.type === 'video/mp4') return true;
+      if ((!file.type || file.type === '') && /\.mp4$/.test(name)) return true;
+      return false;
+    }
+    function isVideo(file) {
+      return (file.type && file.type.indexOf('video/') === 0) || /\.(mp4|mov|webm|mkv|avi|m4v)$/i.test(file.name || '');
+    }
+    function isImage(file) {
+      return (file.type && file.type.indexOf('image/') === 0) ||
+        /\.(jpe?g|png|webp|gif|bmp|heic|heif|tiff?)$/i.test(file.name || '');
+    }
+
+    function triggerDownload(blob, filename) {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    }
+
+    /* ════════════════════════════════════════════
+       TABS
+    ════════════════════════════════════════════ */
+    var TAB_KEY = 'kta_admin_tab';
+    var sections = {
+      project: document.getElementById('section-project'),
+      reel:    document.getElementById('section-reel')
+    };
+    var tabBtns = {
+      project: document.getElementById('tab-project'),
+      reel:    document.getElementById('tab-reel')
+    };
+    var badgeWrap = document.getElementById('badge-wrap');
+
+    function setTab(name) {
+      if (!sections[name]) name = 'project';
+      Object.keys(sections).forEach(function (k) {
+        sections[k].classList.toggle('active', k === name);
+        tabBtns[k].classList.toggle('active', k === name);
+      });
+      // Project number badge is only meaningful on the project tab
+      badgeWrap.style.display = (name === 'project') ? '' : 'none';
+      localStorage.setItem(TAB_KEY, name);
+    }
+    Object.keys(tabBtns).forEach(function (k) {
+      tabBtns[k].addEventListener('click', function () { setTab(k); });
+    });
+    setTab(localStorage.getItem(TAB_KEY) || 'project');
+
+    /* ════════════════════════════════════════════
+       PROJECT NUMBER BADGE
+    ════════════════════════════════════════════ */
+    var NUM_KEY = 'kta_next_proj_num';
+    var nextNum = parseInt(localStorage.getItem(NUM_KEY) || '7', 10);
+
+    function renderBadge() {
+      document.getElementById('badge-num').textContent = '#' + pad(nextNum);
+    }
+    renderBadge();
+
+    document.getElementById('badge-inc').addEventListener('click', function () {
+      nextNum = Math.min(nextNum + 1, 99);
+      localStorage.setItem(NUM_KEY, nextNum);
+      renderBadge();
+    });
+    document.getElementById('badge-dec').addEventListener('click', function () {
+      nextNum = Math.max(nextNum - 1, 1);
+      localStorage.setItem(NUM_KEY, nextNum);
+      renderBadge();
+    });
+
+    /* ════════════════════════════════════════════
+       THUMBNAIL DROP ZONE
+    ════════════════════════════════════════════ */
+    var thumbZone  = document.getElementById('thumb-zone');
+    var thumbInput = document.getElementById('thumb-file');
+    var thumbPrev  = document.getElementById('thumb-preview');
+    var thumbClear = document.getElementById('thumb-clear');
+    var thumbFile  = null; // raw File kept for zipping
+
+    thumbZone.addEventListener('click', function (e) {
+      if (e.target === thumbClear) return;
+      thumbInput.click();
+    });
+    thumbInput.addEventListener('change', function () {
+      if (thumbInput.files[0]) loadThumb(thumbInput.files[0]);
+    });
+    thumbZone.addEventListener('dragover',  function (e) { e.preventDefault(); thumbZone.classList.add('over'); });
+    thumbZone.addEventListener('dragleave', function ()  { thumbZone.classList.remove('over'); });
+    thumbZone.addEventListener('drop', function (e) {
+      e.preventDefault(); thumbZone.classList.remove('over');
+      var f = e.dataTransfer.files[0];
+      if (f && isImage(f)) loadThumb(f);
+    });
+    thumbClear.addEventListener('click', function (e) {
+      e.stopPropagation();
+      thumbPrev.src = '';
+      thumbZone.classList.remove('loaded');
+      thumbInput.value = '';
+      thumbFile = null;
+    });
+    function loadThumb(file) {
+      thumbFile = file;
+      var r = new FileReader();
+      r.onload = function (e) { thumbPrev.src = e.target.result; thumbZone.classList.add('loaded'); };
+      r.readAsDataURL(file);
+    }
+
+    /* ════════════════════════════════════════════
+       GALLERY DROP ZONE  (keeps raw File objects)
+    ════════════════════════════════════════════ */
+    var galleryDrop  = document.getElementById('gallery-drop');
+    var galleryInput = document.getElementById('gallery-file');
+    var fileGrid     = document.getElementById('file-grid');
+    var galleryFiles = []; // { file, kind: 'image'|'video', ok: bool }
+
+    function openGalleryPicker() { galleryInput.value = ''; galleryInput.click(); }
+
+    document.getElementById('gallery-pick').addEventListener('click', function (e) { e.stopPropagation(); openGalleryPicker(); });
+    document.getElementById('gallery-add-more').addEventListener('click', function (e) { e.stopPropagation(); openGalleryPicker(); });
+
+    galleryDrop.addEventListener('click', function () {
+      if (galleryFiles.length > 0) return;
+      openGalleryPicker();
+    });
+
+    galleryInput.addEventListener('change', function () {
+      addGalleryFiles(Array.from(galleryInput.files));
+    });
+
+    galleryDrop.addEventListener('dragover', function (e) { e.preventDefault(); galleryDrop.classList.add('over'); });
+    galleryDrop.addEventListener('dragleave', function () { galleryDrop.classList.remove('over'); });
+    galleryDrop.addEventListener('drop', function (e) {
+      e.preventDefault(); galleryDrop.classList.remove('over');
+      addGalleryFiles(Array.from(e.dataTransfer.files).filter(function (f) {
+        return isImage(f) || isVideo(f);
+      }));
+    });
+
+    document.getElementById('gallery-clear-all').addEventListener('click', function () {
+      galleryFiles = [];
+      fileGrid.innerHTML = '';
+      galleryDrop.classList.remove('has-files');
+    });
+
+    function addGalleryFiles(files) {
+      files.forEach(function (file) {
+        var kind = isVideo(file) && !isImage(file) ? 'video' : (isImage(file) ? 'image' : 'video');
+        var ok = kind === 'image' ? true : isMp4(file);
+        var entry = { file: file, kind: kind, ok: ok };
+        galleryFiles.push(entry);
+        renderGalleryCard(entry);
+      });
+      if (galleryFiles.length > 0) galleryDrop.classList.add('has-files');
+    }
+
+    function renderGalleryCard(entry) {
+      var file = entry.file;
+      var card = document.createElement('div');
+      card.className = 'file-card' + (entry.ok ? '' : ' bad');
+
+      if (entry.kind === 'image') {
+        var img = document.createElement('img');
+        img.alt = file.name;
+        card.appendChild(img);
+        var r = new FileReader();
+        r.onload = function (e) { img.src = e.target.result; };
+        r.readAsDataURL(file);
+      } else {
+        var iconWrap = document.createElement('div');
+        iconWrap.className = 'file-icon';
+        iconWrap.innerHTML =
+          '<span class="file-icon-glyph">▶</span>' +
+          '<span class="file-icon-name">' + esc(file.name) + '</span>';
+        card.appendChild(iconWrap);
+      }
+
+      var badge = document.createElement('span');
+      badge.className = 'file-badge';
+      badge.textContent = entry.kind === 'image' ? 'IMG' : (entry.ok ? 'MP4' : 'NOT MP4');
+      card.appendChild(badge);
+
+      var removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'file-remove';
+      removeBtn.textContent = '✕';
+      removeBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var idx = galleryFiles.indexOf(entry);
+        if (idx > -1) galleryFiles.splice(idx, 1);
+        card.remove();
+        if (fileGrid.children.length === 0) galleryDrop.classList.remove('has-files');
+      });
+      card.appendChild(removeBtn);
+
+      fileGrid.appendChild(card);
+    }
+
+    /* ════════════════════════════════════════════
+       PROGRESS / NOTICE HELPERS
+    ════════════════════════════════════════════ */
+    function showProgress(barId, labelId, wrapId, pct, text) {
+      document.getElementById(wrapId).classList.add('show');
+      document.getElementById(barId).style.width = Math.round(pct) + '%';
+      if (text != null) document.getElementById(labelId).textContent = text;
+    }
+    function hideProgress(wrapId) {
+      document.getElementById(wrapId).classList.remove('show');
+    }
+    function setNotice(id, html, warn) {
+      var n = document.getElementById(id);
+      if (!html) { n.classList.remove('show', 'warn'); n.innerHTML = ''; return; }
+      n.innerHTML = html;
+      n.classList.add('show');
+      n.classList.toggle('warn', !!warn);
+    }
+
+    /* ════════════════════════════════════════════
+       PROJECT — GENERATE
+    ════════════════════════════════════════════ */
+    var projGenBtn = document.getElementById('proj-generate');
+
+    document.getElementById('project-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      var title    = document.getElementById('proj-title').value.trim();
+      var location = document.getElementById('proj-location').value.trim();
+      var desc     = document.getElementById('proj-desc').value.trim();
+      var type     = document.querySelector('input[name="proj-type"]:checked').value;
+
+      setNotice('proj-notice', '');
+
+      /* ── Validation ── */
+      if (!title) { setNotice('proj-notice', '<strong>Title required.</strong> Add a project title before generating.', true); return; }
+      if (!thumbFile) { setNotice('proj-notice', '<strong>Thumbnail required.</strong> Drop a cover image first.', true); return; }
+      if (galleryFiles.length === 0) { setNotice('proj-notice', '<strong>Gallery is empty.</strong> Add at least one image or video.', true); return; }
+
+      var images = galleryFiles.filter(function (g) { return g.kind === 'image'; });
+      var videos = galleryFiles.filter(function (g) { return g.kind === 'video'; });
+      var okVideos  = videos.filter(function (g) { return g.ok; });
+      var badVideos = videos.filter(function (g) { return !g.ok; });
+
+      /* ── Type auto-suggest (notice, don't block) ── */
+      var notes = [];
+      if (type === 'photo' && okVideos.length > 0) {
+        var newType = images.length > 0 ? 'photo+video' : 'video';
+        setRadioType(newType); type = newType;
+        notes.push('Videos detected — switched type to <strong>' + (newType === 'video' ? 'Video' : 'Photo + Video') + '</strong>.');
+      } else if (type === 'video' && images.length > 0) {
+        var nt = okVideos.length > 0 ? 'photo+video' : 'photo';
+        setRadioType(nt); type = nt;
+        notes.push('Images detected — switched type to <strong>' + (nt === 'photo' ? 'Photo' : 'Photo + Video') + '</strong>.');
+      }
+
+      var excludedHtml = '';
+      if (badVideos.length > 0) {
+        var list = badVideos.map(function (g) { return '<li>' + esc(g.file.name) + '</li>'; }).join('');
+        excludedHtml = '<strong>' + badVideos.length + ' file(s) excluded.</strong> Convert to MP4 first (the site’s player paths are .mp4-only):<ul>' + list + '</ul>';
+      }
+
+      projGenBtn.disabled = true;
+      var id = pad(nextNum);
+
+      buildProjectZip(id, images, okVideos)
+        .then(function (blob) {
+          triggerDownload(blob, 'project-' + id + '.zip');
+          renderProjectOutput(id, title, location, desc, type, images.length, okVideos.length);
+
+          var combined = notes.join(' ');
+          if (excludedHtml) combined += (combined ? '<br>' : '') + excludedHtml;
+          setNotice('proj-notice', combined || '<strong>Done.</strong> ZIP downloaded as project-' + id + '.zip.', !!excludedHtml);
+
+          // Advance counter for next project
+          nextNum = Math.min(nextNum + 1, 99);
+          localStorage.setItem(NUM_KEY, nextNum);
+          renderBadge();
+
+          var out = document.getElementById('proj-output');
+          out.classList.add('visible');
+          out.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        })
+        .catch(function (err) {
+          setNotice('proj-notice', '<strong>Something went wrong:</strong> ' + esc(String(err && err.message || err)), true);
+        })
+        .then(function () {
+          projGenBtn.disabled = false;
+          hideProgress('proj-progress');
+        });
+    });
+
+    function setRadioType(value) {
+      var el = document.querySelector('input[name="proj-type"][value="' + value + '"]');
+      if (el) el.checked = true;
+    }
+
+    function buildProjectZip(id, images, okVideos) {
+      var zip = new JSZip();
+      var base = 'assets/projects/' + id + '/';
+      var total = 1 + images.length + okVideos.length; // thumbnail + images + videos
+      var done = 0;
+      showProgress('proj-progress-bar', 'proj-progress-label', 'proj-progress', 1, 'Converting thumbnail…');
+
+      function step(label) {
+        done++;
+        showProgress('proj-progress-bar', 'proj-progress-label', 'proj-progress', (done / total) * 90, label);
+      }
+
+      // Thumbnail (re-encoded to JPEG)
+      var chain = imageToJpegBlob(thumbFile).then(function (blob) {
+        zip.file(base + 'thumbnail/thumbnail.jpg', blob);
+        step('Converting images…');
+      });
+
+      // Images → images/NN.jpg (grid order)
+      images.forEach(function (g, i) {
+        chain = chain.then(function () {
+          return imageToJpegBlob(g.file).then(function (blob) {
+            zip.file(base + 'images/' + pad(i + 1) + '.jpg', blob);
+            step('Converting images… (' + (i + 1) + '/' + images.length + ')');
+          });
+        });
+      });
+
+      // Videos → videos/NN.mp4 (byte-for-byte, grid order)
+      okVideos.forEach(function (g, i) {
+        chain = chain.then(function () {
+          zip.file(base + 'videos/' + pad(i + 1) + '.mp4', g.file);
+          step('Adding videos… (' + (i + 1) + '/' + okVideos.length + ')');
+        });
+      });
+
+      return chain.then(function () {
+        showProgress('proj-progress-bar', 'proj-progress-label', 'proj-progress', 92, 'Zipping…');
+        return zip.generateAsync({ type: 'blob', compression: 'STORE' }, function (meta) {
+          showProgress('proj-progress-bar', 'proj-progress-label', 'proj-progress', 92 + meta.percent * 0.08, 'Zipping… ' + Math.round(meta.percent) + '%');
+        });
+      });
+    }
+
+    function renderProjectOutput(id, title, location, desc, type, imageCount, videoCount) {
+      var delay = (parseInt(id, 10) - 1) % 3;
+      var delayAttr = delay > 0 ? '\n     data-reveal-delay="' + delay + '"' : '';
+
+      var metaPrefix = type === 'video' ? 'Film' :
+                       type === 'photo+video' ? 'Photo + Film' : 'Photowalk';
+      var meta = metaPrefix + (location ? ' · ' + location : '');
+
+      var typeLabel = type === 'video' ? 'Film' :
+                      type === 'photo+video' ? 'Photo + Film' : 'Photo Series';
+
+      var html =
+        '<li>\n' +
+        '  <a class="index__item" href="project.html?id=' + id + '" data-reveal' + delayAttr + '\n' +
+        '     data-thumb="assets/projects/' + id + '/thumbnail/thumbnail.jpg" data-type="' + type + '"\n' +
+        '     data-meta="' + esc(meta) + '">\n' +
+        '    <span class="index__num">' + id + '</span>\n' +
+        '    <span class="index__title" data-title="' + esc(title) + '">' + esc(title) + '</span>\n' +
+        '    <span class="index__cue" aria-hidden="true">View project →</span>\n' +
+        '  </a>\n' +
+        '</li>';
+
+      var data =
+        '{\n' +
+        "  id: '" + id + "',\n" +
+        "  title: '" + jsStr(title) + "',\n" +
+        "  type: '" + type + "',\n" +
+        "  typeLabel: '" + typeLabel + "',\n" +
+        "  meta: '" + jsStr(meta) + "',\n" +
+        "  description: '" + jsStr(desc) + "',\n" +
+        '  imageCount: ' + imageCount +
+        (videoCount > 0 ? ',\n  videoCount: ' + videoCount + '\n' : '\n') +
+        '},';
+
+      document.getElementById('html-out').textContent = html;
+      document.getElementById('data-out').textContent = data;
+      document.getElementById('zip-hint').textContent = 'project-' + id + '.zip';
+    }
+
+    /* ════════════════════════════════════════════
+       REEL — STATE
+    ════════════════════════════════════════════ */
+    var REEL_KEY   = 'kta_reel_count';
+    var reelCountInput = document.getElementById('reel-count');
+    reelCountInput.value = parseInt(localStorage.getItem(REEL_KEY) || '59', 10);
+    reelCountInput.addEventListener('change', function () {
+      var v = parseInt(reelCountInput.value, 10);
+      if (isNaN(v) || v < 0) v = 0;
+      reelCountInput.value = v;
+      localStorage.setItem(REEL_KEY, v);
+    });
+
+    var reelDrop  = document.getElementById('reel-drop');
+    var reelInput = document.getElementById('reel-file');
+    var reelGrid  = document.getElementById('reel-grid');
+    var reelFiles = []; // { file }
+
+    function openReelPicker() { reelInput.value = ''; reelInput.click(); }
+    document.getElementById('reel-pick').addEventListener('click', function (e) { e.stopPropagation(); openReelPicker(); });
+    document.getElementById('reel-add-more').addEventListener('click', function (e) { e.stopPropagation(); openReelPicker(); });
+
+    reelDrop.addEventListener('click', function () {
+      if (reelFiles.length > 0) return;
+      openReelPicker();
+    });
+    reelInput.addEventListener('change', function () { addReelFiles(Array.from(reelInput.files)); });
+
+    reelDrop.addEventListener('dragover', function (e) { e.preventDefault(); reelDrop.classList.add('over'); });
+    reelDrop.addEventListener('dragleave', function () { reelDrop.classList.remove('over'); });
+    reelDrop.addEventListener('drop', function (e) {
+      e.preventDefault(); reelDrop.classList.remove('over');
+      addReelFiles(Array.from(e.dataTransfer.files).filter(isImage));
+    });
+
+    document.getElementById('reel-clear-all').addEventListener('click', function () {
+      reelFiles = [];
+      reelGrid.innerHTML = '';
+      reelDrop.classList.remove('has-files');
+    });
+
+    function addReelFiles(files) {
+      files.forEach(function (file) {
+        if (!isImage(file)) return;
+        var entry = { file: file };
+        reelFiles.push(entry);
+        renderReelCard(entry);
+      });
+      if (reelFiles.length > 0) reelDrop.classList.add('has-files');
+    }
+
+    function renderReelCard(entry) {
+      var card = document.createElement('div');
+      card.className = 'file-card';
+      var img = document.createElement('img');
+      img.alt = entry.file.name;
+      card.appendChild(img);
+      var r = new FileReader();
+      r.onload = function (e) { img.src = e.target.result; };
+      r.readAsDataURL(entry.file);
+
+      var removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'file-remove';
+      removeBtn.textContent = '✕';
+      removeBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var idx = reelFiles.indexOf(entry);
+        if (idx > -1) reelFiles.splice(idx, 1);
+        card.remove();
+        if (reelGrid.children.length === 0) reelDrop.classList.remove('has-files');
+      });
+      card.appendChild(removeBtn);
+
+      reelGrid.appendChild(card);
+    }
+
+    /* ════════════════════════════════════════════
+       REEL — GENERATE
+    ════════════════════════════════════════════ */
+    var reelGenBtn = document.getElementById('reel-generate');
+
+    document.getElementById('reel-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      setNotice('reel-notice', '');
+
+      if (reelFiles.length === 0) {
+        setNotice('reel-notice', '<strong>No images.</strong> Add at least one reel image.', true);
+        return;
+      }
+
+      var current = parseInt(reelCountInput.value, 10);
+      if (isNaN(current) || current < 0) current = 0;
+      var startNum = current + 1;
+      var newTotal = current + reelFiles.length;
+
+      if (newTotal > 99) {
+        setNotice('reel-notice', '<strong>Over the limit.</strong> Numbering only supports up to 99 (two digits). Reduce the batch.', true);
+        return;
+      }
+
+      reelGenBtn.disabled = true;
+
+      buildReelZip(startNum)
+        .then(function (blob) {
+          var firstName = pad(startNum);
+          var lastName  = pad(newTotal);
+          triggerDownload(blob, 'reel-add-' + firstName + '-' + lastName + '.zip');
+
+          document.getElementById('reel-zip-hint').textContent = 'reel-add-' + firstName + '-' + lastName + '.zip';
+          document.getElementById('reel-line-out').textContent = 'var REEL_COUNT = ' + newTotal + ';';
+
+          // Advance and persist the stored count to the new total
+          reelCountInput.value = newTotal;
+          localStorage.setItem(REEL_KEY, newTotal);
+
+          setNotice('reel-notice', '<strong>Done.</strong> Added images ' + firstName + '–' + lastName + '. New REEL_COUNT is ' + newTotal + '.');
+
+          var out = document.getElementById('reel-output');
+          out.classList.add('visible');
+          out.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        })
+        .catch(function (err) {
+          setNotice('reel-notice', '<strong>Something went wrong:</strong> ' + esc(String(err && err.message || err)), true);
+        })
+        .then(function () {
+          reelGenBtn.disabled = false;
+          hideProgress('reel-progress');
+        });
+    });
+
+    function buildReelZip(startNum) {
+      var zip = new JSZip();
+      var total = reelFiles.length;
+      var done = 0;
+      showProgress('reel-progress-bar', 'reel-progress-label', 'reel-progress', 1, 'Converting images…');
+
+      var chain = Promise.resolve();
+      reelFiles.forEach(function (entry, i) {
+        chain = chain.then(function () {
+          return imageToJpegBlob(entry.file).then(function (blob) {
+            zip.file('assets/reel/' + pad(startNum + i) + '.jpg', blob);
+            done++;
+            showProgress('reel-progress-bar', 'reel-progress-label', 'reel-progress', (done / total) * 90, 'Converting images… (' + done + '/' + total + ')');
+          });
+        });
+      });
+
+      return chain.then(function () {
+        showProgress('reel-progress-bar', 'reel-progress-label', 'reel-progress', 92, 'Zipping…');
+        return zip.generateAsync({ type: 'blob', compression: 'STORE' }, function (meta) {
+          showProgress('reel-progress-bar', 'reel-progress-label', 'reel-progress', 92 + meta.percent * 0.08, 'Zipping… ' + Math.round(meta.percent) + '%');
+        });
+      });
+    }
+
+    /* ════════════════════════════════════════════
+       COPY BUTTONS
+    ════════════════════════════════════════════ */
+    document.querySelectorAll('.copy-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var text = document.getElementById(btn.dataset.target).textContent;
+        navigator.clipboard.writeText(text).then(function () {
+          var el = document.getElementById(btn.dataset.confirm);
+          if (el) { el.classList.add('show'); setTimeout(function () { el.classList.remove('show'); }, 2200); }
+        });
+      });
+    });
+  </script>
+</body>
+</html>

@@ -8,7 +8,7 @@
    To add or update a project:
      1. Drop a thumbnail into  assets/projects/NN/thumbnail/
         and photos into       assets/projects/NN/images/
-        — name them thumbnail.jpg and 01.jpg, 02.jpg, ...
+        — name them thumbnail.webp and 01.webp, 02.webp, ...
         Videos (optional) go in assets/projects/NN/videos/
         — name them 01.mp4, 02.mp4, ... (pad-2, .mp4 only).
      2. Add or edit its entry below: title, type, meta line,
@@ -125,12 +125,12 @@ const PROJECTS = [
 /* Helpers — build asset paths from the manifest above so every
    page constructs them the exact same way. */
 function projectThumbnail(p) {
-  return `assets/projects/${p.id}/thumbnail/thumbnail.jpg`;
+  return `assets/projects/${p.id}/thumbnail/thumbnail.webp`;
 }
 
 function projectImages(p) {
   return Array.from({ length: p.imageCount }, (_, i) =>
-    `assets/projects/${p.id}/images/${String(i + 1).padStart(2, '0')}.jpg`
+    `assets/projects/${p.id}/images/${String(i + 1).padStart(2, '0')}.webp`
   );
 }
 
@@ -145,38 +145,4 @@ function projectVideos(p) {
 
 /* The ordered media list the mosaic actually renders. Videos are
    woven *evenly* in among the images rather than dumped at the end:
-   for I images and V videos, drop one video in after every
-   ceil(I / (V + 1)) images, with any leftover videos trailing at
-   the close. A video-only project (I = 0) is simply its videos in
-   order. Returns {kind:'image'|'video', src} items. */
-function projectMedia(p) {
-  const images = projectImages(p).map((src) => ({ kind: 'image', src }));
-  const videos = projectVideos(p).map((src) => ({ kind: 'video', src }));
-
-  if (!videos.length) return images;
-  if (!images.length) return videos;
-
-  const gap = Math.ceil(images.length / (videos.length + 1));
-  const media = [];
-  let v = 0;
-
-  images.forEach((item, i) => {
-    media.push(item);
-    if ((i + 1) % gap === 0 && v < videos.length) {
-      media.push(videos[v]);
-      v += 1;
-    }
-  });
-
-  // Any videos that didn't fit between images trail at the end.
-  while (v < videos.length) {
-    media.push(videos[v]);
-    v += 1;
-  }
-
-  return media;
-}
-
-function getProjectById(id) {
-  return PROJECTS.find((p) => p.id === id);
-}
+ 

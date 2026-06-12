@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KabTakAayush — Visual Storyteller</title>
+  <meta name="description" content="Aayush — photography &amp; film. Crafting frames worth keeping." />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="is-landing">
+  <div class="grain"></div>
+
+  <nav class="nav">
+    <a href="index.html" class="nav__mark">
+      <img src="assets/images/logo.png" alt="KabTakAayush" class="nav__logo"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" />
+      <span class="nav__mark-fallback" style="display:none;">KabTakAayush</span>
+    </a>
+    <ul class="nav__links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="projects.html">Projects</a></li>
+      <li><a href="about.html">About</a></li>
+    </ul>
+  </nav>
+
+  <!-- ============ LANDING — single non-scrolling viewport ============
+       The whole home page lives in one screen: headline up top,
+       the about copy sitting at middle-left, and a horizontal reel
+       of frames drifting continuously along the bottom — the page
+       itself never scrolls vertically. script.js animates the track
+       at a constant speed and wraps its translation modulo half the
+       track's width; the frame set is duplicated back-to-back so the
+       loop repeats seamlessly forever, like a film reel feeding
+       through a projector. Hover pauses it to study a frame. ======= -->
+  <main class="landing" id="landing">
+    <div class="landing__copy-wrap">
+      <div class="landing__intro">
+        <h1 class="landing__title" id="landing-title">
+          <span class="line"><span>Frames Worth</span></span>
+          <span class="line"><span class="accent">Keeping.</span></span>
+        </h1>
+      </div>
+
+      <div class="landing__about">
+        <div class="landing__links" data-reveal data-reveal-delay="2">
+          <a class="btn" href="projects.html">View Projects</a>
+          <a class="btn btn--ghost" href="https://www.instagram.com/kabtakaayush/" target="_blank" rel="noopener noreferrer">See Instagram ↗</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="landing__reel" aria-label="Selected frames — drifting continuously, hover to pause">
+      <div class="landing__track" id="landing-track">
+        <figure class="landing__frame"><img src="assets/reel/01.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/02.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/03.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/04.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/05.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/06.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/07.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/08.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/09.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/10.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/11.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/12.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/13.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/14.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/15.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/16.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/17.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/18.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/19.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/20.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/21.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/22.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/23.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/24.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/25.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/26.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/27.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/28.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/29.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/30.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/31.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/32.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/33.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/34.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/35.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/36.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/37.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/38.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/39.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/40.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/41.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/42.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/43.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/44.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/45.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/46.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/47.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/48.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/49.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/50.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/51.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/52.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/53.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/54.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/55.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/56.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/57.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/58.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/59.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/60.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/61.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/62.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/63.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/64.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/65.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/66.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/67.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/68.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/69.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/70.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/71.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/72.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/73.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/74.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/75.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/76.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/77.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/78.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/79.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/80.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/81.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/82.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/83.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/84.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/85.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/86.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/87.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/88.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/89.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/90.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/91.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/92.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/93.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/94.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/95.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/96.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/97.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/98.webp" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/99.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/01.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/02.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/03.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/04.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/05.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/06.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/07.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/08.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/09.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/10.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/11.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/12.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/13.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/14.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/15.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/16.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/17.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/18.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/19.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/20.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/21.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/22.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/23.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/24.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/25.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/26.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/27.webp" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/28.webp" alt="" /></figure>
+        <figure

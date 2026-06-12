@@ -352,7 +352,7 @@
 
     for (var j = 0; j < REEL_COUNT; j++) {
       (function (idx) {
-        loader.load('assets/reel/' + pad2(idx + 1) + '.jpg', function (tex) {
+        loader.load('assets/reel/' + pad2(idx + 1) + '.webp', function (tex) {
           reelTex[idx] = prepTex(tex);
           tick();
         }, undefined, tick); // count errors too so loader never stalls
