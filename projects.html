@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Projects — KabTakAayush</title>
+  <meta name="description" content="A collection of photo and film projects by Aayush." />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="grain"></div>
+
+  <nav class="nav">
+    <a href="index.html" class="nav__mark">
+      <img src="assets/images/logo.png" alt="KabTakAayush" class="nav__logo"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" />
+      <span class="nav__mark-fallback" style="display:none;">KabTakAayush</span>
+    </a>
+    <ul class="nav__links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="projects.html" aria-current="page">Projects</a></li>
+      <li><a href="about.html">About</a></li>
+    </ul>
+  </nav>
+
+  <!-- ============ PROJECT INDEX ============
+       A title list on the left, the wordmark fixed and centered as a
+       still pivot, and a thumbnail preview on the right that swaps to
+       match whichever title is being hovered or focused. script.js
+       drives the swap and the active-state bookkeeping; the arrow +
+       sliding underline on each title is the "click me" cue. ======= -->
+  <section class="index" id="project-index" aria-label="Project index">
+
+    <ul class="index__list" id="project-index-list">
+
+      <li>
+        <a class="index__item is-active" href="project.html?id=01" data-reveal
+           data-thumb="assets/projects/01/thumbnail/thumbnail.jpg" data-type="photo"
+           data-meta="Photowalk · Mumbai">
+          <span class="index__num">01</span>
+          <span class="index__title" data-title="Supreme">Supreme</span>
+          <span class="index__cue" aria-hidden="true">View project →</span>
+        </a>
+      </li>
+
+      <li>
+        <a class="index__item" href="project.html?id=02" data-reveal data-reveal-delay="1"
+           data-thumb="assets/projects/02/thumbnail/thumbnail.jpg" data-type="photo"
+           data-meta="Photowalk · India">
+          <span class="index__num">02</span>
+          <span class="index__title" data-title="Tricking Fishes">Tricking Fishes</span>
+          <span class="index__cue" aria-hidden="true">View project →</span>
+        </a>
+      </li>
+
+      <li>
+        <a class="index__item" href="project.html?id=03" data-reveal data-reveal-delay="2"
+           data-thumb="assets/projects/03/thumbnail/thumbnail.jpg" data-type="photo"
+           data-meta="Photowalk · Sassoon Docks, Mumbai">
+          <span class="index__num">03</span>
+          <span class="index__title" data-title="Sassooooon">Sassooooon</span>
+          <span class="index__cue" aria-hidden="true">View project →</span>
+        </a>
+      </li>
+
+      <li>
+        <a class="index__item" href="project.html?id=04" data-reveal
+           data-thumb="assets/projects/04/thumbnail/thumbnail.jpg" data-type="photo"
+           data-meta="Photowalk · Curated Series">
+          <span class="index__num">04</span>
+          <span class="index__title" data-title="Nawab Shit">Nawab Shit</span>
+          <span class="index__cue" aria-hidden="true">View project →</span>
+        </a>
+      </li>
+
+      <li>
+        <a class="index__item" href="project.html?id=05" data-reveal data-reveal-delay="1"
+           data-thumb="assets/projects/05/thumbnail/thumbnail.jpg" data-type="photo"
+           data-meta="Photowalk · On the Move">
+          <span class="index__num">05</span>
+          <span class="index__title" data-title="Nomad Shit">Nomad Shit</span>
+          <span class="index__cue" aria-hidden="true">View project →</span>
+        </a>
+      </li>
+
+      <li>
+        <a class="index__item" href="project.html?id=06" data-reveal data-reveal-delay="2"
+           data-thumb="assets/projects/06/thumbnail/thumbnail.jpg" data-type="photo"
+           data-meta="Photowalk · Nandi Hills">
+          <span class="index__num">06</span>
+          <span class="index__title" data-title="Nandi Hills">Nandi Hills</span>
+          <span class="index__cue" aria-hidden="true">View project →</span>
+        </a>
+      </li>
+
+      <li>
+        <a class="index__item" href="project.html?id=07" data-reveal data-reveal-delay="0"
+           data-thumb="assets/projects/07/thumbnail/thumbnail.jpg" data-type="film"
+           data-meta="Film · Banganga">
+          <span class="index__num">07</span>
+          <span class="index__title" data-title="Water that was still">Water that was still</span>
+          <span class="index__cue" aria-hidden="true">View project →</span>
+        </a>
+      </li>
+
+      <li>
+        <a class="index__item" href="project.html?id=08" data-reveal data-reveal-delay="1"
+           data-thumb="assets/projects/08/thumbnail/thumbnail.jpg" data-type="photo"
+           data-meta="Photowalk · Mumbai">
+          <span class="index__num">08</span>
+          <span class="index__title" data-title="Supreme 2">Supreme 2</span>
+          <span class="index__cue" aria-hidden="true">View project →</span>
+        </a>
+      </li>
+
+      <li>
+        <a class="index__item" href="project.html?id=09" data-reveal data-reveal-delay="2"
+           data-thumb="assets/projects/09/thumbnail/thumbnail.jpg" data-type="photo"
+           data-meta="Photowalk · Dadar">
+          <span class="index__num">09</span>
+          <span class="index__title" data-title="Lights and Shadows">Lights and Shadows</span>
+          <span class="index__cue" aria-hidden="true">View project →</span>
+        </a>
+      </li>
+
+      <li>
+        <a class="index__item" href="project.html?id=10" data-reveal data-reveal-delay="0"
+           data-thumb="assets/projects/10/thumbnail/thumbnail.jpg" data-type="photo"
+           data-meta="Photowalk · Bandra">
+          <span class="index__num">10</span>
+          <span class="index__title" data-title="Before Christmas">Before Christmas</span>
+          <span class="index__cue" aria-hidden="true">View project →</span>
+        </a>
+      </li>
+
+      <li>
+        <a class="index__item" href="project.html?id=11" data-reveal data-reveal-delay="1"
+           data-thumb="assets/projects/11/thumbnail/thumbnail.jpg" data-type="photo"
+           data-meta="Photowalk · Mumbai">
+          <span class="index__num">11</span>
+          <span class="index__title" data-title="Chor Bazaar">Chor Bazaar</span>
+          <span class="index__cue" aria-hidden="true">View project →</span>
+        </a>
+      </li>
+
+    </ul>
+
+    <div class="index__mark" aria-hidden="true">
+      <img src="assets/images/logo.png" alt="" class="index__logo"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" />
+      <span class="index__logo-fallback" style="display:none;">KTA</span>
+    </div>
+
+    <div class="index__preview" aria-hidden="true">
+      <figure class="index__preview-frame">
+        <img class="index__preview-img" id="project-index-preview-img"
+             src="assets/projects/01/thumbnail/thumbnail.jpg" alt="" />
+      </figure>
+      <p class="index__preview-meta" id="project-index-preview-meta">Photowalk · Mumbai</p>
+    </div>
+
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="footer">
+    <div class="footer__grid">
+      <div>
+        <p class="footer__cta" data-reveal>
+          Have an idea?<br />I'm <span class="accent">suspiciously available.</span>
+        </p>
+      </div>
+      <div class="footer__col" data-reveal data-reveal-delay="1">
+        <h4>Where to yell at me</h4>
+        <a href="mailto:aayushtrivedi808080@gmail.com">aayushtrivedi808080@gmail.com</a>
+        <a href="https://www.instagram.com/kabtakaayush/" target="_blank" rel="noopener noreferrer">Instagram ↗</a>
+        <a href="index.html">Home</a>
+      </div>
+      <div class="footer__col" data-reveal data-reveal-delay="2">
+        <h4>Homebase, allegedly</h4>
+        <p>Mumbai, India</p>
+      </div>
+    </div>
+    <!-- Remove "footer__wordmark--piano" below to fall back to the steady gold-warm hover -->
+    <p class="footer__wordmark footer__wordmark--piano" aria-hidden="true">KabTakAayush</p>
+    <div class="footer__base">
+      <span>© 2026 Aayush. All rights reserved.</span>
+      <span>Photography · Film · Storytelling</span>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
+                                                 

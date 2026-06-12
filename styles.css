@@ -1,0 +1,2233 @@
+/* ============================================================
+   KabTakAayush — Portfolio
+   Design language: cinematic black & gold, condensed display
+   type, generous negative space, motion tied to scroll/hover.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600&display=swap');
+
+:root {
+  --black: #0a0a0a;
+  --black-soft: #141412;
+  --gold: #e3b23c;
+  --gold-dim: #a8822c;
+  --cream: #f3ede1;
+  --grey: #8c887e;
+  --line: rgba(243, 237, 225, 0.12);
+
+  --display: 'Anton', 'Archivo Black', sans-serif;
+  --text: 'Archivo', sans-serif;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+
+  --nav-h: 84px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  /* Reserve the scrollbar lane at all times so the layout never shifts
+     when a scrollbar appears or disappears (e.g. at intro end on
+     Windows where classic scrollbars consume ~17 px of page width). */
+  scrollbar-gutter: stable;
+}
+
+body {
+  background: var(--black);
+  color: var(--cream);
+  font-family: var(--text);
+  -webkit-font-smoothing: antialiased;
+  /* Browsers default to an I-beam over any text, implying it's
+     editable — it isn't. Force the plain arrow everywhere, then
+     hand `pointer` back explicitly to links and other clickable
+     elements below, so only genuinely interactive things look it. */
+  cursor: default;
+}
+
+/* Home page only — the landing experience is a single fixed
+   viewport; vertical page scroll is locked so wheel/touch input
+   can be redirected into horizontal motion of the reel instead. */
+body.is-landing {
+  height: 100vh;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.is-landing {
+    height: auto;
+    overflow: visible;
+  }
+}
+
+img, video {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+::selection {
+  background: var(--gold);
+  color: var(--black);
+}
+
+/* Subtle film-grain overlay across the whole site */
+.grain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 200;
+  /* `overlay` barely moves a base this close to black — it scales any
+     blend value by `2 × base`, which caps the visible swing at ~0.08
+     of full range. `soft-light` is gentler in general but reads far
+     more evenly across both the near-black body and the cream cards,
+     so a small opacity bump here actually shows up as grain instead
+     of vanishing into the background. */
+  opacity: 0.07;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ============================================================
+   Nav
+   ============================================================ */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--nav-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 48px;
+  z-index: 100;
+  background: linear-gradient(to bottom, rgba(10,10,10,0.85) 0%, rgba(10,10,10,0.55) 70%, rgba(10,10,10,0) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.nav__mark {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--display);
+  font-size: 20px;
+  letter-spacing: 0.04em;
+  transition: opacity 160ms var(--ease-out);
+}
+
+.nav__mark:hover {
+  opacity: 0.7;
+}
+
+.nav__logo {
+  height: 200px; /* 40px + 400% — overflows the 84px nav bar by design, like a badge sitting on top of it */
+  width: auto;
+  flex-shrink: 0;
+  display: block;
+  object-fit: contain;
+  transform: translateY(20px);
+}
+
+.nav__mark-fallback {
+  font-family: var(--display);
+  font-size: 20px;
+  letter-spacing: 0.04em;
+}
+
+.nav__links {
+  display: flex;
+  gap: 40px;
+  list-style: none;
+}
+
+.nav__links a {
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  position: relative;
+  padding-bottom: 4px;
+}
+
+.nav__links a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 220ms var(--ease-out);
+}
+
+.nav__links a:hover::after,
+.nav__links a[aria-current="page"]::after {
+  transform: scaleX(1);
+}
+
+/* ============================================================
+   Layout helpers
+   ============================================================ */
+.section {
+  position: relative;
+  padding: 0 48px;
+}
+
+.eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+/* Back-to-projects button — sits on its own line above the eyebrow
+   on every project detail page, sized and styled like a real button
+   (same gold fill-sweep language as `.btn`) so it reads as the clear,
+   first "get me out of here" control rather than a buried text link. */
+.back-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
+  padding: 13px 24px 13px 18px;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--cream);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  transition: color 200ms var(--ease-out), border-color 200ms var(--ease-out), transform 160ms var(--ease-out);
+}
+
+.back-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--gold);
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 320ms var(--ease-out);
+  z-index: -1;
+}
+
+.back-btn:hover,
+.back-btn:focus-visible {
+  color: var(--black);
+  border-color: var(--gold);
+}
+
+.back-btn:hover::before,
+.back-btn:focus-visible::before {
+  clip-path: inset(0 0 0 0);
+}
+
+.back-btn:active {
+  transform: scale(0.97);
+}
+
+.back-btn__arrow {
+  display: inline-block;
+  transition: transform 220ms var(--ease-out);
+}
+
+.back-btn:hover .back-btn__arrow,
+.back-btn:focus-visible .back-btn__arrow {
+  transform: translateX(-4px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .back-btn,
+  .back-btn::before,
+  .back-btn__arrow {
+    transition: none;
+  }
+}
+
+.sprocket {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.sprocket span {
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   Reveal-on-scroll utility
+   ============================================================ */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(28px);
+  filter: blur(6px);
+  transition: opacity 700ms var(--ease-out),
+              transform 700ms var(--ease-out),
+              filter 700ms var(--ease-out);
+}
+
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+[data-reveal-delay="1"] { transition-delay: 80ms; }
+[data-reveal-delay="2"] { transition-delay: 160ms; }
+[data-reveal-delay="3"] { transition-delay: 240ms; }
+[data-reveal-delay="4"] { transition-delay: 320ms; }
+
+/* ============================================================
+   Hero
+   ============================================================ */
+/* ============================================================
+   Landing — single non-scrolling viewport
+   The whole home page lives inside one screen (height: 100vh,
+   overflow hidden via body.is-landing). The headline sits top
+   left, the about copy sits at middle-left below it, and a
+   horizontal reel of frames runs along the bottom — wheel/touch
+   input is captured in script.js and converted into horizontal
+   track motion (scroll-jacking) instead of page scroll.
+   ============================================================ */
+.landing {
+  position: relative;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.landing__copy-wrap {
+  position: absolute;
+  top: var(--nav-h);
+  bottom: 46vh;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 40px 48px;
+  pointer-events: none;
+}
+
+.landing__copy-wrap > * {
+  pointer-events: auto;
+}
+
+.landing__title {
+  margin-top: 18px;
+  font-family: var(--display);
+  font-weight: 400;
+  text-transform: uppercase;
+  line-height: 0.86;
+  letter-spacing: -0.01em;
+  font-size: clamp(48px, 9vw, 132px);
+}
+
+.landing__title .line {
+  display: block;
+  overflow: hidden;
+}
+
+.landing__title .line span {
+  display: inline-block;
+  transform: translateY(110%);
+  transition: transform 900ms var(--ease-out);
+}
+
+.landing__title .line:nth-child(1) span { transition-delay: 80ms; }
+.landing__title .line:nth-child(2) span { transition-delay: 180ms; }
+
+.landing.is-loaded .landing__title .line span {
+  transform: translateY(0);
+}
+
+/* Reel stays hidden until JS has measured, pre-positioned, and
+   armed the entrance sweep — then fades in as the track slides right. */
+.landing.is-reel-ready .landing__reel {
+  opacity: 1;
+}
+
+.landing__title .accent {
+  color: var(--gold);
+}
+
+.landing__about {
+  max-width: 420px;
+}
+
+.landing__about p {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--grey);
+  letter-spacing: 0.01em;
+}
+
+.landing__about strong {
+  color: var(--cream);
+  font-weight: 500;
+}
+
+.landing__links {
+  margin-top: 26px;
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* ============================================================
+   Landing reel — horizontal frame strip along the bottom
+   Wheel/touch input is captured on .landing (script.js) and
+   converted into a horizontal translateX of .landing__track —
+   no native scrolling involved. Frames grow left → right; the
+   sequence is duplicated and the translation wraps modulo half
+   the track width, so the loop never visibly resets.
+   ============================================================ */
+.landing__reel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 46vh;
+  display: flex;
+  align-items: flex-end;
+  /* Hidden until settleReel() has pre-positioned the track — prevents the
+     scale-1 → grow-curve pop and the zero-motion awkward appearance. */
+  opacity: 0;
+  transition: opacity 400ms var(--ease-out);
+  /* No `overflow: hidden` here on purpose — the 46vh band only sets
+     where frames anchor and how the position → scale gradient is
+     measured. It must NOT also cap how tall a grown frame can paint,
+     or every frame would be invisibly guillotined the moment it
+     crossed this line — the exact ceiling you were running into.
+     `.landing` (the outer section, just below) still clips at the
+     viewport edge, and the headline sits in a higher stacking layer,
+     so growth is free to spill upward over the copy without breaking
+     the single-viewport layout or burying the text. */
+}
+
+.landing__track {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  width: max-content;
+  /* No horizontal padding, no gap — frames butt up edge-to-edge so the
+     looped sequence repeats with a perfectly uniform rhythm (frame,
+     frame, frame, ...). Any spacing here would only exist once, at the
+     very ends of the track, so the seam between the duplicated set and
+     the original would carry a different rhythm than every other
+     frame-to-frame transition — that mismatch is what reads as a
+     snap/jitter at the loop point. Edge-to-edge flow keeps the rhythm —
+     and the loop — truly seamless. */
+  padding: 0 0 28px;
+  will-change: transform;
+}
+
+.landing__frame {
+  position: relative;
+  flex-shrink: 0;
+  margin: 0;
+  /* `transform: scale()` never changes a flex child's box — only its
+     paint. A frame shrunk to 0.5x still occupies its full-size slot in
+     the row, so it visually pulls inward from its neighbours on EVERY
+     side equally — that breathing room is an honest, inherent result
+     of scaling paint without reflowing layout, not a bug to mask.
+     (An earlier attempt to hide it by overlapping frame boxes ended up
+     hiding only their left/right growth — since they grow upward from
+     a shared baseline, that made the vertical growth look like
+     disproportionate stretching. Leaving the box spacing alone keeps
+     growth visible, and proportional, on all sides.) */
+  overflow: hidden;
+  background: var(--black-soft);
+  width: clamp(175px, 18vw, 280px);
+  height: clamp(220px, 22vw, 340px);
+  /* Frames sit on a shared baseline (align-items: flex-end on the
+     track), so they grow upward from that line — matching how the
+     reference reel's images expand without breaking the row's footing. */
+  transform-origin: center bottom;
+  /* Promote each frame to its own compositing layer so the browser
+     moves the already-rasterized (filtered) image as a texture during
+     the track's transform, instead of re-rasterizing the grayscale
+     filter on every frame — that re-rasterization at sub-pixel offsets
+     is what reads as "jitter" or shimmer while scrolling. Size is no
+     longer a fixed xs/sm/md/lg/xl step: script.js drives --frame-scale
+     every frame from each image's live horizontal position — smallest
+     at the left edge, largest at the right, continuously interpolated
+     as it crosses the strip, exactly like the reference reel. */
+  transform: translateZ(0) scale(var(--frame-scale, 1));
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+.landing__frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 600ms var(--ease-out), filter 600ms var(--ease-out);
+  filter: grayscale(0.55) contrast(1.05);
+}
+
+.landing__frame:hover img {
+  transform: scale(1.05);
+  filter: grayscale(0) contrast(1.05);
+}
+
+.landing__frame {
+  cursor: pointer;
+}
+
+/* ---------- Reel preview — small, click-anchored "loose print" ----------
+   Not a centred modal — a little paper print that lands right where
+   the visitor clicked, shown at its true, uncropped aspect ratio (the
+   reel thumbnails are `object-fit: cover`-cropped; this is the whole
+   frame). A scrap of "tape" and a faint random tilt give it the
+   unplanned, hand-placed feel of something pulled from a contact sheet
+   and stuck up on the spot — artistic and a little untidy on purpose,
+   but built on the same disciplined grid as everything else here.
+   It blooms open — and, on the next click anywhere on the reel or on
+   the print itself, folds back shut — through a circular clip-path
+   whose centre script.js pins to the exact clicked pixel each time
+   (`--reveal-x`/`--reveal-y`), so the motion always radiates from
+   wherever the visitor's attention actually is. */
+.landing__preview {
+  position: fixed;
+  z-index: 90;
+  display: block;
+  padding: 14px 14px 40px;
+  background: var(--cream);
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  transform: rotate(var(--tilt, -2deg));
+  clip-path: circle(0% at var(--reveal-x, 50%) var(--reveal-y, 50%));
+  visibility: hidden;
+  transition: clip-path 540ms var(--ease-out), visibility 0s linear 540ms;
+}
+
+.landing__preview.is-active {
+  clip-path: circle(170% at var(--reveal-x, 50%) var(--reveal-y, 50%));
+  visibility: visible;
+  transition: clip-path 540ms var(--ease-out), visibility 0s linear 0s;
+}
+
+.landing__preview::before {
+  /* A scrap of masking tape pinning the print in place — the kind of
+     unplanned, handmade detail that makes a flat image feel physically
+     set down rather than rendered. */
+  content: '';
+  position: absolute;
+  top: -11px;
+  left: 24px;
+  width: 56px;
+  height: 20px;
+  background: rgba(227, 178, 60, 0.32);
+  border: 1px solid rgba(227, 178, 60, 0.45);
+  transform: rotate(-5deg);
+}
+
+.landing__preview-img {
+  display: block;
+  object-fit: contain;
+  background: var(--black-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing__preview,
+  .landing__preview.is-active {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing { height: auto; overflow: visible; }
+  .landing__copy-wrap { position: relative; bottom: auto; inset: auto; min-height: 70vh; }
+  .landing__reel { position: relative; height: auto; opacity: 1; transition: none; }
+  .landing__track { transform: none !important; overflow-x: auto; padding: 24px; }
+}
+
+/* ============================================================
+   Buttons
+   ============================================================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 30px;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  border: 1px solid var(--line);
+  position: relative;
+  overflow: hidden;
+  transition: transform 160ms var(--ease-out), border-color 200ms var(--ease-out), color 200ms var(--ease-out);
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--gold);
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 320ms var(--ease-out);
+  z-index: -1;
+}
+
+.btn:hover {
+  color: var(--black);
+  border-color: var(--gold);
+}
+
+.btn:hover::before {
+  clip-path: inset(0 0 0 0);
+}
+
+.btn--ghost {
+  border-color: var(--line);
+}
+
+/* ============================================================
+   Project grid cards
+   ============================================================ */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--black);
+}
+
+.card {
+  position: relative;
+  background: var(--black);
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+}
+
+.card__media {
+  position: absolute;
+  inset: 0;
+}
+
+.card__media img,
+.card__media video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(0.6) brightness(0.8);
+  transform: scale(1.06);
+  transition: transform 700ms var(--ease-out), filter 500ms var(--ease-out);
+}
+
+.card:hover .card__media img,
+.card:hover .card__media video {
+  transform: scale(1);
+  filter: grayscale(0) brightness(0.92);
+}
+
+.card__overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 28px;
+  background: linear-gradient(to top, rgba(10,10,10,0.92) 0%, rgba(10,10,10,0.05) 60%);
+}
+
+.card__type {
+  align-self: flex-start;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold);
+  border: 1px solid var(--gold-dim);
+  padding: 5px 10px;
+  margin-bottom: auto;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out);
+}
+
+.card:hover .card__type {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.card__title {
+  font-family: var(--display);
+  font-size: clamp(22px, 2.6vw, 30px);
+  text-transform: uppercase;
+  line-height: 1.05;
+  transform: translateY(8px);
+  transition: transform 280ms var(--ease-out);
+}
+
+.card:hover .card__title {
+  transform: translateY(0);
+}
+
+.card__meta {
+  margin-top: 8px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--grey);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 220ms var(--ease-out) 40ms, transform 220ms var(--ease-out) 40ms;
+}
+
+.card:hover .card__meta {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 1px solid transparent;
+    transition: border-color 240ms var(--ease-out);
+    pointer-events: none;
+  }
+  .card:hover::after {
+    border-color: var(--gold);
+  }
+}
+
+@media (max-width: 980px) {
+  .grid { grid-template-columns: repeat(2, 1fr); }
+  .landing__copy-wrap { bottom: 50vh; }
+  .landing__reel { height: 50vh; }
+}
+
+@media (max-width: 640px) {
+  .grid { grid-template-columns: 1fr; }
+  .nav { padding: 0 24px; }
+  .nav__links { gap: 22px; }
+  .section { padding-left: 24px; padding-right: 24px; }
+  .landing__copy-wrap { padding: 28px 24px; bottom: 54vh; }
+  .landing__about { max-width: none; }
+  .landing__track { padding: 0 0 20px; gap: 0; }
+}
+
+/* ============================================================
+   Page header (Projects)
+   ============================================================ */
+.page-head {
+  padding: 200px 48px 80px;
+  border-top: 1px solid transparent;
+}
+
+.page-head__title {
+  font-family: var(--display);
+  text-transform: uppercase;
+  font-size: clamp(54px, 9vw, 120px);
+  line-height: 0.92;
+}
+
+.page-head__sub {
+  margin-top: 24px;
+  max-width: 560px;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--grey);
+}
+
+.filters {
+  margin-top: 40px;
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+.filters button {
+  background: none;
+  border: none;
+  color: var(--grey);
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding-bottom: 6px;
+  position: relative;
+  transition: color 200ms var(--ease-out);
+}
+
+.filters button::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 1px;
+  background: var(--gold);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 220ms var(--ease-out);
+}
+
+.filters button.is-active {
+  color: var(--cream);
+}
+
+.filters button.is-active::after {
+  transform: scaleX(1);
+}
+
+/* ============================================================
+   Project index (Projects page)
+   Title list ←→ wordmark (still pivot) ←→ thumbnail preview.
+   ============================================================ */
+.index {
+  display: grid;
+  grid-template-columns: 1.15fr auto 1fr;
+  align-items: stretch;
+  gap: 56px;
+  padding: 0 48px;
+  margin-top: var(--nav-h);
+  height: calc(100vh - var(--nav-h));
+  overflow: hidden;
+}
+
+/* The list is the one thing on this screen that scrolls — titles can
+   run long, the wordmark and preview stay put as still anchors either
+   side of it. A soft fade at both edges hints that more sits beyond. */
+.index__list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  /* "safe center" keeps a short list (today's five titles) sitting dead
+     centre on the screen — but the moment the list grows tall enough to
+     overflow, it falls back to start-aligned so nothing is ever stuck
+     unreachable above the fold. No breakpoint needed: it self-adjusts
+     as projects are added. */
+  justify-content: safe center;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 28px 22px 28px 0;
+  margin: 0;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
+  scrollbar-width: thin;
+  scrollbar-color: var(--gold-dim) transparent;
+}
+
+.index__list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.index__list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.index__list::-webkit-scrollbar-thumb {
+  background: var(--gold-dim);
+  border-radius: 3px;
+}
+
+.index__list li {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--line);
+}
+
+.index__list li:first-child {
+  border-top: 1px solid var(--line);
+}
+
+.index__item {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 22px;
+  padding: 22px 4px;
+  text-decoration: none;
+  color: var(--grey);
+  transition: color 280ms var(--ease-out), padding 280ms var(--ease-out);
+}
+
+.index__item::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  bottom: 0;
+  width: calc(100% - 8px);
+  height: 1px;
+  background: var(--gold);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 320ms var(--ease-out);
+}
+
+.index__num {
+  font-family: var(--text);
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: var(--gold-dim);
+  transition: color 280ms var(--ease-out);
+}
+
+/* Solid cream by default — same plain, confident type as everywhere
+   else on the site (no outline trick; that read as a half-rendered
+   font and looked off). A solid gold double sits exactly on top,
+   fully clipped out of view; hovering wipes that clip back from left
+   to right, so gold sweeps across the existing letterforms like a
+   light pass over a frame, rather than the title "filling in" from
+   nothing. `attr(data-title)` mirrors the visible text into the
+   overlay so both layers always read identically without duplicating
+   markup. */
+.index__title {
+  position: relative;
+  display: inline-block;
+  font-family: var(--display);
+  text-transform: uppercase;
+  font-size: clamp(28px, 4vw, 46px);
+  line-height: 1;
+  color: var(--cream);
+  /* Isolated nudge: only the title text glides right on hover/active —
+     the number stays anchored so the gold sweep passes across
+     stationary letterforms rather than chasing moving ones. */
+  transition: transform 300ms var(--ease-out);
+}
+
+.index__title::before {
+  content: attr(data-title);
+  position: absolute;
+  inset: 0;
+  color: var(--gold);
+  text-transform: inherit;
+  white-space: nowrap;
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 560ms var(--ease-out);
+  pointer-events: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .index__item:hover .index__title::before,
+  .index__item:focus-visible .index__title::before {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.index__item.is-active .index__title::before {
+  clip-path: inset(0 0 0 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .index__title::before {
+    transition: none;
+  }
+}
+
+/* "Clean visual cue" — a small gold prompt that slides into view,
+   telling the viewer plainly that the title is the click target. */
+.index__cue {
+  font-family: var(--text);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold);
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: opacity 280ms var(--ease-out), transform 280ms var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .index__item:hover,
+  .index__item:focus-visible {
+    color: var(--cream);
+    /* No whole-item padding nudge — the number stays put as a fixed
+       anchor; only the title glides right (see .index__title below),
+       so the gold sweep travels across stationary letterforms. */
+  }
+
+  .index__item:hover .index__num,
+  .index__item:focus-visible .index__num {
+    color: var(--gold);
+  }
+
+  .index__item:hover .index__title,
+  .index__item:focus-visible .index__title {
+    transform: translateX(10px);
+  }
+
+  .index__item:hover .index__cue,
+  .index__item:focus-visible .index__cue {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.index__item.is-active {
+  color: var(--cream);
+}
+
+.index__item.is-active::after {
+  transform: scaleX(1);
+}
+
+.index__item.is-active .index__num {
+  color: var(--gold);
+}
+
+.index__item.is-active .index__title {
+  transform: translateX(10px);
+}
+
+.index__item:focus-visible {
+  outline: none;
+}
+
+/* The wordmark — a still pivot between list and preview. It holds the
+   centre while the preview swaps, but rewards a hover: the dim grey
+   mark simply blooms into its full natural color — quiet, no glow,
+   no fuss. */
+.index__mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 12px;
+  opacity: 0.9;
+  /* Enters before the list items stagger in — quiet, no drama. */
+  animation: index-mark-enter 600ms var(--ease-out) 80ms both;
+}
+
+.index__logo {
+  width: clamp(120px, 12vw, 220px);
+  height: auto;
+  filter: grayscale(1) brightness(1.4);
+  transition: filter 460ms var(--ease-out), transform 460ms var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .index__mark:hover .index__logo {
+    filter: grayscale(0) brightness(1) saturate(1.1);
+    transform: scale(1.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .index__logo {
+    transition: none;
+  }
+  /* Cancel entrance choreography — mark and preview are visible from
+     the first frame at their resting state, no sliding or scaling. */
+  .index__mark,
+  .index__preview-frame {
+    animation: none;
+    opacity: 0.9; /* restore .index__mark resting value */
+  }
+  .index__preview-frame {
+    opacity: 1;
+  }
+  .index__title {
+    transition: none;
+  }
+  .index__preview-meta {
+    transition: none;
+  }
+}
+
+.index__logo-fallback {
+  font-family: var(--display);
+  text-transform: uppercase;
+  font-size: 44px;
+  letter-spacing: 0.08em;
+  color: var(--grey);
+}
+
+.index__preview {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+/* Capped to a share of the viewport's own height so the image always
+   sits fully on screen — never taller than the space below the nav. */
+.index__preview-frame {
+  position: relative;
+  height: min(74%, 640px);
+  width: auto;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  background: var(--black-soft);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
+  /* Enters after the mark — slides in from the right on page load,
+     completing the left→centre→right entrance read of the layout. */
+  animation: index-preview-enter 700ms var(--ease-out) 240ms both;
+}
+
+/* Slow continuous drift — the still preview never quite sits still,
+   the way a projected slide breathes faintly against the screen.
+   Runs independently of which thumbnail is currently loaded, so the
+   swap-fade (`opacity` transition below) and the drift never fight
+   over the same property. `overflow: hidden` on the frame crops the
+   excess, so nothing ever spills past its edge. */
+/* Page entrance — logo mark scales up from 88% opacity 0 → 0.9 */
+@keyframes index-mark-enter {
+  from { opacity: 0; transform: scale(0.88); }
+  to   { opacity: 0.9; transform: scale(1); }
+}
+
+/* Page entrance — preview frame slides in from the right column edge */
+@keyframes index-preview-enter {
+  from { opacity: 0; transform: translateX(32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes index-preview-drift {
+  from { transform: scale(1) translate(0, 0); }
+  to   { transform: scale(1.08) translate(-1.5%, -1.5%); }
+}
+
+.index__preview-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(0.5) brightness(0.85);
+  opacity: 1;
+  transform-origin: center;
+  transition: opacity 200ms ease-out;
+  /* `ease-in-out` (not --ease-out) so the return journey feels
+     identical to the outgoing drift — --ease-out is asymmetric:
+     fast start / slow end on the forward pass, which when reversed
+     for `alternate` becomes slow start / fast end going back. */
+  animation: index-preview-drift 22s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .index__preview-img {
+    animation: none;
+  }
+}
+
+.index__preview-meta {
+  margin-top: 16px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--grey);
+  /* Fades in/out with the image swap — script.js sets opacity 0/1
+     in step with the thumbnail crossfade so copy and photo change
+     as one unit rather than the text snapping while the image fades. */
+  transition: opacity 160ms ease-out;
+}
+
+@media (max-width: 980px) {
+  .index {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 24px;
+    padding: 16px 32px 32px;
+    height: auto;
+    min-height: calc(100vh - var(--nav-h));
+    overflow: visible;
+  }
+
+  .index__list {
+    height: auto;
+    max-height: 46vh;
+    padding: 16px 14px 16px 0;
+  }
+
+  .index__mark {
+    order: -1;
+    height: auto;
+    padding: 8px 0;
+  }
+
+  .index__logo {
+    width: clamp(88px, 18vw, 140px);
+  }
+
+  .index__preview {
+    height: auto;
+    align-items: center;
+  }
+
+  .index__preview-frame {
+    height: auto;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    max-width: 480px;
+  }
+}
+
+@media (max-width: 640px) {
+  .index {
+    padding: 12px 24px 28px;
+  }
+
+  .index__item {
+    gap: 14px;
+    padding: 16px 4px;
+  }
+
+  .index__cue {
+    display: none;
+  }
+}
+
+/* ============================================================
+   Project mosaic — editorial collage grid of project images.
+   Mixed-size tiles woven together with grid-auto-flow: dense,
+   each one sized from its own image's aspect ratio (wide /
+   tall / square). No physics — a calm responsive grid carrying
+   the brand's grayscale-to-colour hover reveal.
+   ============================================================ */
+.mosaic {
+  margin: 8px 48px 140px;
+}
+
+.mosaic__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: minmax(320px, 34vw);
+  grid-auto-flow: dense;
+  gap: 18px;
+}
+
+.mosaic__item {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--black-soft);
+  grid-column: span 1;
+  grid-row: span 1;
+  opacity: 0;
+  transform: scale(1.045);
+  transition: opacity 760ms var(--ease-out), transform 900ms var(--ease-out);
+}
+
+.mosaic__item.is-loaded {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.mosaic__item.is-wide { grid-column: span 2; }
+.mosaic__item.is-tall { grid-row: span 2; }
+.mosaic__item.is-big  { grid-column: span 2; grid-row: span 2; }
+
+.mosaic__item img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  filter: grayscale(0.4) brightness(0.92);
+  transform: scale(1.015);
+  transition: filter 560ms var(--ease-out), transform 900ms var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mosaic__item:hover img,
+  .mosaic__item:focus-within img {
+    filter: grayscale(0) brightness(1);
+    transform: scale(1.045);
+  }
+}
+
+.mosaic__empty {
+  grid-column: 1 / -1;
+  padding: 90px 0;
+  text-align: center;
+  color: var(--grey);
+  font-size: 14px;
+  letter-spacing: 0.06em;
+}
+
+/* ============================================================
+   Space-void mosaic intro
+   ------------------------------------------------------------
+   Phase 1: the full viewport goes dark (intro-armed, set only
+   when the user navigated here via a project title click).
+   Every project frame appears small in a loose, negative-space
+   grid and drifts gently as if weightless. User clicks anywhere.
+
+   Phase 2: click — frames simultaneously glide to their real
+   grid positions and scale up. The grid blurs as frames fly in
+   (lens rack-focus), then sharpens as they land. Scale uses a
+   spring-overshoot curve so the landing has weight.
+
+   Reveal: nav, back button, title, and meta stagger in once
+   the mosaic has settled into place.
+
+   Individual CSS `translate` and `scale` properties (not the
+   shorthand `transform`) carry the Phase-1 positioning so the
+   per-frame drift `@keyframes` can use `transform` freely —
+   the three properties compose without conflict.
+   ============================================================ */
+
+/* While intro runs, hide all page chrome and lock scroll. */
+.intro-armed .nav,
+.intro-armed .page-head,
+.intro-armed .footer {
+  opacity: 0;
+  pointer-events: none;
+  transition: none;
+}
+
+html.intro-armed {
+  overflow: hidden;
+}
+
+/* The Phase 1 JS sets `item.style.transition = 'none'` inline
+   synchronously inside mosaic:ready, before any rAF fires —
+   so the is-loaded transition is already cancelled by the time
+   frames fade in. !important is NOT used here: it would beat
+   inline styles and kill the Phase 1/2 JS transitions.        */
+.intro-armed .mosaic__item {
+  transition: none;
+}
+
+/* Phase 1 click cue — position, typography, default hidden.
+   Opacity is driven entirely by JS inline styles so a slow
+   breathing pulse can be interrupted and snapped to zero
+   without any CSS-animation / inline-style cascade conflict.  */
+.intro-cue {
+  position: fixed;
+  bottom: clamp(24px, 4vh, 48px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  pointer-events: none;
+  font-family: var(--text);
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0;
+  white-space: nowrap;
+}
+
+/* Once the user clicks, JS adds this class — it locks opacity at 0
+   so no timing edge-case in the inline-style cleanup can re-show it. */
+.intro-cue.is-dismissed {
+  opacity: 0 !important;
+  transition: none !important;
+}
+
+/* ── Zero-gravity drift ──
+   Uses `transform` only so it composes freely with the
+   individual `translate` and `scale` FLIP properties.
+   Amplitude kept to 3-4 px + sub-degree rotation so frames
+   read as "floating" rather than "sliding".                  */
+@keyframes space-drift {
+  0%   { transform: translate(0px, 0px) rotate(0deg); }
+  30%  { transform: translate(var(--d-x1, 2px),  var(--d-y1, -3px)) rotate(var(--d-r1, 0.5deg)); }
+  65%  { transform: translate(var(--d-x2, -3px), var(--d-y2,  2px)) rotate(var(--d-r2, -0.4deg)); }
+  100% { transform: translate(0px, 0px) rotate(0deg); }
+}
+
+.mosaic__item.is-drifting {
+  animation: space-drift var(--drift-dur, 12s) ease-in-out infinite;
+  animation-delay: var(--drift-offset, 0s);
+}
+
+/* ── Phase 2 lens-focus blur ──
+   Applied to the grid container as frames fly in; simulates a
+   camera rack-focusing from distance (void) to close (mosaic).
+   Blur peaks during convergence then clears as frames land.    */
+@keyframes phase2-focus {
+  0%   { filter: blur(0px);  }
+  22%  { filter: blur(5px);  }
+  100% { filter: blur(0px);  }
+}
+
+.mosaic__grid.is-phase2-focusing {
+  animation: phase2-focus 950ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+/* prefers-reduced-motion: skip intro entirely, show everything. */
+@media (prefers-reduced-motion: reduce) {
+  .intro-armed .nav,
+  .intro-armed .page-head,
+  .intro-armed .footer {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .intro-armed .mosaic__item {
+    transition: revert !important;
+  }
+  .mosaic__item.is-drifting {
+    animation: none;
+    transform: none;
+  }
+  /* Cue never shown — intro is skipped entirely. */
+  .intro-cue {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mosaic__item,
+  .mosaic__item img {
+    transition: none;
+  }
+  .mosaic__item {
+    opacity: 1;
+    transform: none;
+  }
+  .mosaic__item img {
+    transform: none;
+  }
+}
+
+@media (max-width: 980px) {
+  .mosaic__grid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-auto-rows: minmax(260px, 48vw);
+  }
+}
+
+@media (max-width: 640px) {
+  .mosaic { margin: 0 20px 100px; }
+  .mosaic__grid {
+    grid-template-columns: 1fr;
+    grid-auto-rows: minmax(220px, 86vw);
+    gap: 12px;
+  }
+  .mosaic__item.is-wide,
+  .mosaic__item.is-tall,
+  .mosaic__item.is-big {
+    grid-column: span 1;
+    grid-row: span 1;
+  }
+}
+
+/* ============================================================
+   Scroll cue — the page opens directly onto the listing pin with
+   nothing yet to read, so this is the only thing a visitor meets
+   first: a single quiet instruction filling the opening screen,
+   with a small bead drifting down a rail to make "scroll" felt
+   rather than just stated. It isn't pinned — it scrolls away
+   naturally as the listing sequence takes over.
+   ============================================================ */
+.scroll-cue {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  text-align: center;
+}
+
+.scroll-cue__label {
+  font-family: var(--text);
+  font-size: 12px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--gold-dim);
+}
+
+.scroll-cue__rail {
+  position: relative;
+  width: 1px;
+  height: 72px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.scroll-cue__bead {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 5px;
+  height: 5px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--gold);
+  animation: scroll-cue-drift 2000ms var(--ease-in-out) infinite;
+}
+
+@keyframes scroll-cue-drift {
+  0%   { transform: translateY(-10px); opacity: 0; }
+  30%  { opacity: 1; }
+  85%  { opacity: 0.4; }
+  100% { transform: translateY(72px); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-cue {
+    height: auto;
+    padding: 96px 0;
+  }
+  .scroll-cue__bead {
+    position: static;
+    margin: 0 auto;
+    animation: none;
+    opacity: 1;
+  }
+  .scroll-cue__rail {
+    height: auto;
+    width: auto;
+    background: none;
+  }
+}
+
+/* ============================================================
+   About — "Roti, Kapda, Makaan… and Art" listing sequence
+   A scroll-pinned classifieds reel: the stage holds in place
+   on screen while scroll position scrubs four cards through
+   their states — two land easily, the third gets stamped into
+   oblivion, and Art quietly settles into the gap it leaves
+   behind. listing.js owns every transform/opacity, driven by
+   scroll progress (the same FLIP-flavoured, transform-only
+   motion language as the project-page mosaic intro); this file
+   only describes what each state looks like. Cards are classifieds
+   clippings on cream stock — torn edges, Anton headline, Archivo
+   detail copy — set adrift in the brand's black-and-grain void.
+   ============================================================ */
+/* The sequence's closing mark — same heavyweight, edge-stretched
+   signature language as the footer wordmark (Anton, uppercase,
+   crammed tracking), just sized down to read as a punchline rather
+   than a second full-bleed headline. The bracketed "(maybe)" sits
+   inline at a fraction of the size and a soft, undyed opacity, so
+   the confidence undercuts itself in the same breath it's stated —
+   a wink, not a hedge big enough to compete with the statement. */
+.listing__outro-stamp {
+  margin: 0 auto;
+  padding: 96px 48px 160px;
+  max-width: 1040px;
+  text-align: center;
+  font-family: var(--display);
+  text-transform: uppercase;
+  font-size: clamp(40px, 9vw, 132px);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  color: var(--gold);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+.listing__outro-stamp-aside {
+  display: inline-block;
+  font-family: var(--text);
+  font-size: 0.22em;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--cream);
+  opacity: 0.55;
+  vertical-align: middle;
+  margin-left: 0.3em;
+}
+
+@media (max-width: 640px) {
+  .listing__outro-stamp {
+    padding: 72px 32px 120px;
+    font-size: clamp(34px, 13vw, 64px);
+  }
+}
+
+/* The runway: a tall scroll-track with a sticky viewport inside.
+   listing.js measures progress across this element's height (less
+   one viewport) and maps 0 → 1 onto the four-card sequence. The
+   height is the pacing knob — long enough that each beat lands
+   and holds rather than flashing past as a jump-cut. */
+.listing__pin {
+  position: relative;
+  height: 460vh;
+}
+
+.listing__viewport {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Sized off the viewport's *smaller* axis (vmin) and pushed past
+   100% on purpose — at rest the card already crowds the frame, and
+   once listing.js rotates it, the corners swing past the edges and
+   get cropped by `.listing__viewport`'s overflow: hidden. That's
+   the point: a card too big and too confident to fit politely,
+   like one slapped down on a table rather than placed in a frame. */
+.listing__stage {
+  position: relative;
+  width: min(135vmin, 2000px);
+  height: min(118vmin, 1760px);
+}
+
+/* Each card starts dead-centre, scaled down and invisible —
+   listing.js lifts it into view, holds it, then dismisses it
+   by the same path it arrived on (or, for Makaan, by a much
+   ruder exit). All motion is transform + opacity, set inline
+   per frame from scroll progress — nothing here animates on
+   its own; this block only sets the resting/hidden state and
+   the card's "paper" look. */
+.listing__card {
+  position: absolute;
+  /* Explicit fill, not `inset: 0` — that shorthand also sets
+     right/bottom to 0, which fights the `left: 50%; top: 50%`
+     centring below and quietly halves the rendered box (the
+     width/height-auto constraint solves to 50% of the stage).
+     Sizing by width/height keeps the card genuinely as big as
+     `.listing__stage`, with position handled purely by the
+     left/top + translate centring pair. */
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  /* Top-anchored, not centred: the stamp lands dead-centre on
+     Makaan's card, and centred title text would sit directly
+     beneath it and vanish. Anchoring copy to the top keeps the
+     title clear and gives the stamp empty paper to land on. */
+  justify-content: flex-start;
+  /* Padding and gaps scale off `vmin` — the same axis the stage
+     itself is sized on — so the inner margin stays in proportion
+     to the card at any viewport shape, instead of drifting loose
+     or tight as the card's own size changes underneath it. That's
+     what keeps the type reading as part of the card's geometry
+     rather than text dropped on top of it. */
+  gap: 3vmin;
+  padding: 8vmin 7vmin;
+  overflow: hidden;
+  background: var(--cream);
+  color: var(--black);
+  text-align: left;
+  opacity: 0;
+  will-change: transform, opacity;
+  transform: translate(-50%, -50%) scale(0.84);
+  left: 50%;
+  top: 50%;
+  /* Torn-clipping silhouette — small irregular notches on each
+     corner, like something pulled from a noticeboard rather than
+     printed clean. Subtle at this size, but it's the difference
+     between "card UI" and "found object". */
+  clip-path: polygon(
+    0% 3%, 2% 0%, 98% 0%, 100% 2%,
+    100% 97%, 98% 100%, 2% 100%, 0% 98%
+  );
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.65);
+}
+
+/* Quiet line-art tucked into each card's empty lower-right corner —
+   placed first in the markup so it paints *behind* the copy without
+   any z-index bookkeeping, and kept faint enough to read as texture
+   on the paper rather than a second thing competing for attention. */
+.listing__art {
+  position: absolute;
+  right: 6%;
+  bottom: 7%;
+  pointer-events: none;
+  fill: none;
+  stroke: var(--gold-dim);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.16;
+}
+
+.listing__art--roti {
+  width: 36%;
+}
+
+.listing__art--kapda {
+  width: 32%;
+}
+
+.listing__art--house,
+.listing__art--house-broken {
+  width: 40%;
+}
+
+/* The Makaan card is the dramatic beat of the sequence — its
+   illustration earns a touch more presence at rest than the quieter
+   corner doodles on the other cards, so the house actually reads
+   before the stamp arrives to wreck it. listing.js mirrors this
+   value (see the houseRuin crossfade) so the resting state matches
+   exactly whether JS has run yet or not. */
+.listing__art--house {
+  opacity: 0.3;
+}
+
+/* Starts invisible — listing.js crossfades it in as the "Sold out"
+   stamp slams down, so the house visibly comes apart at the exact
+   moment the joke lands, rather than just sitting there stamped. */
+.listing__art--house-broken {
+  opacity: 0;
+}
+
+/* Sized and overhung past the card's own edge on purpose — this is
+   the one card built around its art rather than around its art's
+   absence, so the mandala gets to behave like a centrepiece the
+   copy sits in front of, not a corner doodle. */
+.listing__art--mandala {
+  width: 76%;
+  right: -8%;
+  bottom: -10%;
+}
+
+.listing__card--art .listing__art--mandala {
+  stroke: var(--gold);
+  opacity: 0.2;
+}
+
+.listing__title {
+  font-family: var(--display);
+  text-transform: uppercase;
+  line-height: 0.88;
+  /* `vmin` here, not `vw` — the stage itself is sized off `vmin`,
+     so type that scales on the same axis grows and shrinks in step
+     with the card rather than drifting out of proportion with it
+     on tall/narrow or short/wide screens. */
+  font-size: clamp(64px, 11vmin, 184px);
+  color: var(--black);
+}
+
+.listing__price {
+  font-family: var(--display);
+  font-size: clamp(28px, 4.2vmin, 58px);
+  letter-spacing: 0.02em;
+  color: var(--gold-dim);
+}
+
+.listing__status {
+  /* A share of the card's own width, not a fixed character count —
+     the measure now grows and shrinks with the card so the text
+     block keeps the same natural proportion to its container at
+     any size, rather than ever risking a line that's wider than
+     the card itself. */
+  max-width: 62%;
+  font-size: clamp(15px, 1.7vmin, 21px);
+  line-height: 1.65;
+  color: var(--black-soft);
+}
+
+/* Makaan carries the longest copy on the stage — and shares it with
+   a stamp landing dead-centre. Pull the type down a notch and tighten
+   the measure so the sentence reads cleanly in the space the stamp
+   leaves around it, rather than competing for the same few inches. */
+.listing__card--makaan .listing__status {
+  max-width: 50%;
+  font-size: clamp(13px, 1.5vmin, 18px);
+  line-height: 1.6;
+}
+
+/* The rubber stamp — sits pre-rotated and invisible, then slams
+   down at full opacity on Makaan's card only. listing.js triggers
+   the slam with a sharp `--ease-in-out` snap rather than the
+   gentle `--ease-out` everything else on the site eases with —
+   the contrast in timing is what sells the joke as an *impact*. */
+.listing__stamp {
+  position: absolute;
+  top: 28px;
+  right: 28px;
+  padding: 7px 14px;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold-dim);
+  border: 1.5px solid var(--gold-dim);
+  transform: rotate(-8deg);
+}
+
+/* A gold outline on cream paper nearly vanished — a stamp needs ink
+   that actually reads. Giving it a near-opaque dark plate behind the
+   gold type and rule turns it back into something stamped *onto* the
+   paper rather than printed faintly alongside it. */
+.listing__stamp--sold {
+  top: 50%;
+  left: 50%;
+  right: auto;
+  width: min(78%, 620px);
+  padding: 28px 36px;
+  font-family: var(--display);
+  font-size: clamp(22px, 3.4vmin, 34px);
+  line-height: 1.28;
+  letter-spacing: 0.06em;
+  text-align: center;
+  color: var(--gold);
+  border: 3px solid var(--gold);
+  background: rgba(10, 10, 10, 0.92);
+  box-shadow: 0 20px 60px -16px rgba(0, 0, 0, 0.7);
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(-11deg) scale(1.5);
+  will-change: transform, opacity;
+}
+
+/* Art's card: same paper, but lit like the brand's gold accent —
+   the calm, settled note the sequence resolves on. */
+.listing__card--art {
+  background: var(--black-soft);
+  color: var(--cream);
+}
+
+.listing__card--art .listing__title,
+.listing__card--art .listing__price {
+  color: var(--gold);
+}
+
+.listing__card--art .listing__status {
+  color: var(--grey);
+}
+
+.listing__card--art::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 38%, rgba(227, 178, 60, 0.16), transparent 70%);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .listing__pin {
+    height: auto;
+  }
+  .listing__viewport {
+    position: relative;
+    height: auto;
+    padding: 64px 0;
+    gap: 28px;
+  }
+  .listing__stage {
+    position: static;
+    height: auto;
+    width: min(92vw, 460px);
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+  .listing__card {
+    position: static;
+    inset: auto;
+    transform: none;
+    opacity: 1;
+    width: 100%;
+  }
+  .listing__stamp--sold {
+    position: static;
+    transform: rotate(-3deg);
+    opacity: 1;
+    margin-top: 16px;
+    width: fit-content;
+  }
+}
+
+@media (max-width: 640px) {
+  .listing__stage {
+    width: min(96vw, 560px);
+    height: min(86vh, 760px);
+  }
+  .listing__card {
+    padding: 40px 32px;
+    gap: 18px;
+  }
+  .listing__card--makaan .listing__status {
+    max-width: 70%;
+  }
+}
+
+/* ============================================================
+   Footer
+   ============================================================ */
+.footer {
+  border-top: 1px solid var(--line);
+  padding: 80px 48px 40px;
+}
+
+.footer__grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 40px;
+}
+
+.footer__cta {
+  font-family: var(--display);
+  text-transform: uppercase;
+  font-size: clamp(32px, 5vw, 56px);
+  line-height: 1.02;
+}
+
+.footer__cta .accent { color: var(--gold); }
+
+.footer__col h4 {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--grey);
+  margin-bottom: 16px;
+}
+
+.footer__col a,
+.footer__col p {
+  display: block;
+  font-size: 14px;
+  line-height: 2;
+  color: var(--cream);
+}
+
+.footer__col a {
+  /* Lifted into its own stacking layer, above the wordmark behind
+     it — so the link always wins the hover/click regardless of
+     where the giant lettering happens to overlap it, while the
+     mark's own per-letter hover keeps working everywhere else. */
+  position: relative;
+  z-index: 1;
+  width: fit-content;
+}
+
+.footer__col a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 2px;
+  width: 100%;
+  height: 1px;
+  background: var(--gold);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 220ms var(--ease-out);
+}
+
+.footer__col a:hover::after {
+  transform: scaleX(1);
+}
+
+.footer__base {
+  margin-top: 80px;
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--grey);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.footer__wordmark {
+  /* A closing signature with room to breathe — bold and edge-to-
+     edge for presence, but sitting in its own band below the grid
+     rather than cutting through anything readable. Scale plus
+     whitespace does the "statement" work instead of overlap. */
+  margin: 88px -48px 28px;
+  font-family: var(--display);
+  text-transform: uppercase;
+  /* Pushed deliberately oversized — at this scale the word's
+     natural width closes most (or all) of the gap `space-between`
+     would otherwise hand out, and the negative inter-letter margin
+     below pulls neighbours into each other. The mark reads as one
+     dense, crammed signature rather than a neatly spaced headline. */
+  font-size: clamp(96px, 25vw, 400px);
+  /* Roomier than a typical headline line-height — display faces
+     often have caps/descenders taller than the metric box, and a
+     tight 0.8-ish ratio was shaving their tops and tails off
+     against `overflow: hidden`. */
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  display: flex;
+  /* Spreads the individual letter-spans so the first sits flush
+     left and the last flush right — the word stretches to span
+     the full band edge-to-edge instead of clumping to one side. */
+  justify-content: space-between;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* A confident, fully-inked signature — solid from the first
+   frame, the way a printed mark sits on the page, rather than a
+   hollow shape waiting to be filled. The per-letter interaction
+   now lives entirely in colour + lift: hovering warms a glyph to
+   brand gold and eases it just off the baseline, like a frame
+   catching the light as it passes. Transform + colour only; both
+   are compositor/paint-cheap and interruptible mid-hover. */
+.footer__wordmark .char {
+  display: inline-block;
+  color: var(--cream);
+  /* Pulls every letter (but the last) in toward its neighbour —
+     guarantees the crammed, occasionally-overlapping feel the
+     larger font-size aims for, regardless of how much slack
+     `space-between` has left to distribute at a given viewport. */
+  margin-right: -0.12em;
+  transform-origin: bottom center;
+  transition:
+    color 260ms var(--ease-out),
+    transform 320ms var(--ease-out);
+  will-change: transform;
+}
+
+.footer__wordmark .char:hover {
+  color: var(--gold);
+  transform: scale(1.1) translateY(-0.05em);
+  /* Lift the hovered letter above its overlapping neighbours so
+     the gold reads cleanly rather than getting clipped under the
+     next glyph. */
+  position: relative;
+  z-index: 1;
+}
+
+.footer__wordmark .char:last-child {
+  margin-right: 0;
+}
+
+/* Neighbours warm slightly toward the hovered letter, like
+   flipping past a frame and catching its glow on the next one. */
+.footer__wordmark .char:hover + .char,
+.footer__wordmark .char:has(+ .char:hover) {
+  color: var(--gold-dim);
+  transform: scale(1.03);
+}
+
+/* ---- Film-flicker variant ---------------------------------------
+   A second personality for the wordmark: hovering a letter throws
+   it into a short, looping projector-flicker — small jittery jumps
+   in position/skew plus brightness pulses stepped (not eased) so
+   it reads as a damaged frame stuttering through the gate, not a
+   smooth wobble. Toggle it by adding/removing the
+   `footer__wordmark--flicker` class on the <p> in the markup; with
+   the class removed, the steady gold-warm hover above is exactly
+   what runs — nothing else needs to change to fall back. ------- */
+@keyframes footer-char-flicker {
+  0%   { transform: translate(0, 0) skewX(0deg);            filter: brightness(1); }
+  12%  { transform: translate(-0.035em, 0.02em) skewX(-2deg); filter: brightness(1.6); }
+  24%  { transform: translate(0.025em, -0.015em) skewX(1deg); filter: brightness(0.75); }
+  37%  { transform: translate(-0.02em, 0.01em);              filter: brightness(1.35); }
+  50%  { transform: translate(0.03em, -0.02em) skewX(-1.5deg); filter: brightness(0.9); }
+  63%  { transform: translate(-0.015em, 0.015em);            filter: brightness(1.5); }
+  76%  { transform: translate(0.02em, -0.01em) skewX(1deg);  filter: brightness(0.8); }
+  88%  { transform: translate(-0.01em, 0.02em);              filter: brightness(1.25); }
+  100% { transform: translate(0, 0) skewX(0deg);            filter: brightness(1); }
+}
+
+.footer__wordmark--flicker .char:hover {
+  color: var(--gold);
+  /* `steps()` instead of an eased curve — the letter should jump
+     between frames, not glide between them. */
+  animation: footer-char-flicker 480ms steps(2, jump-none) infinite;
+  position: relative;
+  z-index: 1;
+}
+
+.footer__wordmark--flicker .char:hover + .char,
+.footer__wordmark--flicker .char:has(+ .char:hover) {
+  color: var(--gold-dim);
+}
+
+/* ---- Piano-key variant -------------------------------------------
+   The letter under the cursor presses straight down on its
+   baseline and squashes slightly — a key being struck — then
+   springs back with a touch of overshoot. The press ripples out
+   to the two letters on either side at shrinking depth and a
+   short stagger, like a finger running across keys rather than
+   stabbing one. Toggle with the `footer__wordmark--piano` class
+   on the <p>; remove it to fall back to the steady gold-warm
+   hover (the default, no-modifier state) — nothing else to touch. */
+.footer__wordmark--piano .char {
+  transition:
+    color 200ms var(--ease-out),
+    /* Slight overshoot on the way back up — the "spring" of a
+       released key resettling. */
+    transform 460ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ============================================================
+   Easter-egg toast — small, rotating asides that surface only
+   when a visitor lingers, hovers, reloads, or pokes around more
+   than usual. It rides along with the cursor — appearing just
+   beside it, like a passing thought rather than a notification —
+   so it's always wherever attention already is without ever
+   sitting in one fixed, ignorable corner. Quoted and gold, never
+   blocking a click (`pointer-events: none`), never demanding
+   attention (soft fade, no motion-grabbing entrance), never
+   overstaying (auto-dismiss after a few seconds). script.js owns
+   positioning/timing/rotation/cooldowns — `left`/`top` are set
+   inline per-frame, so only opacity/scale animate here. ========= */
+.easter-toast {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 70;
+  max-width: min(280px, calc(100vw - 56px));
+  padding: 12px 18px;
+  background: rgba(10, 10, 10, 0.7);
+  border: 1px solid rgba(227, 178, 60, 0.28);
+  border-radius: 2px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+  color: var(--gold);
+  font-family: var(--text);
+  font-style: italic;
+  font-size: 13px;
+  line-height: 1.55;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+  opacity: 0;
+  transform-origin: top left;
+  transform: scale(0.94);
+  transition: opacity 260ms var(--ease-out), transform 260ms var(--ease-out);
+}
+
+.easter-toast::before { content: '“'; }
+.easter-toast::after  { content: '”'; }
+
+.easter-toast.is-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+@media (max-width: 640px) {
+  .easter-toast {
+    max-width: min(230px, calc(100vw - 40px));
+    font-size: 12.5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .easter-toast {
+    transition: opacity 200ms linear;
+    transform: none;
+  }
+}
+
+.footer__wordmark--piano .char:hover {
+  color: var(--gold);
+  transform: translateY(0.16em) scaleY(0.92);
+  transition-delay: 0ms;
+  position: relative;
+  z-index: 1;
+}
+
+.footer__wordmark--piano .char:hover + .char,
+.footer__wordmark--piano .char:has(+ .char:hover) {
+  color: var(--gold-dim);
+  transform: translateY(0.08em) scaleY(0.96);
+  transition-delay: 50ms;
+}
+
+.footer__wordmark--piano .char:hover + .char + .char,
+.footer__wordmark--piano .char:has(+ .char + .char:hover) {
+  transform: translateY(0.035em) scaleY(0.985);
+  transition-delay: 100ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .footer__wordmark .char,
+  .footer__wordmark .char:hover,
+  .footer__wordmark .char:hover + .char,
+  .footer__wordmark .char:has(+ .char:hover),
+  .footer__wordmark--flicker .char:hover,
+  .footer__wordmark--piano .char,
+  .footer__wordmark--piano .char:hover,
+  .footer__wordmark--piano .char:hover + .char,
+  .footer__wordmark--piano .char:has(+ .char:hover),
+  .footer__wordmark--piano .char:hover + .char + .char,
+  .footer__wordmark--piano .char:has(+ .char + .char:hover) {
+    transition: none;
+    animation: none;
+    transform: none;
+    filter: none;
+  }
+}
+
+@media (max-width: 980px) {
+  .footer__grid { grid-template-columns: 1fr; gap: 32px; }
+}
+
+/* === Project mosaic — video tiles (added 2026-06-12) === */
+/* Video tiles sit in the same mosaic grid as image tiles and must fill
+   their tile exactly the way .mosaic__item img does (cover, block,
+   100%/100%). Unlike the photos, videos are deliberately left full
+   colour — no grayscale-to-colour hover treatment — so moving footage
+   reads as moving footage. */
+.mosaic__item--video video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+/* Click-to-sound badge — a small circular control tucked into the
+   tile's bottom-right corner. Hidden at rest, fading in only when the
+   visitor hovers the video tile. Sits above the video in the stack. */
+.mosaic__sound {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 2;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1;
+  border-radius: 50%;
+  border: 1px solid rgba(243, 237, 225, 0.2);
+  background: rgba(10, 10, 10, 0.75);
+  color: #f3ede1;
+  cursor: pointer;
+  opacity: 0;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: opacity 240ms var(--ease-out);
+}
+
+.mosaic__item--video:hover .mosaic__sound,
+.mosaic__item--video:focus-within .mosaic__sound {
+  opacity: 1;
+}
+
+/* === Film-only project layout ===
+   When a project has no photos — only videos — the regular 3-column
+   mosaic grid is replaced with a single full-width stack: one video
+   per row, aspect-ratio 16/9, no orphaned gaps on the right side.
+   The intro animation still runs — frames just scatter/assemble in
+   this single-column layout instead of the photo mosaic. */
+.mosaic__grid--film {
+  grid-template-columns: 1fr;
+  grid-auto-rows: auto;
+  gap: 18px;
+}
+
+.mosaic__grid--film .mosaic__item {
+  aspect-ratio: 16 / 9;
+  height: auto;
+}
+
+/* Reset wide/tall spans — irrelevant in a single-column stack */
+.mosaic__grid--film .mosaic__item.is-wide,
+.mosaic__grid--film .mosaic__item.is-tall,
+.mosaic__grid--film .mosaic__item.is-big {
+  grid-column: span 1;
+  grid-row: span 1;
+}

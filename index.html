@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KabTakAayush — Visual Storyteller</title>
+  <meta name="description" content="Aayush — photography &amp; film. Step inside the void: frames worth keeping." />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    /* ─── Void-page overrides ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: #080808;
+    }
+
+    body { cursor: grab; }
+    body.is-dragging { cursor: grabbing; }
+    body.is-hovering { cursor: pointer; }
+    body.is-focused  { cursor: zoom-out; }
+
+    /* Three.js canvas sits behind everything */
+    #void-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      display: block;
+    }
+
+    /* Nav floats above canvas — hidden until the pointer nears the top */
+    .nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 25;
+      background: transparent;
+      transform: translateY(-110%);
+      transition: transform 0.45s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    .nav.is-peek { transform: translateY(0); }
+    .nav img, .nav a {
+      -webkit-user-drag: none;
+      user-select: none;
+    }
+
+    /* ─── Film grain overlay ─── */
+    #void-grain {
+      position: fixed;
+      inset: -120px;
+      z-index: 15;
+      pointer-events: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+      background-size: 240px 240px;
+      opacity: 0.14;
+      animation: grain-jump 0.85s steps(2) infinite;
+    }
+    @keyframes grain-jump {
+      0%   { transform: translate(0, 0); }
+      20%  { transform: translate(-46px, 32px); }
+      40%  { transform: translate(28px, -54px); }
+      60%  { transform: translate(-32px, -18px); }
+      80%  { transform: translate(50px, 24px); }
+      100% { transform: translate(-12px, 46px); }
+    }
+
+    /* ─── Center overlay: big logo + CTAs ─── */
+    #void-center {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      pointer-events: none;
+      transition: opacity 0.6s ease;
+    }
+    /* Hidden forever once the user starts exploring */
+    #void-center.is-hidden { opacity: 0; }
+    #void-center.is-hidden .void-ctas { pointer-events: none !important; }
+
+    #void-center .center-logo {
+      width: clamp(200px, 30vw, 420px);
+      height: auto;
+      transform: scale(4.0);
+      transition: transform 3.1s cubic-bezier(0.16, 1, 0.3, 1);
+      will-change: transform;
+      filter: drop-shadow(0 10px 50px rgba(0, 0, 0, 0.7));
+      user-select: none;
+    }
+    #void-center.is-settled .center-logo { transform: scale(1); }
+
+    .void-ctas {
+      display: flex;
+      gap: 14px;
+      pointer-events: all;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.9s ease 0.25s, transform 0.9s ease 0.25s;
+    }
+    #void-center.is-settled .void-ctas {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Hint — lower-right */
+    .void-hint {
+      position: fixed;
+      bottom: clamp(20px, 3vh, 36px);
+      right: clamp(24px, 3vw, 52px);
+      z-index: 20;
+      font-family: var(--text, 'Helvetica Neue', sans-serif);
+      font-size: 9px;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: var(--gold, #c5a44c);
+      opacity: 0;
+      transition: opacity 0.7s ease;
+    }
+    .void-hint.is-visible { opacity: 0.45; }
+
+    /* ─── Loader ─── */
+    #void-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: #080808;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      transition: opacity 0.9s ease-out;
+    }
+    #void-loader.is-fading { opacity: 0; pointer-events: none; }
+
+    .vl-logo {
+      font-family: var(--head, 'Helvetica Neue', sans-serif);
+      font-size: 11px;
+      letter-spacing: 0.45em;
+      text-transform: uppercase;
+      color: var(--gold, #c5a44c);
+    }
+
+    .vl-track {
+      width: 180px;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.08);
+      position: relative;
+      overflow: hidden;
+    }
+    .vl-fill {
+      position: absolute;
+      inset: 0;
+      background: var(--gold, #c5a44c);
+      transform-origin: left center;
+      transform: scaleX(0);
+      transition: transform 0.12s linear;
+    }
+
+    .vl-count {
+      font-family: var(--text, 'Helvetica Neue', sans-serif);
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: rgba(255, 255, 255, 0.2);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Three.js canvas -->
+  <canvas id="void-canvas"></canvas>
+
+  <!-- Film grain -->
+  <div id="void-grain"></div>
+
+  <!-- ─── Loader ─── -->
+  <div id="void-loader">
+    <p class="vl-logo">KabTakAayush</p>
+    <div class="vl-track">
+      <div class="vl-fill" id="vl-fill"></div>
+    </div>
+    <p class="vl-count" id="vl-count">0 / 59</p>
+  </div>
+
+  <!-- ─── Nav ─── -->
+  <nav class="nav">
+    <a href="index.html" class="nav__mark">
+      <img src="assets/images/logo.png" alt="KabTakAayush" class="nav__logo" draggable="false"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='inline';" />
+      <span class="nav__mark-fallback" style="display:none;">KabTakAayush</span>
+    </a>
+    <ul class="nav__links">
+      <li><a href="index.html" aria-current="page">Home</a></li>
+      <li><a href="projects.html">Projects</a></li>
+      <li><a href="about.html">About</a></li>
+    </ul>
+  </nav>
+
+  <!-- ─── Center logo + CTAs ─── -->
+  <div id="void-center">
+    <img src="assets/images/logo.png" alt="KabTakAayush" class="center-logo" draggable="false" />
+    <div class="void-ctas">
+      <a class="btn" href="projects.html">View Projects</a>
+      <a class="btn btn--ghost"
+         href="https://www.instagram.com/kabtakaayush/"
+         target="_blank" rel="noopener noreferrer">See Instagram ↗</a>
+    </div>
+  </div>
+
+  <!-- ─── Scroll hint ─── -->
+  <p class="void-hint" id="void-hint">Scroll · drag · click a frame</p>
+
+  <!-- Three.js r128 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <script>
+  (function () {
+    'use strict';
+
+    /* ══════════════════════════════════════════
+       CONFIG
+    ══════════════════════════════════════════ */
+    var REEL_COUNT   = 99;            // images in assets/reel/
+    var SLOTS        = 101;           // floating frames in the field (textures repeat) — bump for a denser void
+    var CELL_X       = 120;           // wrap cell width  (world units)
+    var CELL_Y       = 64;            // wrap cell height
+    var CELL_Z       = 460;           // wrap cell depth — full scroll loop length
+    var IMG_BASE_H   = 6.4;           // base frame height (world units)
+    var CAM_FOV      = 55;
+    var BG_COLOR     = 0x080808;
+    var FOG_DENSITY  = 0.0105;        // depth falloff into black
+
+    var PAN_SPEED    = 0.030;         // world units per dragged px
+    var PAN_FRICTION = 0.93;          // drag inertia decay
+    var SCROLL_SPEED = 0.050;         // depth per wheel deltaY unit
+    var LERP_CAM     = 0.075;         // camera chase smoothing
+    var SWAY_X       = 0.045;         // idle mouse sway (radians)
+    var SWAY_Y       = 0.030;
+
+    var FLOAT_AMP    = 0.22;          // frame bob amplitude
+
+    var FOCUS_DIST   = 14;            // focused frame distance from camera
+    var FOCUS_FILL   = 0.62;          // fraction of viewport the frame fills
+    var FOCUS_EASE   = 0.085;         // focus tween smoothing
+    var DIM_OPACITY  = 0.12;          // other frames while focused
+
+    var INTRO_DUR    = 3000;          // ms — camera pull-back
+    var INTRO_FROM   = -34;           // camera start (deep inside the field)
+    var INTRO_TO     = 26;            // camera settle position
+
+    /* ══════════════════════════════════════════
+       SEEDED PSEUDO-RANDOM (LCG) — deterministic layout
+    ══════════════════════════════════════════ */
+    function makeRng(seed) {
+      var s = (seed >>> 0) || 1;
+      return function () {
+        s = (Math.imul(1664525, s) + 1013904223) >>> 0;
+        return s / 0xffffffff;
+      };
+    }
+
+    /* ══════════════════════════════════════════
+       FIELD LAYOUT — scattered slots inside one wrap cell
+    ══════════════════════════════════════════ */
+    var layouts = [];
+    (function buildLayouts() {
+      // R2 low-discrepancy sequence → evenly spread, organic-looking scatter
+      // (plain seeded random produced diagonal streaks and clusters)
+      var G1 = 0.7548776662466927;
+      var G2 = 0.5698402909980532;
+
+      for (var i = 0; i < SLOTS; i++) {
+        var r = makeRng(i * 1013 + 71);
+        r(); r(); r();                       // warm up — decorrelates nearby seeds
+
+        var fx = (0.5 + i * G1) % 1;
+        var fy = (0.5 + i * G2) % 1;
+        var x  = (fx - 0.5) * CELL_X + (r() - 0.5) * 9;
+        var y  = (fy - 0.5) * CELL_Y + (r() - 0.5) * 7;
+        // Stratified depth — one frame per Z band, no empty gaps between layers
+        var z  = -((i + 0.5) / SLOTS) * CELL_Z + (r() - 0.5) * (CELL_Z / SLOTS) * 0.9;
+
+        // Keep dead-center clear so the logo reads during the intro
+        if (Math.abs(x) < 8 && Math.abs(y) < 5) {
+          x += (x < 0 ? -1 : 1) * 11;
+        }
+
+        layouts.push({
+          x: x, y: y, z: z,
+          rotY:       0,                    // flat collage — frames face the camera
+          rotZ:       0,
+          scale:      0.50 + r() * 1.30,    // 0.50 → 1.80 (strong size contrast)
+          shade:      0.45 + r() * 0.55,    // brightness variety 0.45 → 1.0
+          floatPhase: r() * Math.PI * 2,
+          floatSpeed: 0.22 + r() * 0.38,
+          tex:        i % REEL_COUNT        // which reel image
+        });
+      }
+    })();
+
+    /* ══════════════════════════════════════════
+       THREE.JS SETUP
+    ══════════════════════════════════════════ */
+    var canvas = document.getElementById('void-canvas');
+    var W = window.innerWidth;
+    var H = window.innerHeight;
+
+    var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(W, H);
+    renderer.outputEncoding = THREE.sRGBEncoding;
+
+    var scene = new THREE.Scene();
+    scene.background = new THREE.Color(BG_COLOR);
+    scene.fog = new THREE.FogExp2(BG_COLOR, FOG_DENSITY);
+
+    var camera = new THREE.PerspectiveCamera(CAM_FOV, W / H, 0.1, 4000);
+    camera.rotation.order = 'YXZ';
+
+    var raycaster = new THREE.Raycaster();
+    var pointerNDC = new THREE.Vector2();
+
+    /* ══════════════════════════════════════════
+       TEXTURE LOADING — reel images
+    ══════════════════════════════════════════ */
+    var TO_LOAD  = REEL_COUNT;
+    var loadedN  = 0;
+    var loader   = new THREE.TextureLoader();
+    var fillEl   = document.getElementById('vl-fill');
+    var countEl  = document.getElementById('vl-count');
+    var reelTex  = new Array(REEL_COUNT).fill(null);
+
+    function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+
+    function prepTex(tex) {
+      tex.encoding  = THREE.sRGBEncoding;
+      tex.minFilter = THREE.LinearMipmapLinearFilter;
+      tex.generateMipmaps = true;
+      try { tex.anisotropy = renderer.capabilities.getMaxAnisotropy(); } catch (e) {}
+      return tex;
+    }
+
+    function tick() {
+      loadedN++;
+      fillEl.style.transform = 'scaleX(' + (loadedN / TO_LOAD) + ')';
+      countEl.textContent    = loadedN + ' / ' + TO_LOAD;
+      if (loadedN === TO_LOAD) buildScene();
+    }
+
+    for (var j = 0; j < REEL_COUNT; j++) {
+      (function (idx) {
+        loader.load('assets/reel/' + pad2(idx + 1) + '.jpg', function (tex) {
+          reelTex[idx] = prepTex(tex);
+          tick();
+        }, undefined, tick); // count errors too so loader never stalls
+      })(j);
+    }
+
+    /* ══════════════════════════════════════════
+       FRAME MATERIAL — textured plane with RGB-split
+       (chromatic aberration) driven by movement speed.
+       Frames only; the rest of the page is untouched.
+    ══════════════════════════════════════════ */
+    var FRAME_VERT = [
+      'varying vec2 vUv;',
+      '#include <fog_pars_vertex>',
+      'void main() {',
+      '  vUv = uv;',
+      '  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);',
+      '  gl_Position = projectionMatrix * mvPosition;',
+      '  #include <fog_vertex>',
+      '}'
+    ].join('\n');
+
+    var FRAME_FRAG = [
+      'uniform sampler2D map;',
+      'uniform float uShift;',
+      'uniform float uShade;',
+      'uniform float uOpacity;',
+      'varying vec2 vUv;',
+      '#include <fog_pars_fragment>',
+      'void main() {',
+      '  vec2 off = vec2(uShift, uShift * -0.6);',
+      '  float r = texture2D(map, vUv + off).r;',
+      '  float g = texture2D(map, vUv).g;',
+      '  float b = texture2D(map, vUv - off).b;',
+      '  gl_FragColor = vec4(vec3(r, g, b) * uShade, uOpacity);',
+      '  #include <fog_fragment>',
+      '}'
+    ].join('\n');
+
+    function makeFrameMaterial(tex, shade) {
+      var uniforms = THREE.UniformsUtils.merge([
+        THREE.UniformsLib.fog,
+        {
+          map:      { value: null },
+          uShift:   { value: 0 },
+          uShade:   { value: 1 },
+          uOpacity: { value: 1 }
+        }
+      ]);
+      uniforms.map.value    = tex;   // set after merge (merge would clone the texture)
+      uniforms.uShade.value = shade;
+
+      return new THREE.ShaderMaterial({
+        uniforms:       uniforms,
+        vertexShader:   FRAME_VERT,
+        fragmentShader: FRAME_FRAG,
+        fog:            true,
+        transparent:    true,
+        side:           THREE.FrontSide
+      });
+    }
+
+    /* ══════════════════════════════════════════
+       SCENE BUILD
+    ══════════════════════════════════════════ */
+    var meshes = [];
+
+    function buildScene() {
+      // ── Floating frames ──
+      for (var i = 0; i < SLOTS; i++) {
+        var L   = layouts[i];
+        var tex = reelTex[L.tex];
+        if (!tex) continue;
+
+        var aspect = tex.image.naturalWidth / tex.image.naturalHeight;
+        var h = IMG_BASE_H * L.scale;
+        var w = h * aspect;
+
+        var geo = new THREE.PlaneGeometry(w, h);
+        var mat = makeFrameMaterial(tex, L.shade);
+
+        var mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(L.x, L.y, L.z);
+        mesh.rotation.y = L.rotY;
+        mesh.rotation.z = L.rotZ;
+        mesh.userData = { layout: L, baseW: w, baseH: h };
+        scene.add(mesh);
+        meshes.push(mesh);
+      }
+
+      startIntro();
+    }
+
+    /* ══════════════════════════════════════════
+       STATE
+    ══════════════════════════════════════════ */
+    var cam       = { x: 0, y: 0, z: 0 };       // actual camera position
+    var camTarget = { x: 0, y: 0, z: 0 };       // chased target
+    var panVX = 0, panVY = 0;                   // drag inertia
+    var mouseNX = 0, mouseNY = 0;               // -1..1 idle sway
+    var isDragging  = false;
+    var dragMoved   = 0;
+    var downX = 0, downY = 0, downT = 0;
+    var lastPX = 0, lastPY = 0;
+    var introDone = false;
+    var clock = new THREE.Clock();
+    var rgbShift = 0;                           // current RGB-split strength
+    var navEl = document.querySelector('.nav');
+
+    // Focus state
+    var focused   = null;     // mesh
+    var focusT    = 0;        // 0 = free, 1 = locked front-and-center
+    var focusGoal = 0;        // tween target (0 or 1)
+    var focusFrom = { x: 0, y: 0, z: 0, ry: 0, rz: 0 };
+    var focusFit  = 1;
+
+    /* ══════════════════════════════════════════
+       INTRO — huge logo over the field, camera pulls
+       back while the logo settles to its resting size
+    ══════════════════════════════════════════ */
+    function startIntro() {
+      var loaderEl = document.getElementById('void-loader');
+      loaderEl.classList.add('is-fading');
+      setTimeout(function () { loaderEl.style.display = 'none'; }, 950);
+
+      cam.z = camTarget.z = INTRO_FROM;
+
+      setTimeout(function () {
+        // CSS scales the logo 4.0 → 1 on the same curve & duration
+        document.getElementById('void-center').classList.add('is-settled');
+
+        var t0 = performance.now();
+        function tickIntro(now) {
+          var t = Math.min((now - t0) / INTRO_DUR, 1);
+          var e = 1 - Math.pow(1 - t, 4);           // quartic ease-out
+          camTarget.z = INTRO_FROM + (INTRO_TO - INTRO_FROM) * e;
+
+          if (t < 1) {
+            requestAnimationFrame(tickIntro);
+          } else {
+            introDone = true;
+            var hintEl = document.getElementById('void-hint');
+            hintEl.classList.add('is-visible');
+            setTimeout(function () { hintEl.classList.remove('is-visible'); }, 6000);
+          }
+        }
+        requestAnimationFrame(tickIntro);
+      }, 450);
+    }
+
+    /* ══════════════════════════════════════════
+       FOCUS — click a frame, it glides front-and-center
+    ══════════════════════════════════════════ */
+    function setFocus(mesh) {
+      // Instantly restore any previously focused frame
+      if (focused && focused !== mesh) {
+        focused.renderOrder = 0;
+        focused.material.depthTest = true;
+        focused.scale.set(1, 1, 1);
+      }
+      focused   = mesh;
+      focusGoal = 1;
+      focusT    = 0;
+
+      focusFrom.x  = mesh.position.x;
+      focusFrom.y  = mesh.position.y;
+      focusFrom.z  = mesh.position.z;
+      focusFrom.ry = mesh.rotation.y;
+      focusFrom.rz = mesh.rotation.z;
+
+      // Scale so the frame fills FOCUS_FILL of the viewport at FOCUS_DIST
+      var visH = 2 * FOCUS_DIST * Math.tan(THREE.Math.degToRad(CAM_FOV) / 2);
+      var visW = visH * camera.aspect;
+      var fitH = (visH * FOCUS_FILL) / mesh.userData.baseH;
+      var fitW = (visW * 0.78) / mesh.userData.baseW;
+      focusFit = Math.min(fitH, fitW);
+
+      mesh.renderOrder = 999;
+      mesh.material.depthTest = false;
+
+      document.body.classList.add('is-focused');
+    }
+
+    function releaseFocus() {
+      if (!focused) return;
+      focusGoal = 0;
+      document.body.classList.remove('is-focused');
+    }
+
+    /* Logo + CTAs disappear for good the moment the user starts exploring */
+    var uiGone = false;
+    function hideUiForever() {
+      if (uiGone) return;
+      uiGone = true;
+      document.getElementById('void-center').classList.add('is-hidden');
+    }
+
+    function raycastFrames(clientX, clientY) {
+      pointerNDC.x =  (clientX / W) * 2 - 1;
+      pointerNDC.y = -(clientY / H) * 2 + 1;
+      raycaster.setFromCamera(pointerNDC, camera);
+      var hits = raycaster.intersectObjects(meshes);
+      return hits.length ? hits[0].object : null;
+    }
+
+    /* ══════════════════════════════════════════
+       INPUT — WHEEL (depth)
+    ══════════════════════════════════════════ */
+    window.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      if (!introDone) return;
+      hideUiForever();
+      if (focused) { releaseFocus(); return; }
+
+      var raw = e.deltaY;
+      if (e.deltaMode === 1) raw *= 28;
+      else if (e.deltaMode === 2) raw *= 500;
+      camTarget.z -= raw * SCROLL_SPEED;   // scroll down = deeper into the void
+    }, { passive: false });
+
+    /* ══════════════════════════════════════════
+       INPUT — POINTER (drag pan + click focus + hover)
+    ══════════════════════════════════════════ */
+    canvas.addEventListener('pointerdown', function (e) {
+      if (!introDone) return;
+      hideUiForever();
+      isDragging = true;
+      dragMoved  = 0;
+      downX = lastPX = e.clientX;
+      downY = lastPY = e.clientY;
+      downT = performance.now();
+      panVX = panVY = 0;
+      document.body.classList.add('is-dragging');
+    });
+
+    window.addEventListener('pointermove', function (e) {
+      mouseNX = (e.clientX / W) * 2 - 1;
+      mouseNY = (e.clientY / H) * 2 - 1;
+
+      // Nav peeks down only when the pointer nears the top edge
+      if (e.clientY < 90) navEl.classList.add('is-peek');
+      else if (!isDragging) navEl.classList.remove('is-peek');
+
+      if (isDragging) {
+        var dx = e.clientX - lastPX;
+        var dy = e.clientY - lastPY;
+        lastPX = e.clientX;
+        lastPY = e.clientY;
+        dragMoved += Math.abs(dx) + Math.abs(dy);
+
+        if (!focused) {
+          panVX = -dx * PAN_SPEED;
+          panVY =  dy * PAN_SPEED;
+          camTarget.x += panVX;
+          camTarget.y += panVY;
+        }
+      } else if (introDone) {
+        // Hover cursor
+        var hit = raycastFrames(e.clientX, e.clientY);
+        document.body.classList.toggle('is-hovering', !!hit && !focused);
+      }
+    });
+
+    function endPointer(e) {
+      if (!isDragging) return;
+      isDragging = false;
+      document.body.classList.remove('is-dragging');
+
+      var isClick = dragMoved < 7 && (performance.now() - downT) < 450;
+      if (!isClick) return;
+
+      var hit = raycastFrames(e.clientX, e.clientY);
+      if (focused) {
+        if (hit && hit !== focused) setFocus(hit);  // switch frames
+        else releaseFocus();                         // click anywhere = let go
+      } else if (hit) {
+        setFocus(hit);
+      }
+    }
+    window.addEventListener('pointerup', endPointer);
+    window.addEventListener('pointercancel', function () {
+      isDragging = false;
+      document.body.classList.remove('is-dragging');
+    });
+
+    window.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') releaseFocus();
+    });
+
+    // Logo / links in the nav must never be draggable
+    navEl.addEventListener('dragstart', function (e) { e.preventDefault(); });
+
+    /* ══════════════════════════════════════════
+       INPUT — TOUCH (one finger = pan, tap = focus)
+    ══════════════════════════════════════════ */
+    var touchY0 = 0;
+    window.addEventListener('touchstart', function (e) {
+      if (e.touches.length === 2) touchY0 = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    }, { passive: true });
+
+    window.addEventListener('touchmove', function (e) {
+      // Two-finger vertical drag = depth scroll
+      if (e.touches.length === 2 && introDone && !focused) {
+        hideUiForever();
+        var yNow = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        camTarget.z -= (touchY0 - yNow) * 0.12;
+        touchY0 = yNow;
+      }
+    }, { passive: true });
+
+    /* ══════════════════════════════════════════
+       RESIZE
+    ══════════════════════════════════════════ */
+    window.addEventListener('resize', function () {
+      W = window.innerWidth;
+      H = window.innerHeight;
+      renderer.setSize(W, H);
+      camera.aspect = W / H;
+      camera.updateProjectionMatrix();
+    });
+
+    /* ══════════════════════════════════════════
+       INFINITE WRAP — keep every frame within half a
+       cell of the camera on all three axes
+    ══════════════════════════════════════════ */
+    function wrap(value, center, size) {
+      var d = value - center;
+      d = ((d % size) + size * 1.5) % size - size * 0.5;
+      return center + d;
+    }
+
+    /* ══════════════════════════════════════════
+       RENDER LOOP
+    ══════════════════════════════════════════ */
+    function render() {
+      requestAnimationFrame(render);
+      var time = clock.getElapsedTime();
+
+      // Drag inertia after release
+      if (!isDragging && !focused) {
+        panVX *= PAN_FRICTION;
+        panVY *= PAN_FRICTION;
+        if (Math.abs(panVX) > 0.0005) camTarget.x += panVX;
+        if (Math.abs(panVY) > 0.0005) camTarget.y += panVY;
+      }
+
+      // Camera chase
+      cam.x += (camTarget.x - cam.x) * LERP_CAM;
+      cam.y += (camTarget.y - cam.y) * LERP_CAM;
+      cam.z += (camTarget.z - cam.z) * LERP_CAM;
+      camera.position.set(cam.x, cam.y, cam.z);
+
+      // Idle mouse sway (eased, reduced while focused)
+      var swayMul = focused ? 0.25 : 1;
+      camera.rotation.y += ((-mouseNX * SWAY_X * swayMul) - camera.rotation.y) * 0.05;
+      camera.rotation.x += ((-mouseNY * SWAY_Y * swayMul) - camera.rotation.x) * 0.05;
+
+      // Focus tween progress
+      focusT += (focusGoal - focusT) * FOCUS_EASE;
+      if (focused && focusGoal === 0 && focusT < 0.01) {
+        // Fully released — restore
+        focused.renderOrder = 0;
+        focused.material.depthTest = true;
+        focused = null;
+        focusT  = 0;
+      }
+      var fe = focusT < 0.5
+        ? 4 * focusT * focusT * focusT
+        : 1 - Math.pow(-2 * focusT + 2, 3) / 2;     // cubic in-out
+
+      // RGB split strength — fast drags and fast scroll-throughs split the channels
+      var zSpeed    = Math.abs(camTarget.z - cam.z);
+      var dragSpeed = Math.sqrt(panVX * panVX + panVY * panVY);
+      var rgbTarget = Math.min(0.028, zSpeed * 0.0007 + dragSpeed * 0.020);
+      rgbShift += (rgbTarget - rgbShift) * 0.10;
+
+      // Frame updates
+      for (var i = 0; i < meshes.length; i++) {
+        var m = meshes[i];
+        var L = m.userData.layout;
+
+        if (m === focused) {
+          // Glide to a point straight ahead of the camera
+          var tx = cam.x;
+          var ty = cam.y;
+          var tz = cam.z - FOCUS_DIST;
+          m.position.x = focusFrom.x + (tx - focusFrom.x) * fe;
+          m.position.y = focusFrom.y + (ty - focusFrom.y) * fe;
+          m.position.z = focusFrom.z + (tz - focusFrom.z) * fe;
+          m.rotation.y = focusFrom.ry * (1 - fe);
+          m.rotation.z = focusFrom.rz * (1 - fe);
+          var s = 1 + (focusFit - 1) * fe;
+          m.scale.set(s, s, 1);
+          m.material.uniforms.uOpacity.value = 1;
+          m.material.uniforms.uShift.value   = 0;   // focused frame stays clean
+          // Lift shade to full brightness while focused
+          m.material.uniforms.uShade.value = L.shade + (1 - L.shade) * fe;
+          continue;
+        }
+
+        // Float bob + infinite wrap around the camera
+        var fy = L.y + Math.sin(time * L.floatSpeed + L.floatPhase) * FLOAT_AMP;
+        m.position.x = wrap(L.x, cam.x, CELL_X);
+        m.position.y = wrap(fy,  cam.y, CELL_Y);
+        m.position.z = wrap(L.z, cam.z - CELL_Z * 0.28, CELL_Z); // bias field ahead of camera
+        m.rotation.y = L.rotY;
+        m.rotation.z = L.rotZ;
+        m.scale.set(1, 1, 1);
+        m.material.uniforms.uShade.value = L.shade;
+
+        // RGB split scales with proximity — frames flying past split hardest
+        var dz   = Math.abs(m.position.z - cam.z);
+        var prox = 1 - Math.min(1, dz / 120);
+        m.material.uniforms.uShift.value = rgbShift * (0.25 + 0.75 * prox);
+
+        // Dim everything else while a frame is focused
+        var targetOp = focused ? DIM_OPACITY : 1;
+        var u = m.material.uniforms.uOpacity;
+        u.value += (targetOp - u.value) * 0.08;
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    /* ══════════════════════════════════════════
+       BOOT
+    ══════════════════════════════════════════ */
+    render();
+
+  })();
+  </script>
+</body>
+</html>

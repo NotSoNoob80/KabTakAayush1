@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KabTakAayush — Visual Storyteller</title>
+  <meta name="description" content="Aayush — photography &amp; film. Crafting frames worth keeping." />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="is-landing">
+  <div class="grain"></div>
+
+  <nav class="nav">
+    <a href="index.html" class="nav__mark">
+      <img src="assets/images/logo.png" alt="KabTakAayush" class="nav__logo"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" />
+      <span class="nav__mark-fallback" style="display:none;">KabTakAayush</span>
+    </a>
+    <ul class="nav__links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="projects.html">Projects</a></li>
+      <li><a href="about.html">About</a></li>
+    </ul>
+  </nav>
+
+  <!-- ============ LANDING — single non-scrolling viewport ============
+       The whole home page lives in one screen: headline up top,
+       the about copy sitting at middle-left, and a horizontal reel
+       of frames drifting continuously along the bottom — the page
+       itself never scrolls vertically. script.js animates the track
+       at a constant speed and wraps its translation modulo half the
+       track's width; the frame set is duplicated back-to-back so the
+       loop repeats seamlessly forever, like a film reel feeding
+       through a projector. Hover pauses it to study a frame. ======= -->
+  <main class="landing" id="landing">
+    <div class="landing__copy-wrap">
+      <div class="landing__intro">
+        <h1 class="landing__title" id="landing-title">
+          <span class="line"><span>Frames Worth</span></span>
+          <span class="line"><span class="accent">Keeping.</span></span>
+        </h1>
+      </div>
+
+      <div class="landing__about">
+        <div class="landing__links" data-reveal data-reveal-delay="2">
+          <a class="btn" href="projects.html">View Projects</a>
+          <a class="btn btn--ghost" href="https://www.instagram.com/kabtakaayush/" target="_blank" rel="noopener noreferrer">See Instagram ↗</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="landing__reel" aria-label="Selected frames — drifting continuously, hover to pause">
+      <div class="landing__track" id="landing-track">
+        <figure class="landing__frame"><img src="assets/reel/01.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/02.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/03.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/04.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/05.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/06.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/07.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/08.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/09.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/10.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/11.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/12.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/13.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/14.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/15.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/16.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/17.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/18.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/19.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/20.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/21.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/22.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/23.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/24.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/25.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/26.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/27.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/28.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/29.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/30.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/31.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/32.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/33.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/34.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/35.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/36.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/37.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/38.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/39.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/40.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/41.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/42.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/43.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/44.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/45.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/46.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/47.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/48.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/49.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/50.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/51.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/52.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/53.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/54.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/55.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/56.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/57.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/58.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/59.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/60.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/61.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/62.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/63.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/64.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/65.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/66.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/67.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/68.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/69.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/70.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/71.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/72.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/73.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/74.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/75.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/76.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/77.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/78.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/79.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/80.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/81.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/82.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/83.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/84.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/85.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/86.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/87.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/88.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/89.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/90.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/91.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/92.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/93.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/94.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/95.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/96.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/97.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/98.jpg" alt="" /></figure>
+        <figure class="landing__frame"><img src="assets/reel/99.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/01.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/02.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/03.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/04.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/05.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/06.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/07.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/08.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/09.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/10.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/11.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/12.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/13.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/14.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/15.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/16.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/17.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/18.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/19.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/20.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/21.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/22.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/23.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/24.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/25.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/26.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/27.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/28.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/29.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/30.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/31.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/32.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/33.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/34.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/35.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/36.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/37.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/38.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/39.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/40.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/41.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/42.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/43.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/44.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/45.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/46.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/47.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/48.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/49.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/50.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/51.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/52.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/53.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/54.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/55.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/56.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/57.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/58.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/59.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/60.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/61.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/62.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/63.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/64.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/65.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/66.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/67.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/68.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/69.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/70.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/71.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/72.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/73.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/74.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/75.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/76.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/77.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/78.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/79.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/80.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/81.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/82.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/83.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/84.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/85.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/86.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/87.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/88.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/89.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/90.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/91.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/92.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/93.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/94.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/95.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/96.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/97.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/98.jpg" alt="" /></figure>
+        <figure class="landing__frame" aria-hidden="true"><img src="assets/reel/99.jpg" alt="" /></figure>
+      </div>
+    </div>
+  </main>
+
+  <div class="landing__preview" id="landing-preview" aria-hidden="true">
+    <img class="landing__preview-img" alt="" />
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

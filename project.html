@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title id="project-doc-title">Project — KabTakAayush</title>
+  <meta name="description" content="A project by Aayush — photography &amp; film." />
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Arms the space-void intro only when the visitor navigated here by
+       clicking a project title — not on direct load or tab reload.
+       The 'kta:from-projects' flag is set by script.js on projects.html
+       and consumed + cleared here on first paint.                       -->
+  <script>
+    if (sessionStorage.getItem('kta:from-projects') === '1') {
+      document.documentElement.classList.add('intro-armed');
+      sessionStorage.removeItem('kta:from-projects');
+    }
+  </script>
+</head>
+<body>
+  <div class="grain"></div>
+
+  <nav class="nav">
+    <a href="index.html" class="nav__mark">
+      <img src="assets/images/logo.png" alt="KabTakAayush" class="nav__logo"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" />
+      <span class="nav__mark-fallback" style="display:none;">KabTakAayush</span>
+    </a>
+    <ul class="nav__links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="projects.html" aria-current="page">Projects</a></li>
+      <li><a href="about.html">About</a></li>
+    </ul>
+  </nav>
+
+  <header class="page-head">
+    <a href="projects.html" class="back-btn" id="project-back-btn" data-reveal>
+      <span class="back-btn__arrow" aria-hidden="true">←</span> Back to Projects
+    </a>
+    <p class="eyebrow" data-reveal data-reveal-delay="1">
+      <span id="project-eyebrow">Project</span>
+    </p>
+    <h1 class="page-head__title" id="project-title">Loading…</h1>
+    <p class="page-head__sub" id="project-description" data-reveal data-reveal-delay="3"></p>
+  </header>
+
+  <!-- ============ MOSAIC ============
+       An editorial collage of the project's photos — mixed-size
+       tiles woven into a single dense grid, each sized from its
+       own image's aspect ratio. No captions per tile; the page
+       heading and location above carry all the copy. ===== -->
+  <section class="mosaic" id="mosaic" aria-label="Project photo mosaic">
+    <div class="mosaic__grid" id="mosaic-grid"></div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="footer">
+    <div class="footer__grid">
+      <div>
+        <p class="footer__cta" data-reveal>
+          Have an idea?<br />I'm <span class="accent">suspiciously available.</span>
+        </p>
+      </div>
+      <div class="footer__col" data-reveal data-reveal-delay="1">
+        <h4>Where to yell at me</h4>
+        <a href="mailto:aayushtrivedi808080@gmail.com">aayushtrivedi808080@gmail.com</a>
+        <a href="https://www.instagram.com/kabtakaayush/" target="_blank" rel="noopener noreferrer">Instagram ↗</a>
+        <a href="index.html">Home</a>
+      </div>
+      <div class="footer__col" data-reveal data-reveal-delay="2">
+        <h4>Homebase, allegedly</h4>
+        <p>Mumbai, India</p>
+      </div>
+    </div>
+    <!-- Remove "footer__wordmark--piano" below to fall back to the steady gold-warm hover -->
+    <p class="footer__wordmark footer__wordmark--piano" aria-hidden="true">KabTakAayush</p>
+    <div class="footer__base">
+      <span>© 2026 Aayush. All rights reserved.</span>
+      <span>Photography · Film · Storytelling</span>
+    </div>
+  </footer>
+
+  <!-- Phase 1 click cue — shown after all frames settle, hidden on click -->
+  <div class="intro-cue" id="intro-cue" aria-hidden="true">click anywhere</div>
+
+  <script src="projects-data.js"></script>
+  <script src="mosaic.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
