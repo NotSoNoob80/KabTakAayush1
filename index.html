@@ -27,6 +27,8 @@
       inset: 0;
       z-index: 1;
       display: block;
+      /* Stop browser scroll / pull-to-refresh stealing canvas gestures on touch */
+      touch-action: none;
     }
 
     /* Nav floats above canvas — hidden until the pointer nears the top */
@@ -74,6 +76,8 @@
       align-items: center;
       justify-content: center;
       gap: 10px;
+      padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+               max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
       pointer-events: none;
       transition: opacity 0.6s ease;
     }
@@ -166,6 +170,61 @@
       letter-spacing: 0.2em;
       color: rgba(255, 255, 255, 0.2);
     }
+
+    /* ─── Mobile / narrow-viewport layout (desktop untouched) ─── */
+    @media (max-width: 767px), (pointer: coarse) {
+      /* No hover on touch, so the peek-on-pointer nav would never appear.
+         Keep the compact nav (styles.css) always visible instead — it's the
+         only route to Projects/About once the center CTAs hide themselves. */
+      .nav {
+        transform: translateY(0);
+        padding-top: env(safe-area-inset-top);
+      }
+
+      /* Hint clears the safe area and sits centered-ish at the bottom */
+      .void-hint {
+        bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(14px, 2.5vh, 24px));
+        right: 50%;
+        transform: translateX(50%);
+        font-size: 8px;
+        letter-spacing: 0.28em;
+        text-align: center;
+        white-space: nowrap;
+      }
+
+      /* Loader respects the safe area */
+      #void-loader {
+        padding: env(safe-area-inset-top) env(safe-area-inset-right)
+                 env(safe-area-inset-bottom) env(safe-area-inset-left);
+      }
+      .vl-track { width: min(180px, 60vw); }
+
+      /* Center logo a touch smaller so it never overflows narrow screens */
+      #void-center .center-logo {
+        width: clamp(150px, 56vw, 320px);
+      }
+
+      /* Stack the two CTAs into full-width-ish, ≥44px tap targets */
+      .void-ctas {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        width: min(320px, 84vw);
+      }
+      .void-ctas .btn {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        white-space: nowrap;
+      }
+    }
+
+    /* ─── Reduced motion: calm the film grain ─── */
+    @media (prefers-reduced-motion: reduce) {
+      #void-grain { animation: none; }
+    }
   </style>
 </head>
 <body>
@@ -221,6 +280,15 @@
     'use strict';
 
     /* ══════════════════════════════════════════
+       MOBILE DETECTION — decided once at load.
+       Desktop path stays byte-for-byte identical when false.
+    ══════════════════════════════════════════ */
+    var IS_MOBILE = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches)
+                    || window.innerWidth < 768;
+    var MAX_TEX   = 1024;             // mobile: downscale textures to this long edge
+    var MOBILE_SLOTS = 30;            // mobile: lighter field (~30 of 59 frames)
+
+    /* ══════════════════════════════════════════
        CONFIG
     ══════════════════════════════════════════ */
     var REEL_COUNT   = 99;            // images in assets/reel/
@@ -236,6 +304,13 @@
     var PAN_SPEED    = 0.030;         // world units per dragged px
     var PAN_FRICTION = 0.93;          // drag inertia decay
     var SCROLL_SPEED = 0.050;         // depth per wheel deltaY unit
+
+    // Mobile touch tuning
+    var TOUCH_PAN_X   = 0.045;        // world units per horizontal dragged px (look)
+    var TOUCH_FLY     = 0.060;        // depth per vertical dragged px (fly)
+    var TOUCH_PINCH   = 0.090;        // depth per two-finger vertical px
+    var FLY_FRICTION  = 0.92;         // vertical-swipe momentum decay
+    var TAP_THRESHOLD = 8;            // px of movement that still counts as a tap
     var LERP_CAM     = 0.075;         // camera chase smoothing
     var SWAY_X       = 0.045;         // idle mouse sway (radians)
     var SWAY_Y       = 0.030;
@@ -250,6 +325,15 @@
     var INTRO_DUR    = 3000;          // ms — camera pull-back
     var INTRO_FROM   = -34;           // camera start (deep inside the field)
     var INTRO_TO     = 26;            // camera settle position
+
+    // Mobile: a lighter field of evenly-spread frames.
+    if (IS_MOBILE) SLOTS = MOBILE_SLOTS;
+
+    // Touch devices get touch-appropriate hint wording.
+    if (IS_MOBILE) {
+      var hintInit = document.getElementById('void-hint');
+      if (hintInit) hintInit.textContent = 'Drag · swipe · tap a frame';
+    }
 
     /* ══════════════════════════════════════════
        SEEDED PSEUDO-RANDOM (LCG) — deterministic layout
@@ -296,7 +380,11 @@
           shade:      0.45 + r() * 0.55,    // brightness variety 0.45 → 1.0
           floatPhase: r() * Math.PI * 2,
           floatSpeed: 0.22 + r() * 0.38,
-          tex:        i % REEL_COUNT        // which reel image
+          // Desktop: cycle the reel. Mobile: evenly sample across the whole
+          // reel so the lighter field keeps its variety.
+          tex: IS_MOBILE
+                 ? Math.floor(i * REEL_COUNT / SLOTS) % REEL_COUNT
+                 : i % REEL_COUNT
         });
       }
     })();
@@ -308,8 +396,9 @@
     var W = window.innerWidth;
     var H = window.innerHeight;
 
-    var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: !IS_MOBILE, powerPreference: 'high-performance' });
+    // Cap pixel ratio harder on mobile to spare the GPU.
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_MOBILE ? 1.5 : 2));
     renderer.setSize(W, H);
     renderer.outputEncoding = THREE.sRGBEncoding;
 
@@ -325,17 +414,64 @@
 
     /* ══════════════════════════════════════════
        TEXTURE LOADING — reel images
+
+       Desktop loads the whole reel (unchanged). Mobile loads only the
+       distinct reel images its lighter field actually references, and
+       downscales each to MAX_TEX on the long edge to cut GPU memory.
     ══════════════════════════════════════════ */
-    var TO_LOAD  = REEL_COUNT;
     var loadedN  = 0;
     var loader   = new THREE.TextureLoader();
     var fillEl   = document.getElementById('vl-fill');
     var countEl  = document.getElementById('vl-count');
     var reelTex  = new Array(REEL_COUNT).fill(null);
 
+    // Which reel indices does the field actually need?
+    var needed = [];
+    (function collectNeeded() {
+      var seen = {};
+      for (var i = 0; i < layouts.length; i++) {
+        var t = layouts[i].tex;
+        if (!seen[t]) { seen[t] = true; needed.push(t); }
+      }
+      // Desktop: keep the original behaviour of loading the full reel in order.
+      if (!IS_MOBILE) {
+        needed = [];
+        for (var k = 0; k < REEL_COUNT; k++) needed.push(k);
+      }
+    })();
+
+    var TO_LOAD = needed.length;
+    countEl.textContent = '0 / ' + TO_LOAD;   // reflect the real total up front
+
     function pad2(n) { return n < 10 ? '0' + n : '' + n; }
 
+    // Mobile: shrink an oversized image onto an offscreen canvas so the
+    // GPU never holds the full-resolution bitmap.
+    function downscaleImage(img) {
+      var w = img.naturalWidth || img.width;
+      var h = img.naturalHeight || img.height;
+      var long = Math.max(w, h);
+      if (!IS_MOBILE || long <= MAX_TEX) return img;
+      var s = MAX_TEX / long;
+      var cw = Math.max(1, Math.round(w * s));
+      var ch = Math.max(1, Math.round(h * s));
+      var cnv = document.createElement('canvas');
+      cnv.width = cw;
+      cnv.height = ch;
+      var ctx = cnv.getContext('2d');
+      ctx.drawImage(img, 0, 0, cw, ch);
+      return cnv;
+    }
+
     function prepTex(tex) {
+      // Swap in a downscaled bitmap on mobile before the texture uploads.
+      if (IS_MOBILE && tex.image) {
+        var small = downscaleImage(tex.image);
+        if (small !== tex.image) {
+          tex.image = small;
+          tex.needsUpdate = true;
+        }
+      }
       tex.encoding  = THREE.sRGBEncoding;
       tex.minFilter = THREE.LinearMipmapLinearFilter;
       tex.generateMipmaps = true;
@@ -347,16 +483,16 @@
       loadedN++;
       fillEl.style.transform = 'scaleX(' + (loadedN / TO_LOAD) + ')';
       countEl.textContent    = loadedN + ' / ' + TO_LOAD;
-      if (loadedN === TO_LOAD) buildScene();
+      if (loadedN >= TO_LOAD) buildScene();
     }
 
-    for (var j = 0; j < REEL_COUNT; j++) {
+    for (var j = 0; j < needed.length; j++) {
       (function (idx) {
         loader.load('assets/reel/' + pad2(idx + 1) + '.webp', function (tex) {
           reelTex[idx] = prepTex(tex);
           tick();
         }, undefined, tick); // count errors too so loader never stalls
-      })(j);
+      })(needed[j]);
     }
 
     /* ══════════════════════════════════════════
@@ -427,7 +563,11 @@
         var tex = reelTex[L.tex];
         if (!tex) continue;
 
-        var aspect = tex.image.naturalWidth / tex.image.naturalHeight;
+        // tex.image may be an <img> (naturalWidth) or, on mobile, a downscaled
+        // <canvas> (width/height only) — handle both so aspect is never NaN.
+        var iw = tex.image.naturalWidth  || tex.image.width;
+        var ih = tex.image.naturalHeight || tex.image.height;
+        var aspect = iw / ih;
         var h = IMG_BASE_H * L.scale;
         var w = h * aspect;
 
@@ -452,6 +592,7 @@
     var cam       = { x: 0, y: 0, z: 0 };       // actual camera position
     var camTarget = { x: 0, y: 0, z: 0 };       // chased target
     var panVX = 0, panVY = 0;                   // drag inertia
+    var zVel  = 0;                              // mobile vertical-swipe fly momentum
     var mouseNX = 0, mouseNY = 0;               // -1..1 idle sway
     var isDragging  = false;
     var dragMoved   = 0;
@@ -559,63 +700,27 @@
     }
 
     /* ══════════════════════════════════════════
-       INPUT — WHEEL (depth)
+       INPUT — WHEEL (depth)  [desktop only]
     ══════════════════════════════════════════ */
-    window.addEventListener('wheel', function (e) {
-      e.preventDefault();
-      if (!introDone) return;
-      hideUiForever();
-      if (focused) { releaseFocus(); return; }
+    if (!IS_MOBILE) {
+      window.addEventListener('wheel', function (e) {
+        e.preventDefault();
+        if (!introDone) return;
+        hideUiForever();
+        if (focused) { releaseFocus(); return; }
 
-      var raw = e.deltaY;
-      if (e.deltaMode === 1) raw *= 28;
-      else if (e.deltaMode === 2) raw *= 500;
-      camTarget.z -= raw * SCROLL_SPEED;   // scroll down = deeper into the void
-    }, { passive: false });
+        var raw = e.deltaY;
+        if (e.deltaMode === 1) raw *= 28;
+        else if (e.deltaMode === 2) raw *= 500;
+        camTarget.z -= raw * SCROLL_SPEED;   // scroll down = deeper into the void
+      }, { passive: false });
+    }
 
     /* ══════════════════════════════════════════
-       INPUT — POINTER (drag pan + click focus + hover)
+       INPUT — POINTER (drag pan + click focus + hover)  [desktop only]
+       Touch devices are driven by the dedicated touch block below so the
+       two input systems never apply the same finger twice.
     ══════════════════════════════════════════ */
-    canvas.addEventListener('pointerdown', function (e) {
-      if (!introDone) return;
-      hideUiForever();
-      isDragging = true;
-      dragMoved  = 0;
-      downX = lastPX = e.clientX;
-      downY = lastPY = e.clientY;
-      downT = performance.now();
-      panVX = panVY = 0;
-      document.body.classList.add('is-dragging');
-    });
-
-    window.addEventListener('pointermove', function (e) {
-      mouseNX = (e.clientX / W) * 2 - 1;
-      mouseNY = (e.clientY / H) * 2 - 1;
-
-      // Nav peeks down only when the pointer nears the top edge
-      if (e.clientY < 90) navEl.classList.add('is-peek');
-      else if (!isDragging) navEl.classList.remove('is-peek');
-
-      if (isDragging) {
-        var dx = e.clientX - lastPX;
-        var dy = e.clientY - lastPY;
-        lastPX = e.clientX;
-        lastPY = e.clientY;
-        dragMoved += Math.abs(dx) + Math.abs(dy);
-
-        if (!focused) {
-          panVX = -dx * PAN_SPEED;
-          panVY =  dy * PAN_SPEED;
-          camTarget.x += panVX;
-          camTarget.y += panVY;
-        }
-      } else if (introDone) {
-        // Hover cursor
-        var hit = raycastFrames(e.clientX, e.clientY);
-        document.body.classList.toggle('is-hovering', !!hit && !focused);
-      }
-    });
-
     function endPointer(e) {
       if (!isDragging) return;
       isDragging = false;
@@ -632,11 +737,54 @@
         setFocus(hit);
       }
     }
-    window.addEventListener('pointerup', endPointer);
-    window.addEventListener('pointercancel', function () {
-      isDragging = false;
-      document.body.classList.remove('is-dragging');
-    });
+
+    if (!IS_MOBILE) {
+      canvas.addEventListener('pointerdown', function (e) {
+        if (!introDone) return;
+        hideUiForever();
+        isDragging = true;
+        dragMoved  = 0;
+        downX = lastPX = e.clientX;
+        downY = lastPY = e.clientY;
+        downT = performance.now();
+        panVX = panVY = 0;
+        document.body.classList.add('is-dragging');
+      });
+
+      window.addEventListener('pointermove', function (e) {
+        mouseNX = (e.clientX / W) * 2 - 1;
+        mouseNY = (e.clientY / H) * 2 - 1;
+
+        // Nav peeks down only when the pointer nears the top edge
+        if (e.clientY < 90) navEl.classList.add('is-peek');
+        else if (!isDragging) navEl.classList.remove('is-peek');
+
+        if (isDragging) {
+          var dx = e.clientX - lastPX;
+          var dy = e.clientY - lastPY;
+          lastPX = e.clientX;
+          lastPY = e.clientY;
+          dragMoved += Math.abs(dx) + Math.abs(dy);
+
+          if (!focused) {
+            panVX = -dx * PAN_SPEED;
+            panVY =  dy * PAN_SPEED;
+            camTarget.x += panVX;
+            camTarget.y += panVY;
+          }
+        } else if (introDone) {
+          // Hover cursor
+          var hit = raycastFrames(e.clientX, e.clientY);
+          document.body.classList.toggle('is-hovering', !!hit && !focused);
+        }
+      });
+
+      window.addEventListener('pointerup', endPointer);
+      window.addEventListener('pointercancel', function () {
+        isDragging = false;
+        document.body.classList.remove('is-dragging');
+      });
+    }
 
     window.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') releaseFocus();
@@ -646,22 +794,131 @@
     navEl.addEventListener('dragstart', function (e) { e.preventDefault(); });
 
     /* ══════════════════════════════════════════
-       INPUT — TOUCH (one finger = pan, tap = focus)
+       INPUT — TOUCH
     ══════════════════════════════════════════ */
-    var touchY0 = 0;
-    window.addEventListener('touchstart', function (e) {
-      if (e.touches.length === 2) touchY0 = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-    }, { passive: true });
+    if (!IS_MOBILE) {
+      /* Desktop touchscreens: keep the original two-finger depth gesture,
+         byte-for-byte the same as before this mobile pass. */
+      var touchY0 = 0;
+      window.addEventListener('touchstart', function (e) {
+        if (e.touches.length === 2) touchY0 = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      }, { passive: true });
 
-    window.addEventListener('touchmove', function (e) {
-      // Two-finger vertical drag = depth scroll
-      if (e.touches.length === 2 && introDone && !focused) {
+      window.addEventListener('touchmove', function (e) {
+        // Two-finger vertical drag = depth scroll
+        if (e.touches.length === 2 && introDone && !focused) {
+          hideUiForever();
+          var yNow = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+          camTarget.z -= (touchY0 - yNow) * 0.12;
+          touchY0 = yNow;
+        }
+      }, { passive: true });
+    } else {
+      /* ── Mobile gesture model (unified — replaces pointer + two-finger) ──
+         · one finger: horizontal drag = look/pan X, vertical drag = fly
+           forward/back through the void (with release momentum)
+         · two fingers: vertical average = fly (same depth channel)
+         · tap (< TAP_THRESHOLD px, quick): focus / release a frame        */
+      var tStartX = 0, tStartY = 0, tStartT = 0;
+      var tLastX  = 0, tLastY  = 0;
+      var tMoved  = 0;
+      var tPinch  = false;        // gesture began / became multi-touch
+      var tPinchY0 = 0;
+      var lastVZ  = 0;            // last-frame vertical delta → momentum seed
+
+      canvas.addEventListener('touchstart', function (e) {
+        if (!introDone) return;
+        zVel = 0;                 // a new touch cancels fly momentum
+        if (e.touches.length >= 2) {
+          tPinch  = true;
+          tPinchY0 = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+          return;
+        }
+        var t = e.touches[0];
+        tStartX = tLastX = t.clientX;
+        tStartY = tLastY = t.clientY;
+        tStartT = performance.now();
+        tMoved  = 0;
+        lastVZ  = 0;
+        tPinch  = false;
+        document.body.classList.add('is-dragging');
+      }, { passive: true });
+
+      canvas.addEventListener('touchmove', function (e) {
+        if (!introDone) return;
+        // Block pull-to-refresh / page scroll while exploring the canvas.
+        if (e.cancelable) e.preventDefault();
         hideUiForever();
-        var yNow = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-        camTarget.z -= (touchY0 - yNow) * 0.12;
-        touchY0 = yNow;
+
+        if (e.touches.length >= 2) {
+          // Two-finger vertical average drives depth.
+          tPinch = true;
+          var yAvg = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+          if (!focused) {
+            // Swipe up (yAvg decreasing) → fly forward (z decreases).
+            var dz2 = (yAvg - tPinchY0) * TOUCH_PINCH;  // up → dz2<0 → forward
+            camTarget.z += dz2;
+            lastVZ = dz2;
+          }
+          tPinchY0 = yAvg;
+          return;
+        }
+        if (tPinch) return;       // ignore the leftover finger after a pinch
+
+        var t  = e.touches[0];
+        var dx = t.clientX - tLastX;
+        var dy = t.clientY - tLastY;
+        tLastX = t.clientX;
+        tLastY = t.clientY;
+        // Track furthest displacement from the start so a tap stays a tap.
+        var disp = Math.max(Math.abs(t.clientX - tStartX), Math.abs(t.clientY - tStartY));
+        if (disp > tMoved) tMoved = disp;
+
+        if (focused) return;      // while focused, a tap releases — no fly/pan
+
+        // Horizontal = look/pan X (matches desktop drag sign).
+        camTarget.x += -dx * TOUCH_PAN_X;
+        // Vertical = fly: swipe up (dy<0) → forward (z decreases), down → back.
+        var dz = dy * TOUCH_FLY;   // dy<0 → dz<0 → camTarget.z decreases → forward
+        camTarget.z += dz;
+        lastVZ = dz;               // remember this frame's z-delta for momentum
+      }, { passive: false });
+
+      function endTouch(e) {
+        if (!introDone) return;
+        document.body.classList.remove('is-dragging');
+
+        // Still fingers down (e.g. lifted one of two)? keep gesture alive.
+        if (e.touches && e.touches.length > 0) return;
+
+        var dt   = performance.now() - tStartT;
+        var moved = tMoved;
+        var wasPinch = tPinch;
+        tPinch = false;
+
+        // Tap → focus / release a frame.
+        if (!wasPinch && moved < TAP_THRESHOLD && dt < 450) {
+          var hit = raycastFrames(tStartX, tStartY);
+          if (focused) {
+            if (hit && hit !== focused) setFocus(hit);
+            else releaseFocus();
+          } else if (hit) {
+            setFocus(hit);
+          }
+          zVel = 0;
+          return;
+        }
+
+        // Otherwise: hand vertical velocity to fly momentum.
+        if (!focused) zVel = lastVZ;
       }
-    }, { passive: true });
+      canvas.addEventListener('touchend', endTouch, { passive: true });
+      canvas.addEventListener('touchcancel', function (e) {
+        document.body.classList.remove('is-dragging');
+        tPinch = false;
+        if (!e.touches || e.touches.length === 0) zVel = 0;
+      }, { passive: true });
+    }
 
     /* ══════════════════════════════════════════
        RESIZE
@@ -697,6 +954,14 @@
         panVY *= PAN_FRICTION;
         if (Math.abs(panVX) > 0.0005) camTarget.x += panVX;
         if (Math.abs(panVY) > 0.0005) camTarget.y += panVY;
+      }
+
+      // Mobile vertical-swipe fly momentum (zVel is a per-frame z-delta)
+      if (Math.abs(zVel) > 0.0008) {
+        if (!focused) camTarget.z += zVel;
+        zVel *= FLY_FRICTION;
+      } else {
+        zVel = 0;
       }
 
       // Camera chase

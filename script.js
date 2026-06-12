@@ -944,7 +944,37 @@
   var indexPreviewImg = document.getElementById('project-index-preview-img');
   var indexPreviewMeta = document.getElementById('project-index-preview-meta');
 
-  if (indexList && indexPreviewImg) {
+  /* Touch / coarse-pointer devices can't hover, so the swap-on-hover
+     preview never fires for them. Instead of leaving a dead right-hand
+     column, the CSS (see "@media (hover: none)" in styles.css) hides
+     that column + the centre mark and shows an always-visible inline
+     thumbnail on each row. CSS can't read an element's data-attribute
+     as a background URL, so we mirror each row's `data-thumb` into a
+     `--thumb` custom property here; the CSS `.index__item::before` then
+     paints it. We also SKIP all the hover/focus wiring below on touch
+     so there are no ghost active/hover states — a single tap on the
+     row (it's already an <a>) navigates. */
+  var indexIsTouch = !!(window.matchMedia &&
+    (window.matchMedia('(hover: none)').matches ||
+     window.matchMedia('(pointer: coarse)').matches));
+
+  if (indexList && indexIsTouch) {
+    var touchItems = indexList.querySelectorAll('.index__item');
+    touchItems.forEach(function (item) {
+      var thumb = item.getAttribute('data-thumb');
+      if (thumb) item.style.setProperty('--thumb', 'url("' + thumb + '")');
+      /* No hover preview on touch — drop the desktop "is-active" state
+         so nothing sits highlighted/clipped without a pointer. */
+      item.classList.remove('is-active');
+    });
+    /* Still flag deliberate navigation so the space-void intro fires
+       on tap-through (same behaviour as the desktop click handler). */
+    indexList.addEventListener('click', function (e) {
+      if (e.target.closest('a[href*="project.html"]')) {
+        sessionStorage.setItem('kta:from-projects', '1');
+      }
+    });
+  } else if (indexList && indexPreviewImg) {
     var indexItems = indexList.querySelectorAll('.index__item');
     var indexFrame = document.querySelector('.index__preview-frame');
     var prevActiveIdx = 0;

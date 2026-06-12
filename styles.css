@@ -731,6 +731,259 @@ a {
 }
 
 /* ============================================================
+   MOBILE — inner-page compatibility (additive only)
+   Everything below is gated by max-width or pointer/touch
+   capability so the desktop experience is byte-for-byte
+   unchanged. Targets 360–430px phones; body copy ≥16px.
+   ============================================================ */
+
+/* ---- Compact nav: logo + all three links stay inline, smaller
+   type and tighter spacing, tap targets ≥44px. No hamburger. ---- */
+@media (max-width: 640px) {
+  :root {
+    /* Shorter bar on mobile so the page below isn't pushed down by
+       the oversized desktop badge. */
+    --nav-h: 60px;
+  }
+
+  .nav {
+    padding: 0 18px;
+    gap: 12px;
+  }
+
+  /* The desktop logo is a 200px badge overhanging the 84px bar by
+     design — on a 60px mobile bar that badge swamps the screen and
+     pushes layout. Shrink it to sit neatly inside the bar instead. */
+  .nav__logo {
+    height: 84px;
+    transform: translateY(8px);
+  }
+
+  .nav__links {
+    gap: 14px;
+    flex-shrink: 0;
+  }
+
+  .nav__links a {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    /* ≥44px tap target via vertical padding while keeping the bar
+       compact; negative margin keeps the visual baseline aligned. */
+    padding: 15px 2px;
+    margin: -15px 0;
+  }
+}
+
+/* Below ~400px, tighten one more notch so the three links never
+   wrap or clip against the logo. */
+@media (max-width: 400px) {
+  .nav { padding: 0 14px; }
+  .nav__links { gap: 11px; }
+  .nav__links a { font-size: 10px; letter-spacing: 0.08em; }
+  .nav__logo { height: 74px; }
+}
+
+/* ============================================================
+   projects.html (index) — touch layout
+   On touch/coarse-pointer devices the hover thumbnail preview
+   can't work, so we hide the right-hand preview column + centre
+   wordmark and turn each title row into a self-contained card
+   with an ALWAYS-VISIBLE inline thumbnail. A single tap on the
+   row navigates (the whole row is already an <a>). The
+   hover-preview JS is skipped on touch (see script.js) so there
+   are no ghost active/hover states.
+   ============================================================ */
+@media (hover: none), (pointer: coarse) {
+  .index {
+    display: block;
+    grid-template-columns: none;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    gap: 0;
+    padding: 0 20px 40px;
+    margin-top: var(--nav-h);
+  }
+
+  /* The centre wordmark and the right preview only make sense as
+     hover anchors — drop them entirely on touch. */
+  .index__mark,
+  .index__preview {
+    display: none;
+  }
+
+  .index__list {
+    display: block;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    padding: 24px 0;
+    /* The fade mask only made sense for an internally-scrolling
+       column; the whole page scrolls now, so drop it. */
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  /* Each row becomes a thumbnail-beside-title card. */
+  .index__item {
+    align-items: center;
+    gap: 16px;
+    padding: 16px 2px;
+    color: var(--cream);
+  }
+
+  /* Always-visible inline thumbnail, injected via ::before using the
+     row's own data-thumb attribute — no extra markup needed, and it
+     works for every project automatically. */
+  .index__item::before {
+    content: '';
+    flex: 0 0 auto;
+    width: 64px;
+    height: 80px;
+    background-image: var(--thumb);
+    background-size: cover;
+    background-position: center;
+    background-color: var(--black-soft);
+    border-radius: 2px;
+    filter: grayscale(0.35) brightness(0.92);
+  }
+
+  .index__num {
+    font-size: 12px;
+    color: var(--gold-dim);
+    flex: 0 0 auto;
+  }
+
+  .index__title {
+    /* No hover sweep on touch — keep it solid cream, sized to fit. */
+    font-size: clamp(24px, 7vw, 38px);
+    transform: none;
+    flex: 1 1 auto;
+    line-height: 0.98;
+  }
+
+  /* The hover gold-sweep overlay would just sit clipped at 0 forever
+     on touch; hide it so there's no half-rendered ghost. */
+  .index__title::before {
+    display: none;
+  }
+
+  /* The "View project →" cue was a hover affordance; the thumbnail +
+     whole-row tap is the affordance now. */
+  .index__cue {
+    display: none;
+  }
+}
+
+/* ============================================================
+   project.html (mosaic) — touch / small-screen polish
+   The grid already reflows to 1 column at ≤640px. The back button
+   gets a comfortable tap target here; the page-head padding and
+   mosaic image caps are handled in mobile blocks placed AFTER
+   their base rules (further down) so source order lets them win.
+   `.back-btn`'s base rule sits earlier in the file, so this
+   override correctly takes precedence at mobile widths.
+   ============================================================ */
+@media (max-width: 640px) {
+  .back-btn {
+    /* Comfortable tap target — taller, a touch more reach. */
+    padding: 15px 22px 15px 18px;
+    font-size: 12px;
+    margin-bottom: 24px;
+  }
+}
+
+/* The space-void intro positions frames with JS using innerWidth/
+   innerHeight, so it already adapts to the viewport. On coarse
+   pointers the auto-advance + tap-anywhere both work; nothing to
+   change for touch beyond ensuring the click cue copy fits. */
+@media (max-width: 400px) {
+  .intro-cue { font-size: 9px; letter-spacing: 0.24em; }
+}
+
+/* ============================================================
+   about.html (listing) — small-screen reflow
+   listing.js drives the pinned scrub via transforms; the stage is
+   already sized off vmin. These tweaks keep the type readable and
+   the cards inside the frame at 360–430px without touching the
+   motion logic. The reduced-motion fallback (which stacks the
+   cards) is defined earlier and is unaffected.
+   ============================================================ */
+@media (max-width: 430px) {
+  .listing__stage {
+    width: min(94vw, 460px);
+    height: min(82vh, 700px);
+  }
+
+  .listing__card {
+    padding: 34px 26px;
+    gap: 14px;
+  }
+
+  /* The default 62% / 50% measures are too tight on a phone — let the
+     status copy use more of the card so it doesn't pinch into a
+     sliver of a column. 16px floor for readable body copy on mobile. */
+  .listing__status {
+    max-width: 82%;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  .listing__card--makaan .listing__status {
+    max-width: 74%;
+  }
+
+  .listing__outro-stamp {
+    padding: 64px 24px 100px;
+    font-size: clamp(30px, 12vw, 56px);
+  }
+}
+
+/* ============================================================
+   Global mobile polish
+   ============================================================ */
+@media (max-width: 640px) {
+  /* Footer wordmark is decorative and huge; keep it from being the
+     thing that introduces horizontal overflow. */
+  .footer {
+    padding: 64px 24px 32px;
+  }
+
+  .footer__wordmark {
+    margin: 56px -24px 24px;
+  }
+
+  /* Body-copy floor: 16px on mobile for the small print blocks. */
+  .footer__col a,
+  .footer__col p {
+    font-size: 16px;
+  }
+}
+
+/* Footer per-letter hover "peek" must not get stuck on touch —
+   coarse pointers latch :hover until the next tap elsewhere. Strip
+   the hover transforms/colours entirely on no-hover devices so a
+   tapped letter never sticks lifted or gold. */
+@media (hover: none), (pointer: coarse) {
+  .footer__wordmark .char:hover,
+  .footer__wordmark .char:hover + .char,
+  .footer__wordmark .char:has(+ .char:hover),
+  .footer__wordmark--flicker .char:hover,
+  .footer__wordmark--flicker .char:hover + .char,
+  .footer__wordmark--flicker .char:has(+ .char:hover),
+  .footer__wordmark--piano .char:hover,
+  .footer__wordmark--piano .char:hover + .char,
+  .footer__wordmark--piano .char:has(+ .char:hover),
+  .footer__wordmark--piano .char:hover + .char + .char,
+  .footer__wordmark--piano .char:has(+ .char + .char:hover) {
+    color: var(--cream);
+    transform: none;
+    filter: none;
+    animation: none;
+  }
+}
+
+/* ============================================================
    Page header (Projects)
    ============================================================ */
 .page-head {
@@ -792,6 +1045,37 @@ a {
 
 .filters button.is-active::after {
   transform: scaleX(1);
+}
+
+/* Mobile page-head (project.html / projects.html) — placed AFTER the
+   base rules above so source order lets these win at mobile widths.
+   Smaller top padding (the nav bar is shorter on mobile) and a 16px
+   body-copy floor on the sub-line. */
+@media (max-width: 640px) {
+  .page-head {
+    padding: 120px 24px 48px;
+  }
+
+  .page-head__sub {
+    font-size: 16px;
+  }
+}
+
+/* Filter row stays usable on mobile: allow horizontal scroll if the
+   pills ever exceed the viewport, with comfortable tap spacing. (No
+   .filters markup ships on the owned pages today, but this keeps the
+   component mobile-ready if it's added.) */
+@media (max-width: 640px) {
+  .filters {
+    margin-top: 28px;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .filters button {
+    font-size: 13px;
+    padding: 10px 2px;
+  }
 }
 
 /* ============================================================
