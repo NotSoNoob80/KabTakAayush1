@@ -364,13 +364,31 @@
                   }, 850);
                 });
               }
-              document.addEventListener('click', triggerPhase2, { once: true });
+              document.addEventListener('click', onPhase2Click);
+              /* Auto-advance 3 s after cue appears, in case the user
+                 does not know to click. Keeps intro from ever getting
+                 stuck on a black screen.                              */
+              p2AutoTimer = window.setTimeout(function () {
+                doTriggerPhase2();
+              }, staggerTotal + 550 + 3000);
             }, staggerTotal + 550);
 
           });
         });
 
-        /* ── Phase 2: triggered by user click ── */
+        /* ── Phase 2 guard — prevents double-fire from click + timer ── */
+        var p2Fired    = false;
+        var p2AutoTimer;
+        var onPhase2Click = function () { doTriggerPhase2(); };
+        var doTriggerPhase2 = function () {
+          if (p2Fired) return;
+          p2Fired = true;
+          window.clearTimeout(p2AutoTimer);
+          document.removeEventListener('click', onPhase2Click);
+          triggerPhase2();
+        };
+
+        /* ── Phase 2: triggered by user click or auto-advance ── */
         var triggerPhase2 = function () {
 
           /* Dismiss click cue — clear the pulse timer, fade out, then

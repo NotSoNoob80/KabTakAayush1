@@ -145,4 +145,42 @@ function projectVideos(p) {
 
 /* The ordered media list the mosaic actually renders. Videos are
    woven *evenly* in among the images rather than dumped at the end:
- 
+   a project with 12 images and 3 videos gets a video at positions
+   3, 7, 11 (roughly every imageCount/videoCount steps). This way
+   the page never front- or back-loads all the video tiles. */
+function projectMedia(p) {
+  var images = projectImages(p);
+  var videos = projectVideos(p);
+  if (!videos.length) {
+    return images.map(function (src) { return { kind: 'image', src: src }; });
+  }
+  if (!images.length) {
+    return videos.map(function (src) { return { kind: 'video', src: src }; });
+  }
+  /* Interleave: place a video every `step` image slots. */
+  var result = [];
+  var step   = Math.max(1, Math.round(images.length / (videos.length + 1)));
+  var vi = 0; /* video index */
+  var ii = 0; /* image index */
+  var pos = 0;
+  while (ii < images.length || vi < videos.length) {
+    /* Drop a video every `step` positions, if any remain. */
+    if (vi < videos.length && pos > 0 && pos % step === 0) {
+      result.push({ kind: 'video', src: videos[vi++] });
+    } else if (ii < images.length) {
+      result.push({ kind: 'image', src: images[ii++] });
+    } else {
+      result.push({ kind: 'video', src: videos[vi++] });
+    }
+    pos++;
+  }
+  return result;
+}
+
+/* Look up a single project by its zero-padded string id ('01'–'99'). */
+function getProjectById(id) {
+  for (var i = 0; i < PROJECTS.length; i++) {
+    if (PROJECTS[i].id === id) return PROJECTS[i];
+  }
+  return null;
+}
