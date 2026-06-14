@@ -98,8 +98,8 @@
     ],
     kapda: [
       { at: 0.16, op: 0, y: 140, scale: 0.7, rot: 29 },
-      { at: 0.22, op: 1, y: 0, scale: 1.02, rot: 13 },
-      { at: 0.30, op: 1, y: 0, scale: 1.02, rot: 13 },
+      { at: 0.22, op: 1, y: 150, scale: 1.02, rot: 13 },
+      { at: 0.30, op: 1, y: 150, scale: 1.02, rot: 13 },
       { at: 0.36, op: 0, y: -120, scale: 0.86, rot: -19 }
     ],
     makaan: [
@@ -111,8 +111,8 @@
     ],
     art: [
       { at: 0.74, op: 0, y: 130, scale: 0.74, rot: 17 },
-      { at: 0.85, op: 1, y: 0, scale: 1.02, rot: 7 },
-      { at: 1.00, op: 1, y: 0, scale: 1.02, rot: 7 }
+      { at: 0.85, op: 1, y: 90, scale: 1.02, rot: 7 },
+      { at: 1.00, op: 1, y: 90, scale: 1.02, rot: 7 }
     ]
   };
 
@@ -276,6 +276,36 @@
   };
   computeRotScale();
   window.addEventListener('resize', computeRotScale);
+
+  /* Kapda and Art rotate positively (+13°, +7°) which lifts their
+     top-left corner — and thus the title — toward the nav. On
+     desktop the stage is tall and the title risks slipping under
+     the header, so the original timelines compensated by holding
+     those two cards 150 / 90 px below stage centre. On phones the
+     stage is small (rotation is also damped via `rotScale`) and
+     the same px offset reads as "Kapda and Art hang lower than
+     Roti and Makaan". Mirror `rotScale`'s breakpoint: drop the
+     hold compensation to 0 on phones (cards rest centred) and
+     keep the desktop values intact. Entry / exit y are untouched
+     so the in-out animation feel stays the same. */
+  var HOLD_Y_COMP = { kapda: 150, art: 90 };
+  var holdYScale = 1;
+  var applyHoldYScale = function () {
+    TIMELINES.kapda[1].y = HOLD_Y_COMP.kapda * holdYScale;
+    TIMELINES.kapda[2].y = HOLD_Y_COMP.kapda * holdYScale;
+    TIMELINES.art[1].y   = HOLD_Y_COMP.art   * holdYScale;
+    TIMELINES.art[2].y   = HOLD_Y_COMP.art   * holdYScale;
+    if (typeof REST_Y !== 'undefined') {
+      REST_Y.kapda = TIMELINES.kapda[1].y;
+      REST_Y.art   = TIMELINES.art[1].y;
+    }
+  };
+  var computeHoldYScale = function () {
+    holdYScale = window.matchMedia('(max-width: 980px)').matches ? 0 : 1;
+    applyHoldYScale();
+  };
+  computeHoldYScale();
+  window.addEventListener('resize', computeHoldYScale);
 
   var applyCard = function (key, frame, extraY) {
     var el = cardEls[key];
