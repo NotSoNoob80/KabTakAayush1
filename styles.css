@@ -793,8 +793,21 @@ a {
    hover-preview JS is skipped on touch (see script.js) so there
    are no ghost active/hover states.
    ============================================================ */
-@media (hover: none), (pointer: coarse) {
-  .index {
+/* The inline-thumbnail layout is the right one for any *small* screen,
+   not only touch devices: a narrow desktop window, a touch-laptop that
+   reports a fine pointer, and every device emulator all need it too.
+   Keying it on width as well as pointer means the clean thumbnail-beside-
+   title layout shows whenever the hover-driven preview pane can't earn
+   its keep — and the JS flag in script.js mirrors this same condition. */
+@media (hover: none), (pointer: coarse), (max-width: 768px) {
+  /* Every selector below is parent-qualified (`.index …`, or `.index.index`
+     for the container itself) to lift specificity to (0,2,0). The base
+     `.index*` rules sit LATER in this file, so bare same-specificity
+     selectors here would lose the cascade to them and this layout would
+     only half-apply — the panes reappearing and the list keeping its
+     internal scroll. The prefix makes the small-screen layout win
+     regardless of source order. */
+  .index.index {
     display: block;
     grid-template-columns: none;
     height: auto;
@@ -806,26 +819,26 @@ a {
   }
 
   /* The centre wordmark and the right preview only make sense as
-     hover anchors — drop them entirely on touch. */
-  .index__mark,
-  .index__preview {
+     hover anchors — drop them entirely on small screens. */
+  .index .index__mark,
+  .index .index__preview {
     display: none;
   }
 
-  .index__list {
+  /* The whole page scrolls now, so the list is a plain block — no fixed
+     height, no internal scroll, no edge-fade mask. */
+  .index .index__list {
     display: block;
     height: auto;
     max-height: none;
     overflow: visible;
     padding: 24px 0;
-    /* The fade mask only made sense for an internally-scrolling
-       column; the whole page scrolls now, so drop it. */
     -webkit-mask-image: none;
     mask-image: none;
   }
 
   /* Each row becomes a thumbnail-beside-title card. */
-  .index__item {
+  .index .index__item {
     align-items: center;
     gap: 16px;
     padding: 16px 2px;
@@ -835,7 +848,7 @@ a {
   /* Always-visible inline thumbnail, injected via ::before using the
      row's own data-thumb attribute — no extra markup needed, and it
      works for every project automatically. */
-  .index__item::before {
+  .index .index__item::before {
     content: '';
     flex: 0 0 auto;
     width: 64px;
@@ -848,13 +861,13 @@ a {
     filter: grayscale(0.35) brightness(0.92);
   }
 
-  .index__num {
+  .index .index__num {
     font-size: 12px;
     color: var(--gold-dim);
     flex: 0 0 auto;
   }
 
-  .index__title {
+  .index .index__title {
     /* No hover sweep on touch — keep it solid cream, sized to fit. */
     font-size: clamp(24px, 7vw, 38px);
     transform: none;
@@ -864,13 +877,13 @@ a {
 
   /* The hover gold-sweep overlay would just sit clipped at 0 forever
      on touch; hide it so there's no half-rendered ghost. */
-  .index__title::before {
+  .index .index__title::before {
     display: none;
   }
 
   /* The "View project →" cue was a hover affordance; the thumbnail +
      whole-row tap is the affordance now. */
-  .index__cue {
+  .index .index__cue {
     display: none;
   }
 }
@@ -893,14 +906,6 @@ a {
   }
 }
 
-/* The space-void intro positions frames with JS using innerWidth/
-   innerHeight, so it already adapts to the viewport. On coarse
-   pointers the auto-advance + tap-anywhere both work; nothing to
-   change for touch beyond ensuring the click cue copy fits. */
-@media (max-width: 400px) {
-  .intro-cue { font-size: 9px; letter-spacing: 0.24em; }
-}
-
 /* ============================================================
    about.html (listing) — small-screen reflow
    listing.js drives the pinned scrub via transforms; the stage is
@@ -910,11 +915,6 @@ a {
    cards) is defined earlier and is unaffected.
    ============================================================ */
 @media (max-width: 430px) {
-  .listing__stage {
-    width: min(94vw, 460px);
-    height: min(82vh, 700px);
-  }
-
   .listing__card {
     padding: 34px 26px;
     gap: 14px;
@@ -949,8 +949,19 @@ a {
     padding: 64px 24px 32px;
   }
 
-  .footer__wordmark {
+  /* Qualified with `.footer` for specificity (0,2,0): the base
+     `.footer__wordmark` rule (margin + font-size) sits LATER in the
+     file, so a bare selector here would lose the cascade to it and
+     these mobile values would never apply. */
+  .footer .footer__wordmark {
     margin: 56px -24px 24px;
+    /* The base clamp(96px, 25vw, …) makes the word overrun the band on
+       phones, so `overflow: hidden` clips the last letter (the "h").
+       The mark's rendered width is ~4.6× its font-size; at 18vw it sits
+       comfortably inside the band with margin to spare, and
+       `justify-content: space-between` still spreads it flush edge-to-
+       edge — full word, no crop. */
+    font-size: clamp(40px, 18vw, 108px);
   }
 
   /* Body-copy floor: 16px on mobile for the small print blocks. */
@@ -981,6 +992,25 @@ a {
     filter: none;
     animation: none;
   }
+}
+
+/* Touch can't hover, so the per-letter "peek" never fires there. Instead,
+   the first time the wordmark scrolls into view we sweep a single gold
+   ripple across it left-to-right — the same warm-and-lift language as the
+   hover, played once as a wave. script.js adds `.is-shimmer` and sets each
+   letter's `--ci` index (touch only, and never under reduced motion); the
+   staggered per-letter delay turns that index into the ripple. */
+@media (hover: none), (pointer: coarse) {
+  .footer__wordmark.is-shimmer .char {
+    animation: footer-char-shimmer 900ms var(--ease-out) both;
+    animation-delay: calc(var(--ci, 0) * 55ms);
+  }
+}
+
+@keyframes footer-char-shimmer {
+  0%,
+  100% { color: var(--cream); transform: none; }
+  45%  { color: var(--gold); transform: scale(1.08) translateY(-0.06em); }
 }
 
 /* ============================================================
@@ -1200,7 +1230,14 @@ a {
   inset: 0;
   color: var(--gold);
   text-transform: inherit;
-  white-space: nowrap;
+  /* Must wrap exactly like the visible title underneath. `inset: 0` gives
+     this overlay the same box, and the text/font are identical, so default
+     (normal) wrapping breaks it at the same points — a long title like
+     "Water that was still" lands on two lines in BOTH layers and they stay
+     aligned. (Forcing `nowrap` here kept the gold on one line over a
+     two-line cream title, so the sweep showed a doubled/garbled word.) The
+     clip-path wipe then reveals the gold left-to-right across the whole
+     wrapped block. */
   clip-path: inset(0 100% 0 0);
   transition: clip-path 560ms var(--ease-out);
   pointer-events: none;
@@ -1547,28 +1584,21 @@ a {
 }
 
 /* ============================================================
-   Space-void mosaic intro
+   Staggered mosaic reveal
    ------------------------------------------------------------
-   Phase 1: the full viewport goes dark (intro-armed, set only
-   when the user navigated here via a project title click).
-   Every project frame appears small in a loose, negative-space
-   grid and drifts gently as if weightless. User clicks anywhere.
-
-   Phase 2: click — frames simultaneously glide to their real
-   grid positions and scale up. The grid blurs as frames fly in
-   (lens rack-focus), then sharpens as they land. Scale uses a
-   spring-overshoot curve so the landing has weight.
-
-   Reveal: nav, back button, title, and meta stagger in once
-   the mosaic has settled into place.
-
-   Individual CSS `translate` and `scale` properties (not the
-   shorthand `transform`) carry the Phase-1 positioning so the
-   per-frame drift `@keyframes` can use `transform` freely —
-   the three properties compose without conflict.
+   When the visitor arrives by clicking a project title (the
+   `intro-armed` flag, set only on that path), the tiles assemble
+   straight into their real grid positions — each easing in from a
+   slight zoom + fade, staggered centre-outward — and then the page
+   chrome (nav, heading, back button) staggers in. No dark void, no
+   drifting frames, no "click anywhere" gate; script.js owns all the
+   timing inline. This file only holds the page back until the reveal
+   takes over. Direct loads / reloads skip all of this and get the
+   grid's plain per-tile load-fade.
    ============================================================ */
 
-/* While intro runs, hide all page chrome and lock scroll. */
+/* While the reveal runs, hold all page chrome back and lock scroll
+   so the tiles bloom into a still frame before anything else moves. */
 .intro-armed .nav,
 .intro-armed .page-head,
 .intro-armed .footer {
@@ -1581,74 +1611,17 @@ html.intro-armed {
   overflow: hidden;
 }
 
-/* The Phase 1 JS sets `item.style.transition = 'none'` inline
-   synchronously inside mosaic:ready, before any rAF fires —
-   so the is-loaded transition is already cancelled by the time
-   frames fade in. !important is NOT used here: it would beat
-   inline styles and kill the Phase 1/2 JS transitions.        */
+/* script.js sets `item.style.transition = 'none'` + `opacity:0`
+   synchronously inside mosaic:ready, before any paint — this rule
+   turns mosaic.js's already-applied `is-loaded` state into a snap so
+   there is no flash to undo before the staggered settle begins.
+   !important is NOT used: it would beat the inline transitions the
+   reveal sets per tile and kill the animation.                      */
 .intro-armed .mosaic__item {
   transition: none;
 }
 
-/* Phase 1 click cue — position, typography, default hidden.
-   Opacity is driven entirely by JS inline styles so a slow
-   breathing pulse can be interrupted and snapped to zero
-   without any CSS-animation / inline-style cascade conflict.  */
-.intro-cue {
-  position: fixed;
-  bottom: clamp(24px, 4vh, 48px);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 50;
-  pointer-events: none;
-  font-family: var(--text);
-  font-size: 10px;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  color: var(--gold);
-  opacity: 0;
-  white-space: nowrap;
-}
-
-/* Once the user clicks, JS adds this class — it locks opacity at 0
-   so no timing edge-case in the inline-style cleanup can re-show it. */
-.intro-cue.is-dismissed {
-  opacity: 0 !important;
-  transition: none !important;
-}
-
-/* ── Zero-gravity drift ──
-   Uses `transform` only so it composes freely with the
-   individual `translate` and `scale` FLIP properties.
-   Amplitude kept to 3-4 px + sub-degree rotation so frames
-   read as "floating" rather than "sliding".                  */
-@keyframes space-drift {
-  0%   { transform: translate(0px, 0px) rotate(0deg); }
-  30%  { transform: translate(var(--d-x1, 2px),  var(--d-y1, -3px)) rotate(var(--d-r1, 0.5deg)); }
-  65%  { transform: translate(var(--d-x2, -3px), var(--d-y2,  2px)) rotate(var(--d-r2, -0.4deg)); }
-  100% { transform: translate(0px, 0px) rotate(0deg); }
-}
-
-.mosaic__item.is-drifting {
-  animation: space-drift var(--drift-dur, 12s) ease-in-out infinite;
-  animation-delay: var(--drift-offset, 0s);
-}
-
-/* ── Phase 2 lens-focus blur ──
-   Applied to the grid container as frames fly in; simulates a
-   camera rack-focusing from distance (void) to close (mosaic).
-   Blur peaks during convergence then clears as frames land.    */
-@keyframes phase2-focus {
-  0%   { filter: blur(0px);  }
-  22%  { filter: blur(5px);  }
-  100% { filter: blur(0px);  }
-}
-
-.mosaic__grid.is-phase2-focusing {
-  animation: phase2-focus 950ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
-}
-
-/* prefers-reduced-motion: skip intro entirely, show everything. */
+/* prefers-reduced-motion: skip the reveal entirely, show everything. */
 @media (prefers-reduced-motion: reduce) {
   .intro-armed .nav,
   .intro-armed .page-head,
@@ -1658,14 +1631,6 @@ html.intro-armed {
   }
   .intro-armed .mosaic__item {
     transition: revert !important;
-  }
-  .mosaic__item.is-drifting {
-    animation: none;
-    transform: none;
-  }
-  /* Cue never shown — intro is skipped entirely. */
-  .intro-cue {
-    display: none;
   }
 }
 
@@ -1862,6 +1827,21 @@ html.intro-armed {
   position: relative;
   width: min(135vmin, 2000px);
   height: min(118vmin, 1760px);
+}
+
+/* Phones & tablets: the 135vmin stage above is wider than the viewport
+   on purpose for the desktop "slapped on the table" crop — but on small
+   screens that crop eats the card's copy and corner illustration. Rein
+   the stage inside the viewport (still large, just no longer overflowing)
+   and let listing.js gentle the tilt (see `rotScale`) so the rotated
+   corners stay on-screen. The card stays centred via its own
+   left/top:50% + translate pair, so nothing else needs to move. Type and
+   art are sized in % / vmin, so both shrink in step and remain readable. */
+@media (max-width: 980px) {
+  .listing__stage {
+    width: min(82vw, 600px);
+    height: min(66vh, 740px);
+  }
 }
 
 /* Each card starts dead-centre, scaled down and invisible —

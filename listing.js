@@ -264,13 +264,26 @@
     }
   };
 
+  /* On phones/tablets the stage is reined inside the viewport (see the
+     `@media (max-width: 980px)` stage rule in styles.css), but a tall card
+     rotated by the full desktop tilt still swings its corners — and the
+     copy in them — off-screen. Damp the rotation on small screens so the
+     cards stay legible and centred; desktop keeps the full confident tilt.
+     Recomputed on resize so rotating a tablet picks the right amount. */
+  var rotScale = 1;
+  var computeRotScale = function () {
+    rotScale = window.matchMedia('(max-width: 980px)').matches ? 0.5 : 1;
+  };
+  computeRotScale();
+  window.addEventListener('resize', computeRotScale);
+
   var applyCard = function (key, frame, extraY) {
     var el = cardEls[key];
     el.style.opacity = frame.op.toFixed(3);
     el.style.transform =
       'translate(-50%, -50%) translateY(' + (frame.y + (extraY || 0)).toFixed(1) + 'px) ' +
       'scale(' + frame.scale.toFixed(3) + ') ' +
-      'rotate(' + frame.rot.toFixed(2) + 'deg)';
+      'rotate(' + (frame.rot * rotScale).toFixed(2) + 'deg)';
   };
 
   /* ══════════════════════════════════════════

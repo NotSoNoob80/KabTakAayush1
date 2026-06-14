@@ -110,13 +110,40 @@
   wordmarks.forEach(function (mark) {
     var text = mark.textContent;
     mark.textContent = '';
-    text.split('').forEach(function (ch) {
+    text.split('').forEach(function (ch, i) {
       var span = document.createElement('span');
       span.className = 'char';
+      /* Per-letter index — CSS turns it into the staggered delay for the
+         touch scroll-in shimmer (see `.footer__wordmark.is-shimmer`). */
+      span.style.setProperty('--ci', i);
       span.textContent = ch === ' ' ? ' ' : ch;
       mark.appendChild(span);
     });
   });
+
+  /* Touch scroll-in shimmer — the hover "peek" can't fire without a
+     pointer, so on touch / coarse-pointer devices we play the gold ripple
+     once when the wordmark first scrolls into view. Pointer devices keep
+     the richer per-letter hover and get nothing here; reduced-motion users
+     get nothing either. */
+  var wordmarkIsTouch = !!(window.matchMedia &&
+    (window.matchMedia('(hover: none)').matches ||
+     window.matchMedia('(pointer: coarse)').matches));
+  if (wordmarkIsTouch && !prefersReducedMotion &&
+      'IntersectionObserver' in window && wordmarks.length) {
+    var shimmerObserver = new IntersectionObserver(
+      function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-shimmer');
+            shimmerObserver.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.5 }
+    );
+    wordmarks.forEach(function (mark) { shimmerObserver.observe(mark); });
+  }
 
   /* ---------- Scroll-triggered reveal ---------- */
   var revealEls = document.querySelectorAll('[data-reveal]');
@@ -200,25 +227,17 @@
     }
   }
 
-  /* ---------- Project page — space-void mosaic intro ----------
+  /* ---------- Project page — staggered mosaic reveal ----------
      Fires only when `intro-armed` is set (i.e. the visitor clicked
-     a project title — not on reload or direct load).
+     a project title — not on reload or direct load, which just get
+     the grid's plain per-tile load-fade).
 
-     Phase 1: full viewport dark. Every project frame appears small
-     in a loose, negative-space grid and drifts gently — zero gravity.
-     User clicks anywhere to continue.
-
-     Phase 2: click. Grid blurs (lens rack-focus). Frames converge to
-     their real positions (750ms ease-out) while scale overshoots
-     slightly on landing (950ms spring curve). Closest-to-centre
-     frames arrive first (0–70 ms stagger) — sells the zoom-in read.
-
-     Reveal: nav, back button, eyebrow, title, and description
-     stagger in once the mosaic has settled.
-
-     Technical note: Phase-1 uses the individual CSS `translate` and
-     `scale` properties; the drift @keyframes uses `transform`. The
-     three compose independently — no conflicts.                      */
+     The tiles assemble straight into their real grid positions — no
+     dark void, no drifting frames, no "click anywhere" gate. Each
+     tile eases in from a slight zoom (scale 1.04 → 1) + fade,
+     staggered centre-outward so the grid blooms from the middle.
+     Once the furthest tile has landed, the page chrome (nav, back
+     button, eyebrow, title, description) staggers in.                */
   var introGrid = document.getElementById('mosaic-grid');
   var introHtml = document.documentElement;
 
@@ -227,8 +246,8 @@
     var introDone = false;
 
     if (prefersReducedMotion) {
-      /* No intro for users who prefer reduced motion — reveal
-         everything immediately and skip all animation.          */
+      /* No reveal animation for users who prefer reduced motion —
+         show everything immediately and skip all animation.        */
       introDone = true;
       introHtml.classList.remove('intro-armed');
 
@@ -254,207 +273,57 @@
           return;
         }
 
-        var introCue      = document.getElementById('intro-cue');
-        var cuePulseTimer = null;
-
         var EASE = 'cubic-bezier(0.23, 1, 0.32, 1)';
         var vw   = window.innerWidth;
         var vh   = window.innerHeight;
-        var n    = items.length;
 
-        /* ── Phase 1 layout ──
-           A uniform small grid with generous negative space. Column
-           count scales with frame count so every project — whether
-           it has 4 photos or 20 — reads as intentionally airy. Each
-           cell is ~55 % used; the rest is void.                      */
-        var cols     = Math.max(2, Math.round(Math.sqrt(n * (vw / vh))));
-        var rows     = Math.ceil(n / cols);
-        var padX     = vw * 0.11;
-        var padY     = vh * 0.11;
-        var cellW    = (vw - padX * 2) / cols;
-        var cellH    = (vh - padY * 2) / rows;
+        var STAGGER_SPREAD = 320;  /* ms from centre tile to furthest */
+        var FADE_MS        = 620;  /* per-tile opacity duration */
+        var ZOOM_MS        = 760;  /* per-tile scale-settle duration */
 
-        /* Measure every tile's resting position before any transform
-           is applied — the grid is in normal flow at this point.     */
-        var rects = items.map(function (item) {
-          return item.getBoundingClientRect();
-        });
-
-        /* Snap each frame instantly to its Phase-1 position, hidden. */
-        items.forEach(function (item, i) {
-          var rect = rects[i];
-          var col  = i % cols;
-          var row  = Math.floor(i / cols);
-
-          /* Phase-1 cell centre. */
-          var cx1 = padX + col * cellW + cellW * 0.5;
-          var cy1 = padY + row * cellH + cellH * 0.5;
-
-          /* Resting grid centre. */
-          var cx0 = rect.left + rect.width  * 0.5;
-          var cy0 = rect.top  + rect.height * 0.5;
-
-          /* Scale so the frame fills ~55 % of the Phase-1 cell. */
-          var s = Math.min(
-            (cellW * 0.55) / Math.max(rect.width,  1),
-            (cellH * 0.55) / Math.max(rect.height, 1)
-          );
-          s = Math.max(0.10, Math.min(0.60, s));
-
-          /* Individual CSS properties compose with the drift @keyframes
-             (which uses `transform`) without fighting each other.      */
+        /* Hide every tile synchronously, before the browser paints —
+           this overrides the `is-loaded` state mosaic.js has already
+           applied (the `.intro-armed .mosaic__item { transition:none }`
+           rule makes that a snap, so there is no flash to undo). Each
+           tile starts a hair zoomed-in; the reveal settles it to 1. */
+        items.forEach(function (item) {
           item.style.transition = 'none';
           item.style.opacity    = '0';
-          item.style.translate  = (cx1 - cx0).toFixed(1) + 'px ' + (cy1 - cy0).toFixed(1) + 'px';
-          item.style.scale      = s.toFixed(3);
-
-          /* Unique drift path — small amplitude, slow period. */
-          var rnd = function (r) { return (Math.random() * r * 2 - r).toFixed(1); };
-          item.style.setProperty('--d-x1',       rnd(4)  + 'px');
-          item.style.setProperty('--d-y1',       rnd(4)  + 'px');
-          item.style.setProperty('--d-r1',       (Math.random() * 1.6 - 0.8).toFixed(2) + 'deg');
-          item.style.setProperty('--d-x2',       rnd(4)  + 'px');
-          item.style.setProperty('--d-y2',       rnd(4)  + 'px');
-          item.style.setProperty('--d-r2',       (Math.random() * 1.6 - 0.8).toFixed(2) + 'deg');
-          item.style.setProperty('--drift-dur',  (10 + Math.random() * 8).toFixed(1) + 's');
-          item.style.setProperty('--drift-offset', '-' + (Math.random() * 14).toFixed(1) + 's');
+          item.style.transform  = 'scale(1.04)';
         });
 
-        /* Two rAFs let the browser commit the instant-hidden state
-           before the staggered fade-in begins.                      */
+        /* Measure each tile's centre so the stagger can radiate from
+           the middle of the viewport outward. */
+        var rects = items.map(function (item) { return item.getBoundingClientRect(); });
+        var dists = rects.map(function (rect) {
+          return Math.hypot(
+            rect.left + rect.width  * 0.5 - vw * 0.5,
+            rect.top  + rect.height * 0.5 - vh * 0.5
+          );
+        });
+        var maxDist = Math.max.apply(null, dists) || 1;
+        var lastDelay = STAGGER_SPREAD;
+
+        /* Two rAFs let the browser commit the hidden state before the
+           staggered settle begins. */
         requestAnimationFrame(function () {
           requestAnimationFrame(function () {
-
-            var staggerTotal = (n - 1) * 65; /* ms until last frame starts fading */
-
-            /* Stagger each frame into view; drift begins shortly after. */
             items.forEach(function (item, i) {
-              window.setTimeout(function () {
-                item.style.transition = 'opacity 450ms ' + EASE;
-                item.style.opacity    = '1';
-                window.setTimeout(function () {
-                  item.classList.add('is-drifting');
-                }, 350);
-              }, i * 65);
+              /* Centre tiles (small dist) lead; outer tiles trail. */
+              var delay = Math.round((dists[i] / maxDist) * STAGGER_SPREAD);
+              item.style.transition =
+                'opacity ' + FADE_MS + 'ms ' + EASE + ' ' + delay + 'ms, ' +
+                'transform ' + ZOOM_MS + 'ms ' + EASE + ' ' + delay + 'ms';
+              item.style.opacity   = '1';
+              item.style.transform = 'scale(1)';
             });
 
-            /* Arm click once all frames have faded in (last frame
-               starts at staggerTotal, takes 450ms to reach opacity 1;
-               extra 100ms buffer so the user always sees a still scene
-               before anything happens).                               */
-            window.setTimeout(function () {
-              /* Show the click cue: fade in, then start a slow breathing
-                 pulse. Everything uses inline style.opacity so the pulse
-                 can be cleanly interrupted (clearTimeout + opacity 0)
-                 without any CSS-animation cascade conflict.              */
-              if (introCue) {
-                introCue.style.transition = 'opacity 800ms ' + EASE;
-                requestAnimationFrame(function () {
-                  introCue.style.opacity = '0.55';
-                  /* After fade-in settles, start breathing 0.35 ↔ 0.85. */
-                  window.setTimeout(function () {
-                    var pHigh = false;
-                    var pulse = function () {
-                      pHigh = !pHigh;
-                      introCue.style.transition = 'opacity 1600ms ease-in-out';
-                      introCue.style.opacity    = pHigh ? '0.85' : '0.35';
-                      cuePulseTimer = window.setTimeout(pulse, 1700);
-                    };
-                    cuePulseTimer = window.setTimeout(pulse, 50);
-                  }, 850);
-                });
-              }
-              document.addEventListener('click', onPhase2Click);
-              /* Auto-advance 3 s after cue appears, in case the user
-                 does not know to click. Keeps intro from ever getting
-                 stuck on a black screen.                              */
-              p2AutoTimer = window.setTimeout(function () {
-                doTriggerPhase2();
-              }, staggerTotal + 550 + 3000);
-            }, staggerTotal + 550);
-
+            /* Chrome reveals once the furthest tile has settled. */
+            window.setTimeout(revealChrome, lastDelay + ZOOM_MS + 120);
           });
         });
 
-        /* ── Phase 2 guard — prevents double-fire from click + timer ── */
-        var p2Fired    = false;
-        var p2AutoTimer;
-        var onPhase2Click = function () { doTriggerPhase2(); };
-        var doTriggerPhase2 = function () {
-          if (p2Fired) return;
-          p2Fired = true;
-          window.clearTimeout(p2AutoTimer);
-          document.removeEventListener('click', onPhase2Click);
-          triggerPhase2();
-        };
-
-        /* ── Phase 2: triggered by user click or auto-advance ── */
-        var triggerPhase2 = function () {
-
-          /* Dismiss click cue — clear the pulse timer, fade out, then
-             lock it gone with .is-dismissed so no later style cleanup
-             can ever bring it back. */
-          if (introCue) {
-            window.clearTimeout(cuePulseTimer);
-            cuePulseTimer = null;
-            introCue.style.transition = 'opacity 220ms ease-out';
-            introCue.style.opacity    = '0';
-            window.setTimeout(function () {
-              introCue.classList.add('is-dismissed');
-            }, 230);
-          }
-
-          /* Grid-level blur arc: crisp → 5px → crisp over 950ms.
-             Reads as a camera rack-focusing from void to mosaic.       */
-          introGrid.classList.add('is-phase2-focusing');
-
-          /* Per-frame stagger: closest to viewport centre first (0 ms),
-             furthest last (60 ms) — sells the zoom-in / focus-pull read. */
-          var dists = rects.map(function (rect) {
-            return Math.hypot(
-              rect.left + rect.width  * 0.5 - vw * 0.5,
-              rect.top  + rect.height * 0.5 - vh * 0.5
-            );
-          });
-          var maxDist = Math.max.apply(null, dists) || 1;
-
-          requestAnimationFrame(function () {
-            /* Step 1 — arm transitions in this rAF so browser commits
-               the "from" state before any value changes fire.
-               translate: 750ms fast ease-out (position arrives first).
-               scale: 950ms spring-overshoot — items slightly overshoot
-               their final size before settling, giving the landing
-               a sense of weight and momentum.
-               transform: 400ms ease-out — the drift @keyframes was
-               animating `transform`; removing `is-drifting` would snap
-               it from its current offset to none. Adding a transition
-               here turns that snap into a smooth settle so there is no
-               visible jitter at Phase 2 entry.                         */
-            items.forEach(function (item) {
-              item.classList.remove('is-drifting');
-              item.style.transition =
-                'translate 750ms ' + EASE + ', ' +
-                'scale 950ms cubic-bezier(0.23, 1.25, 0.32, 1), ' +
-                'transform 400ms ' + EASE;
-            });
-            /* Step 2 — change values in separate timeouts, AFTER the
-               rAF has been processed. Browser sees: transition set,
-               old value → new value → animate.                         */
-            items.forEach(function (item, i) {
-              var stagger = Math.round((1 - dists[i] / maxDist) * 60);
-              window.setTimeout(function () {
-                item.style.translate = '0px 0px';
-                item.style.scale     = '1';
-              }, stagger + 10);
-            });
-          });
-
-          /* Chrome reveals after furthest item has landed and settled.
-             (70 ms max stagger + 950 ms scale + 180 ms buffer)         */
-          window.setTimeout(revealChrome, 1200);
-        };
-
-        /* ── Post-Phase-2 chrome reveal ── */
+        /* ── Chrome reveal ── */
         var revealChrome = function () {
           var fadeIn = function (el, delay, ty) {
             if (!el) return;
@@ -491,10 +360,8 @@
           fadeIn(ttl,    370,  0);
           fadeIn(dsc,    530, 14);
 
-          /* Tidy up all inline styles and intro classes once settled. */
+          /* Tidy up all inline styles once settled. */
           window.setTimeout(function () {
-            introGrid.classList.remove('is-phase2-focusing');
-            if (introCue) { introCue.style.opacity = ''; introCue.style.transition = ''; }
             [navEl, back, eye, ttl, dsc].forEach(function (el) {
               if (!el) return;
               el.style.opacity    = '';
@@ -502,14 +369,9 @@
               el.style.transition = '';
             });
             items.forEach(function (item) {
-              item.style.translate  = '';
-              item.style.scale      = '';
+              item.style.transform  = '';
               item.style.transition = '';
               item.style.opacity    = '';
-              ['--d-x1','--d-y1','--d-r1','--d-x2','--d-y2','--d-r2',
-               '--drift-dur','--drift-offset'].forEach(function (p) {
-                item.style.removeProperty(p);
-              });
             });
           }, 1100);
         };
@@ -954,21 +816,28 @@
      paints it. We also SKIP all the hover/focus wiring below on touch
      so there are no ghost active/hover states — a single tap on the
      row (it's already an <a>) navigates. */
-  var indexIsTouch = !!(window.matchMedia &&
+  /* Use the inline-thumbnail layout whenever the hover preview can't pay
+     its way: a touch / coarse-pointer device, OR simply a narrow screen
+     (a slim desktop window, a fine-pointer touch-laptop, an emulator).
+     This MUST match the CSS media query for the same block in styles.css
+     — both switch on "no usable hover OR ≤768px" so markup and styling
+     never disagree about which layout is live. */
+  var indexInlineThumbs = !!(window.matchMedia &&
     (window.matchMedia('(hover: none)').matches ||
-     window.matchMedia('(pointer: coarse)').matches));
+     window.matchMedia('(pointer: coarse)').matches ||
+     window.matchMedia('(max-width: 768px)').matches));
 
-  if (indexList && indexIsTouch) {
+  if (indexList && indexInlineThumbs) {
     var touchItems = indexList.querySelectorAll('.index__item');
     touchItems.forEach(function (item) {
       var thumb = item.getAttribute('data-thumb');
       if (thumb) item.style.setProperty('--thumb', 'url("' + thumb + '")');
-      /* No hover preview on touch — drop the desktop "is-active" state
-         so nothing sits highlighted/clipped without a pointer. */
+      /* No hover preview here — drop the desktop "is-active" state so
+         nothing sits highlighted/clipped without a pointer. */
       item.classList.remove('is-active');
     });
-    /* Still flag deliberate navigation so the space-void intro fires
-       on tap-through (same behaviour as the desktop click handler). */
+    /* Still flag deliberate navigation so the staggered mosaic reveal
+       fires on tap-through (same behaviour as the desktop click handler). */
     indexList.addEventListener('click', function (e) {
       if (e.target.closest('a[href*="project.html"]')) {
         sessionStorage.setItem('kta:from-projects', '1');
@@ -1051,7 +920,7 @@
       if (!current && indexItems.length) setActiveIndexItem(indexItems[0]);
     });
 
-    /* Flag deliberate project navigation so the space-void intro
+    /* Flag deliberate project navigation so the staggered mosaic reveal
        only fires on click-through — not on reload or direct load. */
     indexList.addEventListener('click', function (e) {
       if (e.target.closest('a[href*="project.html"]')) {
