@@ -907,37 +907,12 @@ a {
 }
 
 /* ============================================================
-   about.html (listing) — small-screen reflow
-   listing.js drives the pinned scrub via transforms; the stage is
-   already sized off vmin. These tweaks keep the type readable and
-   the cards inside the frame at 360–430px without touching the
-   motion logic. The reduced-motion fallback (which stacks the
-   cards) is defined earlier and is unaffected.
+   about.html (listing) — small-screen rules live at the END of the
+   Listing CSS section instead of here, in narrowest-last source order
+   (640 → 430 → 360). Earlier this block sat before the desktop rules
+   and was overridden by a later `@media (max-width: 640px)` block,
+   so its 430px tuning was dead. See docs/about-phone-fit-plan.md.
    ============================================================ */
-@media (max-width: 430px) {
-  .listing__card {
-    padding: 34px 26px;
-    gap: 14px;
-  }
-
-  /* The default 62% / 50% measures are too tight on a phone — let the
-     status copy use more of the card so it doesn't pinch into a
-     sliver of a column. 16px floor for readable body copy on mobile. */
-  .listing__status {
-    max-width: 82%;
-    font-size: 16px;
-    line-height: 1.6;
-  }
-
-  .listing__card--makaan .listing__status {
-    max-width: 74%;
-  }
-
-  .listing__outro-stamp {
-    padding: 64px 24px 100px;
-    font-size: clamp(30px, 12vw, 56px);
-  }
-}
 
 /* ============================================================
    Global mobile polish
@@ -1990,6 +1965,14 @@ html.intro-armed {
   color: var(--black-soft);
 }
 
+/* Desktop shows the full paragraph; phones swap to a single trimmed line.
+   Both variants live inside the same `.listing__status` element so
+   listing.js's parallax (which queries `.listing__status` once) keeps
+   working untouched. The phone swap is in the phone breakpoint at the end
+   of this section. */
+.listing__status .status-full { display: inline; }
+.listing__status .status-short { display: none; }
+
 /* Makaan carries the longest copy on the stage — and shares it with
    a stamp landing dead-centre. Pull the type down a notch and tighten
    the measure so the sentence reads cleanly in the space the stamp
@@ -2100,17 +2083,96 @@ html.intro-armed {
   }
 }
 
+/* ─────────────────────────────────────────────────────────────
+   Phone reflow — narrowest-last so the most specific breakpoint
+   wins by source order. Decisions documented in:
+     docs/about-phone-fit-plan.md
+     docs/adr/0003-listing-keeps-scrub-on-phones.md
+   The reduced-motion stacked fallback above is untouched: on phones
+   we keep the scrub and trim the copy instead of falling back to it.
+   ───────────────────────────────────────────────────────────── */
+
 @media (max-width: 640px) {
+  /* dvh keeps the centred card from jumping when the mobile address
+     bar shows/hides. `100vh` is declared first as the fallback for
+     browsers that don't support dvh — the dvh line overrides it
+     where supported. .listing__pin stays in vh: it sets the scroll
+     runway's *length*, not visible height, and dvh there would
+     resize the runway mid-scroll. */
+  .listing__viewport {
+    height: 100vh;
+    height: 100dvh;
+    /* The fixed top nav (.nav) floats over the viewport at z-index
+       100. The viewport is a centring flex column, so padding-top
+       shrinks the centring box and pushes the card cleanly below
+       the nav band — no manual offsets, the card just re-centres
+       in the remaining space. */
+    padding-top: var(--nav-h);
+  }
+
   .listing__stage {
-    width: min(96vw, 560px);
-    height: min(86vh, 760px);
+    width: min(92vw, 520px);
+    /* Derived from the *visible* viewport (dvh), minus rough nav room,
+       so the stage can't outgrow what the visitor actually sees on a
+       short phone. */
+    height: min(70dvh, 700px);
   }
+
   .listing__card {
-    padding: 40px 32px;
-    gap: 18px;
+    /* Tighter padding makes more of the card's interior usable for
+       the trimmed copy without pinching the title. */
+    padding: 28px 22px;
+    gap: 16px;
   }
+
+  /* Trimmed-status swap: full paragraph hidden, short line shown.
+     Both live inside the same `.listing__status` element, so
+     listing.js's selector still finds the one parallax target. */
+  .listing__status .status-full { display: none; }
+  .listing__status .status-short { display: inline; }
+
+  /* The trimmed line is one short sentence — no need for a narrow
+     measure to keep it readable, and Makaan no longer needs to dodge
+     the SOLD stamp width since the line is already short. */
+  .listing__status,
   .listing__card--makaan .listing__status {
-    max-width: 70%;
+    max-width: 100%;
+    font-size: 16px;
+    line-height: 1.55;
+  }
+}
+
+@media (max-width: 430px) {
+  .listing__stage {
+    width: min(94vw, 440px);
+    height: min(68dvh, 620px);
+  }
+
+  .listing__card {
+    padding: 24px 20px;
+    gap: 14px;
+  }
+
+  /* "Makaan" can otherwise overrun the card at the narrowest widths.
+     Lower the floor enough that the longest title still fits on one
+     line at 320–430px. */
+  .listing__title {
+    font-size: clamp(48px, 14vmin, 184px);
+  }
+}
+
+@media (max-width: 360px) {
+  .listing__stage {
+    width: min(96vw, 360px);
+    height: min(66dvh, 560px);
+  }
+
+  .listing__card {
+    padding: 20px 18px;
+  }
+
+  .listing__title {
+    font-size: clamp(44px, 14vmin, 184px);
   }
 }
 

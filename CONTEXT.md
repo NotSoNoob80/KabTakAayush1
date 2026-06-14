@@ -33,6 +33,9 @@ implementation; this file is the source of truth for what we call things.
   Projects index on small screens, replacing the Preview pane.
 - **Card** — one classifieds clipping in the Listing (Roti / Kapda / Makaan /
   Art). Each card has a faint line-art **illustration** in its corner.
+- **Status** — the body line beneath a card's price (its "ad copy"). On small
+  screens each card shows a **trimmed status** — a short one-line variant — in
+  place of the full desktop paragraph, so the card fits a phone-height frame.
 
 ## Behavioural vocabulary
 
@@ -41,3 +44,8 @@ implementation; this file is the source of truth for what we call things.
   (≤768px). See [ADR 0001](docs/adr/0001-responsive-switches-on-width-not-pointer.md).
 - **Focus** (Void) — clicking/tapping a frame so it glides front-and-centre.
 - **Beat** (Listing) — a resting point in the scrub the page can snap to.
+- **Listing on a small screen** — the Listing *keeps* the scrub on phones; it
+  is not swapped for the stacked reduced-motion fallback. To make a card fit a
+  phone-height frame it shrinks the stage and shows the **trimmed status**
+  instead of the full paragraph. Only `prefers-reduced-motion` gets the static
+  stacked layout.
