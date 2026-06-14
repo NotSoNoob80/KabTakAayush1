@@ -938,7 +938,10 @@ a {
      file, so a bare selector here would lose the cascade to it and
      these mobile values would never apply. */
   .footer .footer__wordmark {
-    margin: 56px -24px 24px;
+    /* Leave a small viewport gutter on each side (footer padding is
+       24px, this margin is -16px → 8px visible gap) so the first/last
+       glyph never touches the screen edge at any phone width. */
+    margin: 56px -16px 24px;
     /* The base clamp(96px, 25vw, …) makes the word overrun the band on
        phones, so `overflow: hidden` clips the last letter (the "h").
        The mark's rendered width is ~4.6× its font-size; at 18vw it sits
@@ -2283,11 +2286,12 @@ html.intro-armed {
 }
 
 .footer__wordmark {
-  /* A closing signature with room to breathe — bold and edge-to-
-     edge for presence, but sitting in its own band below the grid
-     rather than cutting through anything readable. Scale plus
-     whitespace does the "statement" work instead of overlap. */
-  margin: 88px -48px 28px;
+  /* A closing signature with room to breathe — bold and near-edge
+     for presence, but with a thin gutter of viewport so the first
+     and last glyphs never kiss the screen edge or get clipped at
+     awkward aspect ratios. Scale plus whitespace does the
+     "statement" work instead of overlap. */
+  margin: 88px -36px 28px;
   /* Hard ceiling so the element box itself can never exceed the
      viewport, independent of the negative margins above. Parent
      `.footer { overflow-x: clip }` is the primary containment;
@@ -2299,8 +2303,10 @@ html.intro-armed {
      natural width closes most (or all) of the gap `space-between`
      would otherwise hand out, and the negative inter-letter margin
      below pulls neighbours into each other. The mark reads as one
-     dense, crammed signature rather than a neatly spaced headline. */
-  font-size: clamp(96px, 25vw, 400px);
+     dense, crammed signature rather than a neatly spaced headline.
+     Capped at 21vw (down from 25vw) so the rendered word width sits
+     inside the band at every aspect ratio — no last-letter crop. */
+  font-size: clamp(96px, 21vw, 400px);
   /* Roomier than a typical headline line-height — display faces
      often have caps/descenders taller than the metric box, and a
      tight 0.8-ish ratio was shaving their tops and tails off
