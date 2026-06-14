@@ -49,6 +49,15 @@ body {
      hand `pointer` back explicitly to links and other clickable
      elements below, so only genuinely interactive things look it. */
   cursor: default;
+  /* Belt to the `html { overflow-x: hidden }` suspenders above.
+     On Android Chrome, `overflow-x: hidden` on `html` alone hides
+     the scrollbar but still lets the layout viewport widen to
+     contain children that overflow during the first paint —
+     triggering shrink-to-fit and the "tablet flash" on phones.
+     `clip` on `body` prevents the widening without creating a
+     scroll container or extra paint pass. */
+  overflow-x: clip;
+  max-width: 100%;
 }
 
 /* Home page only — the landing experience is a single fixed
@@ -1802,6 +1811,14 @@ html.intro-armed {
   position: relative;
   width: min(135vmin, 2000px);
   height: min(118vmin, 1760px);
+  /* Belt over the desktop base value above. The `@media (max-width:
+     980px)` rule reins the stage to `min(82vw, 600px)` on phones,
+     but the first paint can briefly evaluate the desktop value
+     before media queries apply — feeding the shrink-to-fit loop.
+     `max-width: 100vw` makes the base value incapable of
+     overflowing even for one frame, harmless on desktop where
+     the stage is already ≤ viewport. */
+  max-width: 100vw;
 }
 
 /* Phones & tablets: the 135vmin stage above is wider than the viewport
@@ -2182,6 +2199,14 @@ html.intro-armed {
 .footer {
   border-top: 1px solid var(--line);
   padding: 80px 48px 40px;
+  /* Contain the wordmark's negative-margin bleed inside the footer
+     box rather than exporting it to the page. The wordmark's
+     `-48px` / `-24px` margins are intentional (edge-to-edge
+     signature) but on Android Chrome a brief first-paint frame can
+     evaluate them against the desktop layout, pushing the element
+     box past the viewport and triggering shrink-to-fit. `clip`
+     keeps the visual bleed without letting it widen the page. */
+  overflow-x: clip;
 }
 
 .footer__grid {
@@ -2262,6 +2287,11 @@ html.intro-armed {
      rather than cutting through anything readable. Scale plus
      whitespace does the "statement" work instead of overlap. */
   margin: 88px -48px 28px;
+  /* Hard ceiling so the element box itself can never exceed the
+     viewport, independent of the negative margins above. Parent
+     `.footer { overflow-x: clip }` is the primary containment;
+     this is the second line of defence. */
+  max-width: 100vw;
   font-family: var(--display);
   text-transform: uppercase;
   /* Pushed deliberately oversized — at this scale the word's

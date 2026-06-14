@@ -98,8 +98,8 @@
     ],
     kapda: [
       { at: 0.16, op: 0, y: 140, scale: 0.7, rot: 29 },
-      { at: 0.22, op: 1, y: 150, scale: 1.02, rot: 13 },
-      { at: 0.30, op: 1, y: 150, scale: 1.02, rot: 13 },
+      { at: 0.22, op: 1, y: 0, scale: 1.02, rot: 13 },
+      { at: 0.30, op: 1, y: 0, scale: 1.02, rot: 13 },
       { at: 0.36, op: 0, y: -120, scale: 0.86, rot: -19 }
     ],
     makaan: [
@@ -111,8 +111,8 @@
     ],
     art: [
       { at: 0.74, op: 0, y: 130, scale: 0.74, rot: 17 },
-      { at: 0.85, op: 1, y: 90, scale: 1.02, rot: 7 },
-      { at: 1.00, op: 1, y: 90, scale: 1.02, rot: 7 }
+      { at: 0.85, op: 1, y: 0, scale: 1.02, rot: 7 },
+      { at: 1.00, op: 1, y: 0, scale: 1.02, rot: 7 }
     ]
   };
 
