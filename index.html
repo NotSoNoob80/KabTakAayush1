@@ -286,7 +286,8 @@
     var IS_MOBILE = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches)
                     || window.innerWidth < 768;
     var MAX_TEX   = 1024;             // mobile: downscale textures to this long edge
-    var MOBILE_SLOTS = 30;            // mobile: lighter field (~30 of 59 frames)
+    var MOBILE_SLOTS      = 60;       // mobile: frames drawn in the field
+    var MOBILE_TEX_BUDGET = 30;       // mobile: distinct reel images loaded (frames reuse these)
 
     /* ══════════════════════════════════════════
        CONFIG
@@ -349,6 +350,16 @@
     /* ══════════════════════════════════════════
        FIELD LAYOUT — scattered slots inside one wrap cell
     ══════════════════════════════════════════ */
+    // Mobile: a fixed, evenly-spread sample of reel indices.
+    // Frame count and texture count are decoupled — frames reuse this sample.
+    var mobileTexSample = null;
+    if (IS_MOBILE) {
+      mobileTexSample = new Array(MOBILE_TEX_BUDGET);
+      for (var s = 0; s < MOBILE_TEX_BUDGET; s++) {
+        mobileTexSample[s] = Math.floor(s * REEL_COUNT / MOBILE_TEX_BUDGET) % REEL_COUNT;
+      }
+    }
+
     var layouts = [];
     (function buildLayouts() {
       // R2 low-discrepancy sequence → evenly spread, organic-looking scatter
@@ -380,10 +391,10 @@
           shade:      0.45 + r() * 0.55,    // brightness variety 0.45 → 1.0
           floatPhase: r() * Math.PI * 2,
           floatSpeed: 0.22 + r() * 0.38,
-          // Desktop: cycle the reel. Mobile: evenly sample across the whole
-          // reel so the lighter field keeps its variety.
+          // Desktop: cycle the reel. Mobile: pull from a fixed-size sample so
+          // a denser field reuses a flat texture budget instead of loading more.
           tex: IS_MOBILE
-                 ? Math.floor(i * REEL_COUNT / SLOTS) % REEL_COUNT
+                 ? mobileTexSample[i % MOBILE_TEX_BUDGET]
                  : i % REEL_COUNT
         });
       }
