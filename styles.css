@@ -928,47 +928,6 @@ a {
   color: var(--grey);
 }
 
-.filters {
-  margin-top: 40px;
-  display: flex;
-  gap: 28px;
-  flex-wrap: wrap;
-}
-
-.filters button {
-  background: none;
-  border: none;
-  color: var(--grey);
-  font-size: 12px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  cursor: pointer;
-  padding-bottom: 6px;
-  position: relative;
-  transition: color 200ms var(--ease-out);
-}
-
-.filters button::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  height: 1px;
-  background: var(--gold);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 220ms var(--ease-out);
-}
-
-.filters button.is-active {
-  color: var(--cream);
-}
-
-.filters button.is-active::after {
-  transform: scaleX(1);
-}
-
 /* Mobile page-head (project.html / projects.html) — placed AFTER the
    base rules above so source order lets these win at mobile widths.
    Smaller top padding (the nav bar is shorter on mobile) and a 16px
@@ -980,23 +939,6 @@ a {
 
   .page-head__sub {
     font-size: 16px;
-  }
-}
-
-/* Filter row stays usable on mobile: allow horizontal scroll if the
-   pills ever exceed the viewport, with comfortable tap spacing. (No
-   .filters markup ships on the owned pages today, but this keeps the
-   component mobile-ready if it's added.) */
-@media (max-width: 640px) {
-  .filters {
-    margin-top: 28px;
-    gap: 20px;
-    flex-wrap: wrap;
-  }
-
-  .filters button {
-    font-size: 13px;
-    padding: 10px 2px;
   }
 }
 
@@ -1033,14 +975,25 @@ a {
   border-top: 1px solid var(--line);
 }
 
-/* Each row is a thumbnail-beside-title card; the whole <a> taps through. */
+/* Each row is a thumbnail-beside-title card; the whole <a> taps through.
+   Top-aligned so that when a long title wraps to 2–3 lines at narrow
+   widths the thumbnail anchors to the first line (contact-sheet feel)
+   rather than floating in the row's vertical middle. */
 .index__item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
   padding: 16px 2px;
   text-decoration: none;
   color: var(--cream);
+}
+
+/* Keyboard focus — a visible ring on the whole row, not just the
+   thumbnail's grayscale→colour bloom (which pointer hover also gets). */
+.index__item:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 4px;
+  border-radius: 2px;
 }
 
 /* Always-visible inline thumbnail, painted from the row's own data-thumb
@@ -1084,18 +1037,30 @@ a {
   flex: 0 0 auto;
 }
 
+/* One continuous fluid size from phone to large screen. The old pair of
+   clamps (24–38px below 769px, 34–44px above) stepped *down* 4px right at
+   the breakpoint; this scales monotonically with no jump. `min-width: 0`
+   lets the flex item shrink so long words wrap instead of overflowing,
+   and balanced wrapping + hyphenation keep multi-line uppercase titles
+   tidy at narrow widths. */
 .index__title {
   font-family: var(--display);
   text-transform: uppercase;
-  font-size: clamp(24px, 7vw, 38px);
+  font-size: clamp(26px, 3.5vw + 12px, 44px);
   line-height: 0.98;
   color: var(--cream);
   flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  text-wrap: balance;
 }
 
 /* Wider screens — let the centred column breathe: a larger thumbnail and
-   title so it reads as a deliberate page rather than a stranded mobile
-   view. Same single-column layout, just scaled up a notch. */
+   roomier rows so it reads as a deliberate page rather than a stranded
+   mobile view. (The title itself now scales continuously via the clamp
+   above, so it no longer needs a breakpoint bump.) Same single-column
+   layout, just scaled up a notch. */
 @media (min-width: 769px) {
   .index__item {
     gap: 22px;
@@ -1104,9 +1069,6 @@ a {
   .index__item::before {
     width: 88px;
     height: 110px;
-  }
-  .index__title {
-    font-size: clamp(34px, 4.4vw, 44px);
   }
 }
 

@@ -834,40 +834,6 @@
     landingTrack.style.transform = 'none';
   }
 
-  /* ---------- Project filter (Projects page only) ---------- */
-  var filterButtons = document.querySelectorAll('.filters button[data-filter]');
-  var projectCards = document.querySelectorAll('#project-index-list .index__item');
-
-  if (filterButtons.length && projectCards.length) {
-    filterButtons.forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var filter = btn.getAttribute('data-filter');
-
-        filterButtons.forEach(function (b) {
-          b.classList.toggle('is-active', b === btn);
-        });
-
-        projectCards.forEach(function (card) {
-          var match = filter === 'all' || card.getAttribute('data-type') === filter;
-          card.style.transition = 'opacity 220ms ease-out, transform 220ms ease-out';
-          if (match) {
-            card.style.display = '';
-            requestAnimationFrame(function () {
-              card.style.opacity = '1';
-              card.style.transform = 'scale(1)';
-            });
-          } else {
-            card.style.opacity = '0';
-            card.style.transform = 'scale(0.97)';
-            setTimeout(function () {
-              if (card.style.opacity === '0') card.style.display = 'none';
-            }, 220);
-          }
-        });
-      });
-    });
-  }
-
   /* ---------- Project index — inline-thumbnail list ----------
      One layout at every width: each row paints its own inline thumbnail
      and the whole page scrolls (see ADR 0007). CSS can't read an
