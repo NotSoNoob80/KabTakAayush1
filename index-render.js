@@ -44,6 +44,12 @@
            ' data-thumb="' + esc(thumb) + '" data-type="' + esc(p.type || '') + '">' +
           '<span class="index__num">' + esc(p.id) + '</span>' +
           '<span class="index__title" data-title="' + esc(title) + '">' + esc(title) + '</span>' +
+          /* Meta is emitted at every width; CSS hides it below the desktop
+             breakpoint so the renderer stays one code path and the static
+             markup is uniform at every viewport. Empty string when the
+             Manifest entry is missing `meta`, so the row's flex layout is
+             unaffected by partial data. */
+          '<span class="index__meta">' + esc(p.meta || '') + '</span>' +
         '</a>' +
       '</li>';
   }).join('');

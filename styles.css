@@ -1044,12 +1044,29 @@ a {
   text-wrap: balance;
 }
 
+/* Right-anchored "type · location" line — same canonical string already
+   shown under a project's heading on its own page, so the two surfaces
+   stay consistent in vocabulary. Hidden by default so mobile and tablet
+   are pixel-identical to the title-only layout they had before; the
+   desktop block below reveals it and lays it out. Refinement of ADR 0007. */
+.index__meta {
+  display: none;
+}
+
 /* Wider screens — let the centred column breathe: a larger thumbnail and
    roomier rows so it reads as a deliberate page rather than a stranded
    mobile view. (The title itself now scales continuously via the clamp
    above, so it no longer needs a breakpoint bump.) Same single-column
    layout, just scaled up a notch. */
 @media (min-width: 769px) {
+  /* Widen the centred reading column so a 1440/1920px monitor reads as a
+     deliberate desktop layout with real content on both sides of the row.
+     1100px is the guardrail against ADR 0007's "stranded" failure mode on
+     4K: without it, a long title at the left edge and a short meta at the
+     right edge would drift to opposite far edges with a dead gap between. */
+  .index__list {
+    max-width: 1100px;
+  }
   .index__item {
     gap: 22px;
     padding: 20px 2px;
@@ -1057,6 +1074,30 @@ a {
   .index__item::before {
     width: 88px;
     height: 110px;
+  }
+  /* Reveal the meta and pin it to the right edge of the row. The row is
+     already a flex container with the title taking `flex: 1 1 auto`, so
+     a sibling with `flex: 0 0 auto` and right-aligned text is enough to
+     anchor the meta opposite the title — no grid is introduced. The row's
+     `align-items: flex-start` keeps the meta anchored to the title's first
+     line when a long title wraps, matching the inline thumbnail's
+     contact-sheet anchor. */
+  .index__meta {
+    display: block;
+    flex: 0 0 auto;
+    max-width: 38%;
+    margin-left: 16px;
+    padding-top: 0.55em;
+    font-family: var(--text);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    text-align: right;
+    color: var(--gold-dim);
+    overflow-wrap: break-word;
+    /* Quiet secondary tone — must sit opposite the big display title
+       without competing with it. No motion, no hover affordance: the
+       grayscale→colour thumbnail reveal stays the only one on the row. */
   }
 }
 

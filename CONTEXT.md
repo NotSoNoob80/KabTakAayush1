@@ -12,8 +12,15 @@ implementation; this file is the source of truth for what we call things.
 - **The Projects index** (or just **the index**) — `projects.html`. A single,
   centred, full-page-scrolling list of project **titles**, each row carrying its
   own **inline thumbnail**. The *same* layout at every width — no separate
-  desktop tableau. See
-  [ADR 0007](docs/adr/0007-projects-index-unified-inline-thumbnail-list.md).
+  desktop tableau. On desktop (≥769px) each row also shows a right-anchored
+  **"type · location" meta line** (the same canonical string already shown
+  under the heading on a project's own page), and the reading column widens
+  to 1100px so the wider monitor reads as a deliberate desktop layout rather
+  than a stranded mobile view; below 769px the row is title-only as before.
+  This is a refinement of
+  [ADR 0007](docs/adr/0007-projects-index-unified-inline-thumbnail-list.md),
+  not a reversal — unified single list, single page scroll, and pointer-only
+  grayscale reveal are all preserved.
 - **The Mosaic** — a single project's page (`project.html`). An editorial
   collage grid of that project's images.
 - **The Listing** — the about page (`about.html`). A scroll-pinned
@@ -32,7 +39,9 @@ implementation; this file is the source of truth for what we call things.
 - **Inline thumbnail** — the image shown *beside each title* on every row of
   the Projects index, at every width. On pointer devices it drops its
   grayscale to full colour on hover — the brand's "contact-sheet" reveal,
-  shared with the Mosaic. The only hover affordance the index has.
+  shared with the Mosaic. The only hover affordance the index has — the
+  desktop-only **"type · location" meta line** opposite the title does not
+  animate or react to hover.
 - **Card** — one classifieds clipping in the Listing (Roti / Kapda / Makaan /
   Art). Each card has a faint line-art **illustration** in its corner.
 - **Status** — the body line beneath a card's price (its "ad copy"). On small
