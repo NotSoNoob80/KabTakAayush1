@@ -32,6 +32,12 @@
   if (eyebrowEl) eyebrowEl.textContent = 'Project ' + project.id + ' — ' + (project.typeLabel || 'Photo Series');
   if (docTitleEl) docTitleEl.textContent = project.title + ' — KabTakAayush';
 
+  /* The Manifest's description isn't shown in the page's visible copy
+     (that stays "heading + location only", by design) — it feeds the
+     page's meta description for search engines instead. */
+  var metaDescEl = document.querySelector('meta[name="description"]');
+  if (metaDescEl && project.description) metaDescEl.setAttribute('content', project.description);
+
   /* Ordered image+video media list (videos woven evenly among the
      photos, see projectMedia in projects-data.js). Falls back to the
      image-only list if projectMedia isn't available, so an older

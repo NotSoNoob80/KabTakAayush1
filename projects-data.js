@@ -19,6 +19,9 @@
    That's it — both pages pick the change up automatically.
    ============================================================ */
 
+/* @PROJECTS-START — the Admin (admin.html) regenerates everything between
+   these two markers. Keep them exactly as-is; renaming or removing them
+   breaks the Admin's splice. See docs/adr/0004. */
 const PROJECTS = [
   {
     id: '01',
@@ -121,6 +124,7 @@ const PROJECTS = [
     imageCount: 15
   }
 ];
+/* @PROJECTS-END */
 
 /* Helpers — build asset paths from the manifest above so every
    page constructs them the exact same way. */

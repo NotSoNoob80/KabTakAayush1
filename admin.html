@@ -8,6 +8,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- Loads the live Manifest (PROJECTS) + path helpers so the Admin can
+       read the current projects and regenerate projects-data.js itself,
+       instead of emitting a snippet to paste by hand. See ADR 0004. -->
+  <script src="projects-data.js"></script>
   <style>
     :root {
       --black:    #0a0a0a;
@@ -495,7 +499,7 @@
           </div>
           <input type="file" id="gallery-file" accept="image/*,video/*" multiple style="display:none" />
         </div>
-        <p class="field-hint">Images are re-encoded to JPEG (longest edge capped at 2400px). Videos must be MP4 — other containers are excluded with a warning.</p>
+        <p class="field-hint">Images are re-encoded to WebP (longest edge capped at 2400px). Videos must be MP4 — other containers are excluded with a warning.</p>
       </div>
 
       <div class="notice" id="proj-notice"></div>
@@ -514,55 +518,23 @@
     <!-- Output -->
     <div class="output" id="proj-output">
       <div class="output-block">
-        <p class="output-heading">
-          <span class="output-step">01</span>
-          Paste into <code style="font-family:monospace;color:var(--gold-dim)">projects.html</code>
-          — inside <code style="font-family:monospace;color:var(--gold-dim)">&lt;ul class="index__list"&gt;</code>
-        </p>
-        <div class="code-box" id="html-out"></div>
-        <div class="copy-row">
-          <button class="copy-btn" data-target="html-out" data-confirm="html-confirm">Copy HTML</button>
-          <span class="copy-confirm" id="html-confirm">Copied ✓</span>
-        </div>
-      </div>
-
-      <div class="output-block">
-        <p class="output-heading">
-          <span class="output-step">02</span>
-          Paste into <code style="font-family:monospace;color:var(--gold-dim)">projects-data.js</code>
-          — last item of <code style="font-family:monospace;color:var(--gold-dim)">PROJECTS</code>
-        </p>
+        <p class="output-heading"><span class="output-step">01</span> Added to the manifest — already inside the ZIP</p>
         <div class="code-box" id="data-out"></div>
-        <div class="copy-row">
-          <button class="copy-btn" data-target="data-out" data-confirm="data-confirm">Copy entry</button>
-          <span class="copy-confirm" id="data-confirm">Copied ✓</span>
-        </div>
+        <p class="field-hint">This entry was written into <code>projects-data.js</code> for you — no pasting. It's shown here only so you can see exactly what shipped.</p>
       </div>
 
       <div class="output-block">
-        <p class="output-heading"><span class="output-step">03</span> Install &amp; ship</p>
+        <p class="output-heading"><span class="output-step">02</span> Install &amp; ship</p>
         <div class="checklist">
           <div class="check-item">
             <span class="check-num">1</span>
             <div>
-              <div class="check-text">Extract <code id="zip-hint">project-XX.zip</code> at the repository <strong>root</strong> — it merges into <code>assets/</code>.</div>
-              <div class="check-sub">Creates <code>assets/projects/XX/thumbnail/thumbnail.jpg</code>, <code>images/01.jpg…</code> and <code>videos/01.mp4…</code> with the correct names automatically.</div>
+              <div class="check-text">Extract <code id="zip-hint">project-XX.zip</code> at the repository <strong>root</strong>, letting it <strong>overwrite</strong>.</div>
+              <div class="check-sub">Adds <code>assets/projects/XX/thumbnail/thumbnail.webp</code>, <code>images/01.webp…</code> and any <code>videos/01.mp4…</code>, and updates <code>projects-data.js</code> — the project's index row then appears on its own.</div>
             </div>
           </div>
           <div class="check-item">
             <span class="check-num">2</span>
-            <div>
-              <div class="check-text">Paste the data entry into <code>projects-data.js</code> as the last item of <code>PROJECTS</code> (before the closing <code>];</code>).</div>
-            </div>
-          </div>
-          <div class="check-item">
-            <span class="check-num">3</span>
-            <div>
-              <div class="check-text">Paste the <code>&lt;li&gt;</code> into <code>projects.html</code> inside <code>&lt;ul class="index__list"&gt;</code>.</div>
-            </div>
-          </div>
-          <div class="check-item">
-            <span class="check-num">4</span>
             <div>
               <div class="check-text">Commit and push — Vercel redeploys automatically.</div>
               <div class="check-sub">Usually live in under 30 seconds.</div>
@@ -601,7 +573,7 @@
           </div>
           <input type="file" id="reel-file" accept="image/*" multiple style="display:none" />
         </div>
-        <p class="field-hint">Images are re-encoded to JPEG (longest edge capped at 2400px).</p>
+        <p class="field-hint">Images are re-encoded to WebP (longest edge capped at 2400px).</p>
       </div>
 
       <div class="notice" id="reel-notice"></div>
@@ -619,33 +591,23 @@
 
     <div class="output" id="reel-output">
       <div class="output-block">
-        <p class="output-heading"><span class="output-step">01</span> Install &amp; configure</p>
+        <p class="output-heading"><span class="output-step">01</span> Install &amp; ship</p>
         <div class="checklist">
           <div class="check-item">
             <span class="check-num">1</span>
             <div>
-              <div class="check-text">Extract <code id="reel-zip-hint">reel-add-XX-XX.zip</code> at the repository <strong>root</strong> — it merges into <code>assets/reel/</code>.</div>
+              <div class="check-text">Extract <code id="reel-zip-hint">reel-add-XX-XX.zip</code> at the repository <strong>root</strong>, letting it <strong>overwrite</strong>.</div>
+              <div class="check-sub">Adds the new <code>assets/reel/NN.webp</code> images and sets <code>REEL_COUNT</code> in <code>index.html</code> for you — no editing.</div>
             </div>
           </div>
           <div class="check-item">
             <span class="check-num">2</span>
             <div>
-              <div class="check-text">Open <code>index.html</code> and change the config line to exactly:</div>
-              <div class="code-box" id="reel-line-out" style="margin-top:10px"></div>
-              <div class="copy-row">
-                <button class="copy-btn" data-target="reel-line-out" data-confirm="reel-line-confirm">Copy line</button>
-                <span class="copy-confirm" id="reel-line-confirm">Copied ✓</span>
-              </div>
+              <div class="check-text">Optionally raise <code>SLOTS</code> in <code>index.html</code> for a denser void.</div>
             </div>
           </div>
           <div class="check-item">
             <span class="check-num">3</span>
-            <div>
-              <div class="check-text">Optionally raise <code>SLOTS</code> in the same config for a denser void.</div>
-            </div>
-          </div>
-          <div class="check-item">
-            <span class="check-num">4</span>
             <div>
               <div class="check-text">Commit and push — Vercel redeploys automatically.</div>
             </div>
@@ -669,13 +631,70 @@
       return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, ' ');
     }
 
-    var MAX_EDGE = 2400;
-    var JPEG_Q   = 0.88;
+    /* ── Manifest (projects-data.js) round-trip ────────────────────────────
+       The Admin owns the PROJECTS array: it reads the live one (loaded via
+       <script src="projects-data.js">), appends the new project, and writes
+       the whole file back into the ZIP — no copy-paste. See ADR 0004. */
 
-    /* Re-encode any decodable image File to a JPEG Blob, longest edge ≤ MAX_EDGE.
-       Tries createImageBitmap (with from-image orientation), falls back to
-       <img> + FileReader if it rejects. Returns a Promise<Blob>. */
-    function imageToJpegBlob(file) {
+    // Serialize one project entry to the file's exact style (4-space props).
+    function serializeProject(p) {
+      var lines = [
+        '  {',
+        "    id: '" + jsStr(p.id) + "',",
+        "    title: '" + jsStr(p.title) + "',",
+        "    type: '" + jsStr(p.type) + "',",
+        "    typeLabel: '" + jsStr(p.typeLabel) + "',",
+        "    meta: '" + jsStr(p.meta) + "',",
+        "    description: '" + jsStr(p.description || '') + "',",
+        '    imageCount: ' + (p.imageCount || 0) +
+          (p.videoCount > 0 ? ',' : '')
+      ];
+      if (p.videoCount > 0) lines.push('    videoCount: ' + p.videoCount);
+      lines.push('  }');
+      return lines.join('\n');
+    }
+
+    // Serialize the whole array as `const PROJECTS = [ ... ];`.
+    function serializeProjects(projects) {
+      return 'const PROJECTS = [\n' +
+        projects.map(serializeProject).join(',\n') +
+        '\n];';
+    }
+
+    // The marker comments the Admin writes back around the array.
+    var PROJECTS_START =
+      '/* @PROJECTS-START — the Admin (admin.html) regenerates everything between\n' +
+      '   these two markers. Keep them exactly as-is; renaming or removing them\n' +
+      "   breaks the Admin's splice. See docs/adr/0004. */";
+    var PROJECTS_END = '/* @PROJECTS-END */';
+
+    // Replace the marked region of the fetched file text with the new array.
+    function spliceManifest(fileText, projects) {
+      var re = /\/\* @PROJECTS-START[\s\S]*?@PROJECTS-END \*\//;
+      if (!re.test(fileText)) {
+        throw new Error('Couldn’t find the @PROJECTS markers in projects-data.js — was it edited? Restore the markers and retry.');
+      }
+      var block = PROJECTS_START + '\n' + serializeProjects(projects) + '\n' + PROJECTS_END;
+      return fileText.replace(re, block);
+    }
+
+    // Fetch a same-origin text file fresh (no cache), so we splice the latest.
+    function fetchText(path) {
+      return fetch(path, { cache: 'no-store' }).then(function (r) {
+        if (!r.ok) throw new Error('Couldn’t read ' + path + ' (HTTP ' + r.status + '). Are you viewing the Admin through the server, not a file:// path?');
+        return r.text();
+      });
+    }
+
+    var MAX_EDGE = 2400;
+    var WEBP_Q   = 0.82;
+
+    /* Re-encode any decodable image File to a WebP Blob, longest edge ≤ MAX_EDGE.
+       WebP is the site's photo format (thumbnail.webp, NN.webp) — see the
+       WebP convention in CONTEXT.md. Tries createImageBitmap (with from-image
+       orientation), falls back to <img> + FileReader if it rejects.
+       Returns a Promise<Blob>. */
+    function imageToWebpBlob(file) {
       return loadBitmap(file).then(function (src) {
         var w = src.width, h = src.height;
         var scale = Math.min(1, MAX_EDGE / Math.max(w, h)); // never up
@@ -688,8 +707,17 @@
         if (src.close) { try { src.close(); } catch (e) {} }
         return new Promise(function (resolve, reject) {
           canvas.toBlob(function (blob) {
-            if (blob) resolve(blob); else reject(new Error('toBlob failed'));
-          }, 'image/jpeg', JPEG_Q);
+            if (blob && blob.type === 'image/webp') {
+              resolve(blob);
+            } else if (blob) {
+              /* Browser ignored the webp request and gave us something else
+                 (very old engines). Better to fail loudly than ship a
+                 mislabelled .webp the site can't read. */
+              reject(new Error('This browser can’t encode WebP — use a current Chrome/Edge/Firefox/Safari.'));
+            } else {
+              reject(new Error('toBlob failed'));
+            }
+          }, 'image/webp', WEBP_Q);
         });
       });
     }
@@ -779,7 +807,19 @@
        PROJECT NUMBER BADGE
     ════════════════════════════════════════════ */
     var NUM_KEY = 'kta_next_proj_num';
-    var nextNum = parseInt(localStorage.getItem(NUM_KEY) || '7', 10);
+    /* Default the next number from the live Manifest (highest id + 1) so the
+       badge is right without being told. localStorage is only a fallback for
+       when projects-data.js didn't load. */
+    function manifestNextNum() {
+      if (typeof PROJECTS === 'undefined' || !PROJECTS.length) return null;
+      var max = 0;
+      PROJECTS.forEach(function (p) {
+        var n = parseInt(p.id, 10);
+        if (!isNaN(n) && n > max) max = n;
+      });
+      return Math.min(max + 1, 99);
+    }
+    var nextNum = manifestNextNum() || parseInt(localStorage.getItem(NUM_KEY) || '7', 10);
 
     function renderBadge() {
       document.getElementById('badge-num').textContent = '#' + pad(nextNum);
@@ -989,14 +1029,33 @@
       projGenBtn.disabled = true;
       var id = pad(nextNum);
 
-      buildProjectZip(id, images, okVideos)
+      /* Build the Manifest entry up front, so the ZIP and the on-screen
+         confirmation describe the exact same project. */
+      var metaPrefix = type === 'video' ? 'Film' :
+                       type === 'photo+video' ? 'Photo + Film' : 'Photowalk';
+      var meta = metaPrefix + (location ? ' · ' + location : '');
+      var typeLabel = type === 'video' ? 'Film' :
+                      type === 'photo+video' ? 'Photo + Film' : 'Photo Series';
+
+      var entry = {
+        id: id, title: title, type: type, typeLabel: typeLabel,
+        meta: meta, description: desc, imageCount: images.length
+      };
+      if (okVideos.length > 0) entry.videoCount = okVideos.length;
+
+      buildProjectZip(id, images, okVideos, entry)
         .then(function (blob) {
           triggerDownload(blob, 'project-' + id + '.zip');
-          renderProjectOutput(id, title, location, desc, type, images.length, okVideos.length);
+
+          /* Keep the in-memory Manifest in step, so a second project added
+             before you deploy still includes the first one in its ZIP. */
+          if (typeof PROJECTS !== 'undefined') PROJECTS.push(entry);
+
+          renderProjectOutput(id, entry);
 
           var combined = notes.join(' ');
           if (excludedHtml) combined += (combined ? '<br>' : '') + excludedHtml;
-          setNotice('proj-notice', combined || '<strong>Done.</strong> ZIP downloaded as project-' + id + '.zip.', !!excludedHtml);
+          setNotice('proj-notice', combined || '<strong>Done.</strong> ZIP downloaded as project-' + id + '.zip — it already contains the updated manifest.', !!excludedHtml);
 
           // Advance counter for next project
           nextNum = Math.min(nextNum + 1, 99);
@@ -1021,7 +1080,7 @@
       if (el) el.checked = true;
     }
 
-    function buildProjectZip(id, images, okVideos) {
+    function buildProjectZip(id, images, okVideos, entry) {
       var zip = new JSZip();
       var base = 'assets/projects/' + id + '/';
       var total = 1 + images.length + okVideos.length; // thumbnail + images + videos
@@ -1030,20 +1089,20 @@
 
       function step(label) {
         done++;
-        showProgress('proj-progress-bar', 'proj-progress-label', 'proj-progress', (done / total) * 90, label);
+        showProgress('proj-progress-bar', 'proj-progress-label', 'proj-progress', (done / total) * 85, label);
       }
 
-      // Thumbnail (re-encoded to JPEG)
-      var chain = imageToJpegBlob(thumbFile).then(function (blob) {
-        zip.file(base + 'thumbnail/thumbnail.jpg', blob);
+      // Thumbnail → thumbnail.webp (re-encoded)
+      var chain = imageToWebpBlob(thumbFile).then(function (blob) {
+        zip.file(base + 'thumbnail/thumbnail.webp', blob);
         step('Converting images…');
       });
 
-      // Images → images/NN.jpg (grid order)
+      // Images → images/NN.webp (grid order)
       images.forEach(function (g, i) {
         chain = chain.then(function () {
-          return imageToJpegBlob(g.file).then(function (blob) {
-            zip.file(base + 'images/' + pad(i + 1) + '.jpg', blob);
+          return imageToWebpBlob(g.file).then(function (blob) {
+            zip.file(base + 'images/' + pad(i + 1) + '.webp', blob);
             step('Converting images… (' + (i + 1) + '/' + images.length + ')');
           });
         });
@@ -1057,6 +1116,17 @@
         });
       });
 
+      // Regenerate projects-data.js with the new entry appended, and put it
+      // in the ZIP — so extracting at the repo root updates the Manifest too,
+      // no copy-paste. (See ADR 0004.)
+      chain = chain.then(function () {
+        showProgress('proj-progress-bar', 'proj-progress-label', 'proj-progress', 88, 'Updating manifest…');
+        return fetchText('projects-data.js').then(function (text) {
+          var existing = (typeof PROJECTS !== 'undefined') ? PROJECTS : [];
+          zip.file('projects-data.js', spliceManifest(text, existing.concat([entry])));
+        });
+      });
+
       return chain.then(function () {
         showProgress('proj-progress-bar', 'proj-progress-label', 'proj-progress', 92, 'Zipping…');
         return zip.generateAsync({ type: 'blob', compression: 'STORE' }, function (meta) {
@@ -1065,42 +1135,10 @@
       });
     }
 
-    function renderProjectOutput(id, title, location, desc, type, imageCount, videoCount) {
-      var delay = (parseInt(id, 10) - 1) % 3;
-      var delayAttr = delay > 0 ? '\n     data-reveal-delay="' + delay + '"' : '';
-
-      var metaPrefix = type === 'video' ? 'Film' :
-                       type === 'photo+video' ? 'Photo + Film' : 'Photowalk';
-      var meta = metaPrefix + (location ? ' · ' + location : '');
-
-      var typeLabel = type === 'video' ? 'Film' :
-                      type === 'photo+video' ? 'Photo + Film' : 'Photo Series';
-
-      var html =
-        '<li>\n' +
-        '  <a class="index__item" href="project.html?id=' + id + '" data-reveal' + delayAttr + '\n' +
-        '     data-thumb="assets/projects/' + id + '/thumbnail/thumbnail.jpg" data-type="' + type + '"\n' +
-        '     data-meta="' + esc(meta) + '">\n' +
-        '    <span class="index__num">' + id + '</span>\n' +
-        '    <span class="index__title" data-title="' + esc(title) + '">' + esc(title) + '</span>\n' +
-        '    <span class="index__cue" aria-hidden="true">View project →</span>\n' +
-        '  </a>\n' +
-        '</li>';
-
-      var data =
-        '{\n' +
-        "  id: '" + id + "',\n" +
-        "  title: '" + jsStr(title) + "',\n" +
-        "  type: '" + type + "',\n" +
-        "  typeLabel: '" + typeLabel + "',\n" +
-        "  meta: '" + jsStr(meta) + "',\n" +
-        "  description: '" + jsStr(desc) + "',\n" +
-        '  imageCount: ' + imageCount +
-        (videoCount > 0 ? ',\n  videoCount: ' + videoCount + '\n' : '\n') +
-        '},';
-
-      document.getElementById('html-out').textContent = html;
-      document.getElementById('data-out').textContent = data;
+    function renderProjectOutput(id, entry) {
+      /* No paste step any more — the entry is already written into the
+         projects-data.js inside the ZIP. We just show it for confidence. */
+      document.getElementById('data-out').textContent = serializeProject(entry);
       document.getElementById('zip-hint').textContent = 'project-' + id + '.zip';
     }
 
@@ -1116,6 +1154,26 @@
       reelCountInput.value = v;
       localStorage.setItem(REEL_KEY, v);
     });
+
+    /* Read the live REEL_COUNT straight out of index.html so the field is
+       right without being told. localStorage stays as the fallback. */
+    fetchText('index.html').then(function (text) {
+      var m = text.match(/\/\* @REEL-COUNT \*\/\s*(\d+)/);
+      if (m) {
+        reelCountInput.value = parseInt(m[1], 10);
+        localStorage.setItem(REEL_KEY, m[1]);
+      }
+    }).catch(function () { /* offline / not served — keep the stored guess */ });
+
+    /* Rewrite the marked REEL_COUNT number in index.html, leaving the marker
+       (and everything else) intact. */
+    function spliceReelCount(fileText, count) {
+      var re = /(\/\* @REEL-COUNT \*\/\s*)\d+/;
+      if (!re.test(fileText)) {
+        throw new Error('Couldn’t find the @REEL-COUNT marker in index.html — was it edited? Restore it and retry.');
+      }
+      return fileText.replace(re, '$1' + count);
+    }
 
     var reelDrop  = document.getElementById('reel-drop');
     var reelInput = document.getElementById('reel-file');
@@ -1207,20 +1265,19 @@
 
       reelGenBtn.disabled = true;
 
-      buildReelZip(startNum)
+      buildReelZip(startNum, newTotal)
         .then(function (blob) {
           var firstName = pad(startNum);
           var lastName  = pad(newTotal);
           triggerDownload(blob, 'reel-add-' + firstName + '-' + lastName + '.zip');
 
           document.getElementById('reel-zip-hint').textContent = 'reel-add-' + firstName + '-' + lastName + '.zip';
-          document.getElementById('reel-line-out').textContent = 'var REEL_COUNT = ' + newTotal + ';';
 
           // Advance and persist the stored count to the new total
           reelCountInput.value = newTotal;
           localStorage.setItem(REEL_KEY, newTotal);
 
-          setNotice('reel-notice', '<strong>Done.</strong> Added images ' + firstName + '–' + lastName + '. New REEL_COUNT is ' + newTotal + '.');
+          setNotice('reel-notice', '<strong>Done.</strong> Added images ' + firstName + '–' + lastName + '. REEL_COUNT is now ' + newTotal + ' (already set in the zipped index.html).');
 
           var out = document.getElementById('reel-output');
           out.classList.add('visible');
@@ -1235,7 +1292,7 @@
         });
     });
 
-    function buildReelZip(startNum) {
+    function buildReelZip(startNum, newTotal) {
       var zip = new JSZip();
       var total = reelFiles.length;
       var done = 0;
@@ -1244,11 +1301,19 @@
       var chain = Promise.resolve();
       reelFiles.forEach(function (entry, i) {
         chain = chain.then(function () {
-          return imageToJpegBlob(entry.file).then(function (blob) {
-            zip.file('assets/reel/' + pad(startNum + i) + '.jpg', blob);
+          return imageToWebpBlob(entry.file).then(function (blob) {
+            zip.file('assets/reel/' + pad(startNum + i) + '.webp', blob);
             done++;
-            showProgress('reel-progress-bar', 'reel-progress-label', 'reel-progress', (done / total) * 90, 'Converting images… (' + done + '/' + total + ')');
+            showProgress('reel-progress-bar', 'reel-progress-label', 'reel-progress', (done / total) * 85, 'Converting images… (' + done + '/' + total + ')');
           });
+        });
+      });
+
+      // Bump REEL_COUNT in index.html and ship it in the ZIP — no manual edit.
+      chain = chain.then(function () {
+        showProgress('reel-progress-bar', 'reel-progress-label', 'reel-progress', 88, 'Updating reel count…');
+        return fetchText('index.html').then(function (text) {
+          zip.file('index.html', spliceReelCount(text, newTotal));
         });
       });
 

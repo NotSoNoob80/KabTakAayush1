@@ -55,3 +55,23 @@ implementation; this file is the source of truth for what we call things.
   phone-height frame it shrinks the stage and shows the **trimmed status**
   instead of the full paragraph. Only `prefers-reduced-motion` gets the static
   stacked layout.
+
+## Authoring & assets
+
+- **The Manifest** — the canonical list of projects (the `PROJECTS` data in
+  `projects-data.js`). For each project it records its **title**, its **meta**
+  line (the "type · location" line shown under the heading), its type, a
+  **description**, and how many images/videos it holds. The Manifest is the
+  single source of truth: both the Projects index *and* a project's Mosaic are
+  built from it. The index rows are **generated** from the Manifest, not
+  hand-written. See [ADR 0004](docs/adr/0004-data-driven-admin-managed-project-list.md).
+- **Description** — a project's longer blurb in the Manifest. It is *not* shown
+  in the project page's visible copy (that stays "heading + location only");
+  it feeds the page's `<meta name="description">` for search engines.
+- **The Admin** — the private authoring tool (`admin.html`). It prepares a new
+  project or a homepage **reel** batch: it re-encodes the photos to **WebP**,
+  bundles them into a **ZIP**, and updates the Manifest (and the reel count)
+  for you — there is no copy-paste-into-files step.
+- **WebP convention** — every project and reel *photo* is stored as WebP
+  (`thumbnail.webp`, `01.webp`, …). Only **videos** keep their original MP4
+  files. The Admin enforces this on the way in.
