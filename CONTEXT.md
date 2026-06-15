@@ -31,6 +31,15 @@ implementation; this file is the source of truth for what we call things.
   it only exists where a pointer can hover.
 - **Inline thumbnail** — the small image shown *beside each title* on the
   Projects index on small screens, replacing the Preview pane.
+- **More-below cue** — a small gold down-chevron + project count
+  ("12 PROJECTS") anchored at the bottom of the Projects index list on the
+  desktop (pinned) layout. Shown only while the list still has un-scrolled
+  **titles** below the fold; it fades out once the list reaches its end. It
+  exists because the desktop index is a fixed one-screen pane whose list
+  scrolls *internally* — without it, the **footer** reads as the end of the
+  list and the lower projects look "hidden." Desktop only; the compact
+  layout (its 46px-fade `46vh` box) does not show it. See
+  [ADR 0006](docs/adr/0006-projects-index-pinned-tableau-internal-scroll.md).
 - **Card** — one classifieds clipping in the Listing (Roti / Kapda / Makaan /
   Art). Each card has a faint line-art **illustration** in its corner.
 - **Status** — the body line beneath a card's price (its "ad copy"). On small
