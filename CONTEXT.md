@@ -42,6 +42,12 @@ implementation; this file is the source of truth for what we call things.
 - **Small screen** — a screen we serve the compact layout to. Defined by
   *either* an unusable hover (touch / coarse pointer) *or* a narrow viewport
   (≤768px). See [ADR 0001](docs/adr/0001-responsive-switches-on-width-not-pointer.md).
+- **Glissando** (footer wordmark) — on touch devices, sliding a finger
+  across the footer wordmark "plays" each letter it crosses like a piano key:
+  the touch counterpart to the desktop per-letter hover press. A
+  horizontal-only gesture — vertical drags still scroll the page. Under
+  `prefers-reduced-motion` it does not run (the long-press callout is still
+  suppressed; that is a fix, not motion).
 - **Focus** (Void) — clicking/tapping a frame so it glides front-and-centre.
 - **Beat** (Listing) — a resting point in the scrub the page can snap to.
 - **Listing on a small screen** — the Listing *keeps* the scrub on phones; it

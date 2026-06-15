@@ -145,6 +145,89 @@
     wordmarks.forEach(function (mark) { shimmerObserver.observe(mark); });
   }
 
+  /* ---------- Glissando — touch counterpart to the desktop piano press
+     A finger sliding horizontally across the footer wordmark "plays"
+     each letter it crosses; a plain tap plays the letter under the
+     finger. Re-entering a previously played letter re-fires it; a
+     stationary finger stays quiet after the initial press. Vertical
+     drags are owned by the browser (CSS `touch-action: pan-y`), which
+     emits `pointercancel` to us when it takes over — that is enough
+     cleanup; no `preventDefault` or axis arithmetic needed here.
+
+     Hit-testing uses `elementFromPoint` rather than cached bounding
+     boxes so the driver survives reflow (font load, viewport resize,
+     orientation change) with no cache to invalidate. ----------------- */
+  if (wordmarkIsTouch && !prefersReducedMotion && wordmarks.length) {
+    wordmarks.forEach(function (mark) {
+      var lastChar = null;
+
+      function charFromPoint(x, y) {
+        var el = document.elementFromPoint(x, y);
+        if (!el || !el.closest) return null;
+        var candidate = el.closest('.char');
+        if (!candidate || !mark.contains(candidate)) return null;
+        return candidate;
+      }
+
+      function play(el, cls) {
+        /* Restart the animation if a stale class is still on the
+           element (rare — `animationend` normally clears it). */
+        el.classList.remove(cls);
+        void el.offsetWidth;
+        el.classList.add(cls);
+      }
+
+      function fireChar(c) {
+        if (!c) return;
+        play(c, 'is-press');
+        var prev = c.previousElementSibling;
+        var next = c.nextElementSibling;
+        if (prev && prev.classList.contains('char')) play(prev, 'is-press-near');
+        if (next && next.classList.contains('char')) play(next, 'is-press-near');
+      }
+
+      mark.addEventListener('pointerdown', function (e) {
+        if (e.pointerType !== 'touch') return;
+        var c = charFromPoint(e.clientX, e.clientY);
+        if (c) {
+          lastChar = c;
+          fireChar(c);
+        }
+      });
+
+      mark.addEventListener('pointermove', function (e) {
+        if (e.pointerType !== 'touch') return;
+        var c = charFromPoint(e.clientX, e.clientY);
+        /* Only fire on entry into a *different* char — stationary
+           finger does not strobe; re-entering a previously played
+           char re-fires it. */
+        if (c && c !== lastChar) {
+          lastChar = c;
+          fireChar(c);
+        }
+      });
+
+      function resetTracker(e) {
+        if (e.pointerType !== 'touch') return;
+        lastChar = null;
+        /* No class cleanup — `animationend` handles that, and
+           `pointercancel` (which fires when the browser hands the
+           gesture off to vertical scroll) needs no extra work. */
+      }
+      mark.addEventListener('pointerup', resetTracker);
+      mark.addEventListener('pointercancel', resetTracker);
+
+      mark.addEventListener('animationend', function (e) {
+        var name = e.animationName;
+        if (name === 'footer-char-press') {
+          e.target.classList.remove('is-press');
+        } else if (name === 'footer-char-press-near') {
+          e.target.classList.remove('is-press-near');
+        }
+      });
+    });
+  }
+
   /* ---------- Scroll-triggered reveal ---------- */
   var revealEls = document.querySelectorAll('[data-reveal]');
 
