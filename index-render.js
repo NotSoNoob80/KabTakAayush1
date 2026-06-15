@@ -27,11 +27,14 @@
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  /* No `data-reveal` on the index rows. The list scrolls inside a fixed-
+     height container, so items below the fold (and sometimes the visible
+     ones, depending on observer timing inside an `overflow: hidden`
+     ancestor) were getting stuck at opacity 0 — the page looked like it
+     was "missing" projects on desktop. The list is short enough that a
+     staggered entrance wasn't earning its keep; it's worth the trade for
+     reliability. */
   var rows = PROJECTS.map(function (p, i) {
-    /* Reveal cadence cycles 0,1,2 down the list — same stagger the
-       hand-written rows used (delay 0 is omitted so it matches). */
-    var delay = i % 3;
-    var delayAttr = delay > 0 ? ' data-reveal-delay="' + delay + '"' : '';
     var active = i === 0 ? ' is-active' : '';
     var thumb = thumbOf(p);
     var meta = p.meta || '';
@@ -39,7 +42,7 @@
 
     return '' +
       '<li>' +
-        '<a class="index__item' + active + '" href="project.html?id=' + p.id + '" data-reveal' + delayAttr +
+        '<a class="index__item' + active + '" href="project.html?id=' + p.id + '"' +
            ' data-thumb="' + esc(thumb) + '" data-type="' + esc(p.type || '') + '"' +
            ' data-meta="' + esc(meta) + '">' +
           '<span class="index__num">' + esc(p.id) + '</span>' +
