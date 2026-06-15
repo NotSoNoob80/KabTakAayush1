@@ -856,6 +856,60 @@
         sessionStorage.setItem('kta:from-projects', '1');
       }
     });
+
+    /* Desktop-only left-rail preview — swap the big thumb on row hover.
+       CSS owns the show/hide animation; JS only flips the visibility
+       class and the <img> src. The matchMedia check happens *inside* the
+       handler (not at bind time) so the page handles a viewport that
+       crosses the breakpoint after load, and the handler is delegated on
+       the list so new rows from the Manifest get the behaviour for free.
+
+       Vars are prefixed `indexPreview*` (not `preview*`) on purpose: the
+       reel block below also declares `var preview` / `var previewImg`,
+       and `var` is function-scoped — a plain `preview` here would share
+       a binding with that one, get nulled out on projects.html (no
+       `#landing-preview` to find), and the listener would crash with
+       "Cannot set src on null". */
+    var indexPreview = document.getElementById('project-index-preview');
+    var indexPreviewImg = indexPreview ? indexPreview.querySelector('.index__preview-img') : null;
+    var indexPreviewMQ = window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 1100px)');
+
+    if (indexPreview && indexPreviewImg) {
+      var currentSrc = '';
+      var hideTimer = null;
+
+      indexList.addEventListener('mouseover', function (e) {
+        if (!indexPreviewMQ.matches) return;
+        var item = e.target.closest('.index__item');
+        if (!item || !indexList.contains(item)) return;
+        if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+        var src = item.getAttribute('data-thumb');
+        if (src && src !== currentSrc) {
+          indexPreviewImg.src = src;
+          currentSrc = src;
+        }
+        indexPreview.classList.add('is-visible');
+      });
+
+      /* Hide when the cursor leaves the whole list, not on every row exit —
+         otherwise moving the cursor between rows would flash the preview
+         out and back in. The small timeout absorbs the gap between row
+         exit and the next row enter. */
+      indexList.addEventListener('mouseleave', function () {
+        hideTimer = setTimeout(function () {
+          indexPreview.classList.remove('is-visible');
+        }, 90);
+      });
+
+      /* Crossing the breakpoint should retract the preview — otherwise a
+         stuck `.is-visible` would leave a fixed image floating on a
+         viewport where the CSS no longer styles it. */
+      var onMQChange = function () {
+        if (!indexPreviewMQ.matches) indexPreview.classList.remove('is-visible');
+      };
+      if (indexPreviewMQ.addEventListener) indexPreviewMQ.addEventListener('change', onMQChange);
+      else if (indexPreviewMQ.addListener) indexPreviewMQ.addListener(onMQChange);
+    }
   }
 
   /* ---------- Reel preview — small, click-anchored "loose print" ----------
