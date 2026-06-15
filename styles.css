@@ -489,12 +489,11 @@ a {
   object-fit: cover;
   display: block;
   transition: transform 600ms var(--ease-out), filter 600ms var(--ease-out);
-  filter: grayscale(0.55) contrast(1.05);
+  filter: contrast(1.05);
 }
 
 .landing__frame:hover img {
   transform: scale(1.05);
-  filter: grayscale(0) contrast(1.05);
 }
 
 .landing__frame {
@@ -640,7 +639,7 @@ a {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: grayscale(0.6) brightness(0.8);
+  filter: brightness(0.92);
   transform: scale(1.06);
   transition: transform 700ms var(--ease-out), filter 500ms var(--ease-out);
 }
@@ -648,7 +647,6 @@ a {
 .card:hover .card__media img,
 .card:hover .card__media video {
   transform: scale(1);
-  filter: grayscale(0) brightness(0.92);
 }
 
 .card__overlay {
@@ -1009,18 +1007,8 @@ a {
   background-position: center;
   background-color: var(--black-soft);
   border-radius: 2px;
-  filter: grayscale(0.35) brightness(0.92);
+  filter: brightness(1);
   transition: filter 460ms var(--ease-out);
-}
-
-/* Pointer-only hover — the thumbnail blooms to full colour, echoing the
-   Mosaic's grayscale→colour reveal. The only hover affordance the index
-   has; no layout shift. */
-@media (hover: hover) and (pointer: fine) {
-  .index__item:hover::before,
-  .index__item:focus-visible::before {
-    filter: grayscale(0) brightness(1);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1130,7 +1118,7 @@ a {
   height: 100%;
   object-fit: cover;
   pointer-events: none;
-  filter: grayscale(0.4) brightness(0.92);
+  filter: brightness(1);
   transform: scale(1.015);
   transition: filter 560ms var(--ease-out), transform 900ms var(--ease-out);
 }
@@ -1138,7 +1126,6 @@ a {
 @media (hover: hover) and (pointer: fine) {
   .mosaic__item:hover img,
   .mosaic__item:focus-within img {
-    filter: grayscale(0) brightness(1);
     transform: scale(1.045);
   }
 }
