@@ -126,6 +126,15 @@ const PROJECTS = [
     meta: 'Photowalk · Mumbai',
     description: 'A wander through Mumbai\'s oldest flea market — layered, loud, and full of forgotten things.',
     imageCount: 15
+  },
+  {
+    id: '12',
+    title: 'Anatomy of a flip',
+    type: 'photo',
+    typeLabel: 'Photo Series',
+    meta: 'Photowalk · Bangangaa',
+    description: 'Anatomy of a flip',
+    imageCount: 10
   }
 ];
 /* @PROJECTS-END */
