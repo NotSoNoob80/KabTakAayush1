@@ -68,6 +68,10 @@ implementation; this file is the source of truth for what we call things.
 - **Description** — a project's longer blurb in the Manifest. It is *not* shown
   in the project page's visible copy (that stays "heading + location only");
   it feeds the page's `<meta name="description">` for search engines.
+- **Media order** — the exact sequence a project's photos and videos appear in
+  the Mosaic, set by dragging cards in the Admin. Stored as the Manifest's
+  `media` string (`i` = photo, `v` = video). Without it, videos are woven in
+  evenly instead. See [ADR 0005](docs/adr/0005-explicit-media-order.md).
 - **The Admin** — the private authoring tool (`admin.html`). It prepares a new
   project or a homepage **reel** batch: it re-encodes the photos to **WebP**,
   bundles them into a **ZIP**, and updates the Manifest (and the reel count)

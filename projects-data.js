@@ -16,6 +16,10 @@
         are in that images/ folder). If the project has videos,
         add `videoCount` too (how many .mp4s are in videos/) —
         it's optional; absent means none (0).
+        For projects with videos, the Admin also writes a `media`
+        string ('i'=image, 'v'=video) that fixes the exact order
+        photos and videos appear in the mosaic. Omit it and the
+        videos fall back to being woven in evenly. See ADR 0005.
    That's it — both pages pick the change up automatically.
    ============================================================ */
 
@@ -147,14 +151,41 @@ function projectVideos(p) {
   );
 }
 
-/* The ordered media list the mosaic actually renders. Videos are
-   woven *evenly* in among the images rather than dumped at the end:
-   a project with 12 images and 3 videos gets a video at positions
-   3, 7, 11 (roughly every imageCount/videoCount steps). This way
-   the page never front- or back-loads all the video tiles. */
+/* The ordered media list the mosaic actually renders.
+
+   If the project carries an explicit `media` order (a string of 'i'/'v'
+   chars set by the Admin — 'i' = next image, 'v' = next video, in the
+   exact sequence the photos and videos should appear), the mosaic follows
+   it tile-for-tile. This is how drag-to-reorder placement in the Admin
+   sticks. See docs/adr/0005.
+
+   Older projects have no `media` field — for them videos are woven *evenly*
+   in among the images rather than dumped at the end: a project with 12
+   images and 3 videos gets a video at positions 3, 7, 11 (roughly every
+   imageCount/videoCount steps), so the page never front- or back-loads all
+   the video tiles. */
 function projectMedia(p) {
   var images = projectImages(p);
   var videos = projectVideos(p);
+
+  /* Explicit order wins. Walk the 'i'/'v' sequence, pulling the next image
+     or video each time; append any leftovers defensively if the string and
+     the counts ever disagree. */
+  if (typeof p.media === 'string' && p.media.length) {
+    var ordered = [];
+    var ii = 0, vi = 0;
+    for (var k = 0; k < p.media.length; k++) {
+      if (p.media.charAt(k) === 'v' && vi < videos.length) {
+        ordered.push({ kind: 'video', src: videos[vi++] });
+      } else if (ii < images.length) {
+        ordered.push({ kind: 'image', src: images[ii++] });
+      }
+    }
+    while (ii < images.length) ordered.push({ kind: 'image', src: images[ii++] });
+    while (vi < videos.length) ordered.push({ kind: 'video', src: videos[vi++] });
+    return ordered;
+  }
+
   if (!videos.length) {
     return images.map(function (src) { return { kind: 'image', src: src }; });
   }

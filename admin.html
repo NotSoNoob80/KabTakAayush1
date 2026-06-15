@@ -292,6 +292,19 @@
     }
     .file-card.bad { border-color: var(--red); }
     .file-card.bad .file-badge { color: var(--red); border-color: rgba(192,57,43,0.4); }
+
+    /* Drag-to-reorder — the card order IS the mosaic order. */
+    .file-card { cursor: grab; }
+    .file-card.dragging { opacity: 0.4; cursor: grabbing; }
+    .file-grid.is-dragging .file-card { transition: transform 140ms var(--ease); }
+    .file-order {
+      position: absolute; top: 4px; left: 4px;
+      background: rgba(227,178,60,0.92); color: var(--black);
+      font-family: 'Courier New', monospace; font-size: 10px; font-weight: 700;
+      letter-spacing: 0.04em; padding: 2px 6px; border-radius: 3px;
+      pointer-events: none; min-width: 20px; text-align: center;
+    }
+    .file-card.bad .file-order { background: rgba(192,57,43,0.92); color: var(--cream); }
     .file-remove {
       position: absolute; top: 4px; right: 4px;
       background: rgba(10,10,10,0.8); border: 1px solid rgba(243,237,225,0.15);
@@ -499,7 +512,7 @@
           </div>
           <input type="file" id="gallery-file" accept="image/*,video/*" multiple style="display:none" />
         </div>
-        <p class="field-hint">Images are re-encoded to WebP (longest edge capped at 2400px). Videos must be MP4 — other containers are excluded with a warning.</p>
+        <p class="field-hint">Drag tiles to set the order they appear in the mosaic — the number on each tile is the position it'll take. Images are re-encoded to WebP (longest edge capped at 2400px). Videos must be MP4 — other containers are excluded with a warning.</p>
       </div>
 
       <div class="notice" id="proj-notice"></div>
@@ -638,20 +651,18 @@
 
     // Serialize one project entry to the file's exact style (4-space props).
     function serializeProject(p) {
-      var lines = [
-        '  {',
-        "    id: '" + jsStr(p.id) + "',",
-        "    title: '" + jsStr(p.title) + "',",
-        "    type: '" + jsStr(p.type) + "',",
-        "    typeLabel: '" + jsStr(p.typeLabel) + "',",
-        "    meta: '" + jsStr(p.meta) + "',",
-        "    description: '" + jsStr(p.description || '') + "',",
-        '    imageCount: ' + (p.imageCount || 0) +
-          (p.videoCount > 0 ? ',' : '')
+      var props = [
+        "id: '" + jsStr(p.id) + "'",
+        "title: '" + jsStr(p.title) + "'",
+        "type: '" + jsStr(p.type) + "'",
+        "typeLabel: '" + jsStr(p.typeLabel) + "'",
+        "meta: '" + jsStr(p.meta) + "'",
+        "description: '" + jsStr(p.description || '') + "'",
+        'imageCount: ' + (p.imageCount || 0)
       ];
-      if (p.videoCount > 0) lines.push('    videoCount: ' + p.videoCount);
-      lines.push('  }');
-      return lines.join('\n');
+      if (p.videoCount > 0) props.push('videoCount: ' + p.videoCount);
+      if (p.media) props.push("media: '" + jsStr(p.media) + "'");
+      return '  {\n    ' + props.join(',\n    ') + '\n  }';
     }
 
     // Serialize the whole array as `const PROJECTS = [ ... ];`.
@@ -880,7 +891,8 @@
     var galleryDrop  = document.getElementById('gallery-drop');
     var galleryInput = document.getElementById('gallery-file');
     var fileGrid     = document.getElementById('file-grid');
-    var galleryFiles = []; // { file, kind: 'image'|'video', ok: bool }
+    var galleryFiles = []; // { file, kind: 'image'|'video', ok: bool, card, orderBadge }
+    var dragEntry    = null; // the entry currently being dragged to reorder
 
     function openGalleryPicker() { galleryInput.value = ''; galleryInput.click(); }
 
@@ -896,9 +908,13 @@
       addGalleryFiles(Array.from(galleryInput.files));
     });
 
-    galleryDrop.addEventListener('dragover', function (e) { e.preventDefault(); galleryDrop.classList.add('over'); });
+    galleryDrop.addEventListener('dragover', function (e) {
+      if (dragEntry) return; // internal reorder — handled on the grid, not here
+      e.preventDefault(); galleryDrop.classList.add('over');
+    });
     galleryDrop.addEventListener('dragleave', function () { galleryDrop.classList.remove('over'); });
     galleryDrop.addEventListener('drop', function (e) {
+      if (dragEntry) return; // internal reorder, not a file drop from the OS
       e.preventDefault(); galleryDrop.classList.remove('over');
       addGalleryFiles(Array.from(e.dataTransfer.files).filter(function (f) {
         return isImage(f) || isVideo(f);
@@ -920,16 +936,69 @@
         renderGalleryCard(entry);
       });
       if (galleryFiles.length > 0) galleryDrop.classList.add('has-files');
+      updateGalleryOrder();
     }
+
+    /* Re-sync galleryFiles to the DOM order and repaint each card's order
+       badge with the 01/02… it will get. The card order IS the order photos
+       and videos appear in the mosaic — see ADR 0005. Images and videos are
+       numbered within their own kind (their file names); the visible sequence
+       is what gets captured as the `media` string at generate time. */
+    function updateGalleryOrder() {
+      galleryFiles = Array.prototype.map.call(fileGrid.children, function (c) { return c.__entry; });
+      var img = 0, vid = 0;
+      galleryFiles.forEach(function (entry) {
+        var label;
+        if (entry.kind === 'image') label = pad(++img);
+        else if (entry.ok) label = pad(++vid);
+        else label = '—'; // excluded (non-mp4) — never ships, never numbered
+        if (entry.orderBadge) entry.orderBadge.textContent = label;
+      });
+    }
+
+    /* Which card should the dragged tile be inserted *before*, given the
+       pointer position? Walks the grid in order and returns the first card
+       the pointer sits above (a lower row) or left-of within the same row.
+       null → drop at the end. */
+    function getDragBeforeElement(x, y) {
+      var cards = Array.prototype.slice.call(
+        fileGrid.querySelectorAll('.file-card:not(.dragging)'));
+      for (var i = 0; i < cards.length; i++) {
+        var box = cards[i].getBoundingClientRect();
+        var cy = box.top + box.height / 2;
+        var cx = box.left + box.width / 2;
+        if (y < box.top) return cards[i];                 // pointer in a row above
+        if (y <= box.bottom && x < cx) return cards[i];   // same row, left of centre
+      }
+      return null;
+    }
+
+    fileGrid.addEventListener('dragover', function (e) {
+      if (!dragEntry) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+      var dragging = fileGrid.querySelector('.file-card.dragging');
+      if (!dragging) return;
+      var before = getDragBeforeElement(e.clientX, e.clientY);
+      if (before == null) {
+        if (dragging !== fileGrid.lastElementChild) fileGrid.appendChild(dragging);
+      } else if (before !== dragging && before !== dragging.nextSibling) {
+        fileGrid.insertBefore(dragging, before);
+      }
+    });
 
     function renderGalleryCard(entry) {
       var file = entry.file;
       var card = document.createElement('div');
       card.className = 'file-card' + (entry.ok ? '' : ' bad');
+      card.draggable = true;
+      card.__entry = entry;
+      entry.card = card;
 
       if (entry.kind === 'image') {
         var img = document.createElement('img');
         img.alt = file.name;
+        img.draggable = false; // let the whole card own the drag, not the image
         card.appendChild(img);
         var r = new FileReader();
         r.onload = function (e) { img.src = e.target.result; };
@@ -943,6 +1012,12 @@
         card.appendChild(iconWrap);
       }
 
+      var order = document.createElement('span');
+      order.className = 'file-order';
+      order.textContent = '—';
+      entry.orderBadge = order;
+      card.appendChild(order);
+
       var badge = document.createElement('span');
       badge.className = 'file-badge';
       badge.textContent = entry.kind === 'image' ? 'IMG' : (entry.ok ? 'MP4' : 'NOT MP4');
@@ -952,14 +1027,32 @@
       removeBtn.type = 'button';
       removeBtn.className = 'file-remove';
       removeBtn.textContent = '✕';
+      removeBtn.draggable = false;
       removeBtn.addEventListener('click', function (e) {
         e.stopPropagation();
         var idx = galleryFiles.indexOf(entry);
         if (idx > -1) galleryFiles.splice(idx, 1);
         card.remove();
         if (fileGrid.children.length === 0) galleryDrop.classList.remove('has-files');
+        updateGalleryOrder();
       });
       card.appendChild(removeBtn);
+
+      card.addEventListener('dragstart', function (e) {
+        dragEntry = entry;
+        card.classList.add('dragging');
+        fileGrid.classList.add('is-dragging');
+        if (e.dataTransfer) {
+          e.dataTransfer.effectAllowed = 'move';
+          try { e.dataTransfer.setData('text/plain', file.name); } catch (err) {}
+        }
+      });
+      card.addEventListener('dragend', function () {
+        card.classList.remove('dragging');
+        fileGrid.classList.remove('is-dragging');
+        dragEntry = null;
+        updateGalleryOrder();
+      });
 
       fileGrid.appendChild(card);
     }
@@ -1041,7 +1134,15 @@
         id: id, title: title, type: type, typeLabel: typeLabel,
         meta: meta, description: desc, imageCount: images.length
       };
-      if (okVideos.length > 0) entry.videoCount = okVideos.length;
+      if (okVideos.length > 0) {
+        entry.videoCount = okVideos.length;
+        /* Capture the exact photo/video sequence (drag order) as an 'i'/'v'
+           string so the mosaic renders them in that order — see ADR 0005.
+           Excluded (non-mp4) videos contribute nothing; they never ship. */
+        entry.media = galleryFiles.map(function (g) {
+          return g.kind === 'image' ? 'i' : (g.ok ? 'v' : '');
+        }).join('');
+      }
 
       buildProjectZip(id, images, okVideos, entry)
         .then(function (blob) {
