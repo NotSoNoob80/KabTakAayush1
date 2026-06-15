@@ -182,7 +182,13 @@
     };
 
     var toggleSound = function (e) {
-      if (e) e.preventDefault();
+      if (e) {
+        e.preventDefault();
+        /* Badge sits inside fig and both have this handler — without
+           stopping propagation a badge click fires twice and cancels
+           itself out, leaving the video muted. */
+        e.stopPropagation();
+      }
       var willUnmute = video.muted;
       if (willUnmute) {
         /* Only one video may carry sound at a time — silence the rest. */
