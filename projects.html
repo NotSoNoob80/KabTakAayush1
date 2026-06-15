@@ -35,6 +35,17 @@
          by index-render.js — do not hand-author <li>s here. See ADR 0004. -->
     <ul class="index__list" id="project-index-list"></ul>
 
+    <!-- Desktop-only "more below" cue. The index is a pinned one-screen
+         pane whose list scrolls internally, so the lower titles fall below
+         the fold and the footer reads as the end of the list. script.js
+         measures the overflow and adds `has-more` to `.index` while there
+         are un-scrolled titles. Decorative: the real <a> rows are the
+         accessible list. See ADR 0006. -->
+    <div class="index__more" aria-hidden="true">
+      <span class="index__more-count" id="project-index-count"></span>
+      <span class="index__more-chevron">&darr;</span>
+    </div>
+
     <!-- Right column — thumbnail preview that swaps on hover/focus -->
     <div class="index__preview">
       <div class="index__preview-frame">

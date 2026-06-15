@@ -1100,6 +1100,7 @@ a {
    Title list ←→ wordmark (still pivot) ←→ thumbnail preview.
    ============================================================ */
 .index {
+  position: relative; /* anchors the desktop .index__more cue (ADR 0006) */
   display: grid;
   grid-template-columns: 1.15fr auto 1fr;
   align-items: stretch;
@@ -1108,6 +1109,50 @@ a {
   margin-top: var(--nav-h);
   height: calc(100vh - var(--nav-h));
   overflow: hidden;
+}
+
+/* "More below" cue — the index is a pinned one-screen pane whose list
+   scrolls internally, so the lower titles sit below the fold and the
+   footer reads as the end of the list. This sits over the list's bottom
+   mask fade and names how many titles there are; script.js reveals it
+   (adds `has-more` to `.index`) only while the list has un-scrolled
+   titles below. Desktop pinned layout only. See ADR 0006. */
+.index__more {
+  position: absolute;
+  left: 48px;        /* matches .index horizontal padding */
+  bottom: 22px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--text);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0;
+  transform: translateY(4px);
+  pointer-events: none; /* never intercepts a click meant for a title row */
+  transition: opacity 300ms var(--ease-out), transform 300ms var(--ease-out);
+}
+
+.index.has-more .index__more {
+  opacity: 1;
+  transform: none;
+}
+
+.index__more-chevron {
+  display: inline-block;
+  animation: index-more-bob 1.6s var(--ease-out) infinite;
+}
+
+@keyframes index-more-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .index__more { transition: none; }
+  .index__more-chevron { animation: none; }
 }
 
 /* The list is the one thing on this screen that scrolls — titles can
@@ -1456,6 +1501,13 @@ a {
     height: auto;
     min-height: calc(100vh - var(--nav-h));
     overflow: visible;
+  }
+
+  /* The compact layout flows the whole page and the footer is a clearly
+     separate section below it — no pinned pane, so the cue isn't needed
+     (and script.js doesn't toggle it here either). See ADR 0006. */
+  .index__more {
+    display: none;
   }
 
   .index__list {

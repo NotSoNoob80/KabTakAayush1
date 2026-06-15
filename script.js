@@ -1010,6 +1010,24 @@
         sessionStorage.setItem('kta:from-projects', '1');
       }
     });
+
+    /* "More below" cue — only meaningful in this desktop branch, where the
+       list scrolls *internally* inside a pinned one-screen pane. Without it
+       the lower titles sit below the fold and the footer reads as the end of
+       the list (see ADR 0006). The count comes from the rendered rows, so it
+       tracks the Manifest automatically as projects are added. */
+    var indexEl = document.getElementById('project-index');
+    var indexCountEl = document.getElementById('project-index-count');
+    if (indexCountEl) indexCountEl.textContent = indexItems.length + ' Projects';
+
+    var updateMoreCue = function () {
+      if (!indexEl) return;
+      var remaining = indexList.scrollHeight - indexList.clientHeight - indexList.scrollTop;
+      indexEl.classList.toggle('has-more', remaining > 8); // 8px slack past the fade
+    };
+    indexList.addEventListener('scroll', updateMoreCue, { passive: true });
+    window.addEventListener('resize', updateMoreCue);
+    updateMoreCue(); // initial state — rows already rendered by index-render.js
   }
 
   /* ---------- Reel preview — small, click-anchored "loose print" ----------
