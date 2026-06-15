@@ -170,15 +170,31 @@
     video.muted = true;
     video.setAttribute('muted', '');
 
-    /* Click-to-sound badge — starts muted (🔇). */
+    /* Click-to-sound badge — a quiet line-art speaker pill that matches
+       the rest of the site's iconography (stroke, no fill). Both icons
+       live inside the button; CSS shows one or the other based on the
+       `is-on` class so toggling is a single class flip. */
     var badge = document.createElement('button');
     badge.className = 'mosaic__sound';
     badge.type = 'button';
-    badge.setAttribute('aria-label', 'Toggle sound');
-    badge.textContent = '🔇';
+    badge.setAttribute('aria-label', 'Unmute');
+    badge.innerHTML =
+      '<svg class="mosaic__sound-icon mosaic__sound-icon--off" viewBox="0 0 24 24" aria-hidden="true">' +
+        '<path d="M4 9.5 L8 9.5 L13 5.5 L13 18.5 L8 14.5 L4 14.5 Z"/>' +
+        '<path d="M17 9 L21 15"/>' +
+        '<path d="M21 9 L17 15"/>' +
+      '</svg>' +
+      '<svg class="mosaic__sound-icon mosaic__sound-icon--on" viewBox="0 0 24 24" aria-hidden="true">' +
+        '<path d="M4 9.5 L8 9.5 L13 5.5 L13 18.5 L8 14.5 L4 14.5 Z"/>' +
+        '<path d="M16.5 9 a4 4 0 0 1 0 6"/>' +
+        '<path d="M19 6.5 a7.5 7.5 0 0 1 0 11"/>' +
+      '</svg>';
 
     var syncBadge = function () {
-      badge.textContent = video.muted ? '🔇' : '🔊';
+      var on = !video.muted;
+      badge.classList.toggle('is-on', on);
+      badge.setAttribute('aria-label', on ? 'Mute' : 'Unmute');
+      badge.setAttribute('aria-pressed', on ? 'true' : 'false');
     };
 
     var toggleSound = function (e) {

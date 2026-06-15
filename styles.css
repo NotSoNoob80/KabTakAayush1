@@ -2241,37 +2241,70 @@ html.intro-armed {
   pointer-events: none;
 }
 
-/* Click-to-sound badge — a small circular control tucked into the
-   tile's bottom-right corner. Hidden at rest, fading in only when the
-   visitor hovers the video tile. Sits above the video in the stack. */
+/* Click-to-sound badge — a quiet line-art speaker pill tucked into
+   the tile's bottom-right corner. Hidden at rest, fades in on hover.
+   Matches the site's iconography: line-only icons, cream stroke at
+   rest, gold accent when sound is on. */
 .mosaic__sound {
   position: absolute;
-  right: 12px;
-  bottom: 12px;
+  right: 14px;
+  bottom: 14px;
   z-index: 2;
-  width: 28px;
-  height: 28px;
-  display: flex;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  font-size: 13px;
-  line-height: 1;
-  border-radius: 50%;
-  border: 1px solid rgba(243, 237, 225, 0.2);
-  background: rgba(10, 10, 10, 0.75);
-  color: #f3ede1;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(10, 10, 10, 0.62);
+  color: var(--cream);
   cursor: pointer;
   opacity: 0;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  transition: opacity 240ms var(--ease-out);
+  transform: translateY(4px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition:
+    opacity 240ms var(--ease-out),
+    transform 240ms var(--ease-out),
+    border-color 220ms var(--ease-out),
+    background-color 220ms var(--ease-out),
+    color 220ms var(--ease-out);
 }
 
 .mosaic__item--video:hover .mosaic__sound,
 .mosaic__item--video:focus-within .mosaic__sound {
   opacity: 1;
+  transform: translateY(0);
 }
+
+.mosaic__sound:hover,
+.mosaic__sound:focus-visible {
+  border-color: rgba(243, 237, 225, 0.36);
+  background: rgba(10, 10, 10, 0.78);
+  outline: none;
+}
+
+.mosaic__sound.is-on {
+  border-color: rgba(227, 178, 60, 0.55);
+  color: var(--gold);
+}
+
+.mosaic__sound-icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: opacity 180ms var(--ease-out);
+}
+
+.mosaic__sound-icon--on { display: none; }
+.mosaic__sound.is-on .mosaic__sound-icon--off { display: none; }
+.mosaic__sound.is-on .mosaic__sound-icon--on { display: block; }
 
 /* === Film-only project layout ===
    When a project has no photos — only videos — the regular 3-column
