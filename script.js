@@ -868,166 +868,28 @@
     });
   }
 
-  /* ---------- Project index — title list ↔ thumbnail preview ----------
-     Hovering or focusing a title swaps the preview to that project's
-     thumbnail. Three refinements over a plain opacity crossfade:
-
-     1. Direction-aware swap — the preview frame translates in the same
-        direction as the user moved in the list (down the list = frame
-        exits upward, incoming arrives from below; up = reversed), so
-        the swap feels spatially connected to the list rather than being
-        a random dissolve.
-
-     2. Meta text crossfades in step with the image swap, so the
-        location copy and the photo always change as one unit.
-
-     3. Timeout synced to the CSS `transition: opacity 200ms` on the
-        image — the previous version fired at 160ms, before the fade
-        had completed, so the src changed while the image was still
-        ~20% visible and the opacity snapped back up from there. */
+  /* ---------- Project index — inline-thumbnail list ----------
+     One layout at every width: each row paints its own inline thumbnail
+     and the whole page scrolls (see ADR 0007). CSS can't read an
+     element's data-attribute as a background URL, so we mirror each row's
+     `data-thumb` into a `--thumb` custom property here; the CSS
+     `.index__item::before` then paints it. The row is already an <a>, so a
+     tap/click navigates — we only flag deliberate navigation so the
+     staggered mosaic reveal fires on click-through (not on reload or
+     direct load). The one hover affordance (thumbnail grayscale→colour)
+     is pure CSS under `@media (hover: hover)`. */
   var indexList = document.getElementById('project-index-list');
-  var indexPreviewImg = document.getElementById('project-index-preview-img');
-  var indexPreviewMeta = document.getElementById('project-index-preview-meta');
 
-  /* Touch / coarse-pointer devices can't hover, so the swap-on-hover
-     preview never fires for them. Instead of leaving a dead right-hand
-     column, the CSS (see "@media (hover: none)" in styles.css) hides
-     that column + the centre mark and shows an always-visible inline
-     thumbnail on each row. CSS can't read an element's data-attribute
-     as a background URL, so we mirror each row's `data-thumb` into a
-     `--thumb` custom property here; the CSS `.index__item::before` then
-     paints it. We also SKIP all the hover/focus wiring below on touch
-     so there are no ghost active/hover states — a single tap on the
-     row (it's already an <a>) navigates. */
-  /* Use the inline-thumbnail layout whenever the hover preview can't pay
-     its way: a touch / coarse-pointer device, OR simply a narrow screen
-     (a slim desktop window, a fine-pointer touch-laptop, an emulator).
-     This MUST match the CSS media query for the same block in styles.css
-     — both switch on "no usable hover OR ≤768px" so markup and styling
-     never disagree about which layout is live. */
-  var indexInlineThumbs = !!(window.matchMedia &&
-    (window.matchMedia('(hover: none)').matches ||
-     window.matchMedia('(pointer: coarse)').matches ||
-     window.matchMedia('(max-width: 768px)').matches));
-
-  if (indexList && indexInlineThumbs) {
-    var touchItems = indexList.querySelectorAll('.index__item');
-    touchItems.forEach(function (item) {
+  if (indexList) {
+    indexList.querySelectorAll('.index__item').forEach(function (item) {
       var thumb = item.getAttribute('data-thumb');
       if (thumb) item.style.setProperty('--thumb', 'url("' + thumb + '")');
-      /* No hover preview here — drop the desktop "is-active" state so
-         nothing sits highlighted/clipped without a pointer. */
-      item.classList.remove('is-active');
     });
-    /* Still flag deliberate navigation so the staggered mosaic reveal
-       fires on tap-through (same behaviour as the desktop click handler). */
     indexList.addEventListener('click', function (e) {
       if (e.target.closest('a[href*="project.html"]')) {
         sessionStorage.setItem('kta:from-projects', '1');
       }
     });
-  } else if (indexList && indexPreviewImg) {
-    var indexItems = indexList.querySelectorAll('.index__item');
-    var indexFrame = document.querySelector('.index__preview-frame');
-    var prevActiveIdx = 0;
-    /* Inline-safe easing — literal value of --ease-out (CSS custom
-       properties aren't resolved in element.style.transition strings). */
-    var EASE_OUT_VAL = 'cubic-bezier(0.23, 1, 0.32, 1)';
-
-    var setActiveIndexItem = function (item) {
-      if (!item) return;
-      var newIdx = Array.prototype.indexOf.call(indexItems, item);
-      /* Direction: 1 = moved downward in the list, -1 = upward.
-         Hovering the same item twice keeps the previous direction. */
-      var direction = newIdx > prevActiveIdx ? 1 : -1;
-      prevActiveIdx = newIdx;
-
-      indexItems.forEach(function (it) {
-        it.classList.toggle('is-active', it === item);
-      });
-
-      var thumb = item.getAttribute('data-thumb');
-      var meta = item.getAttribute('data-meta') || '';
-
-      if (thumb && indexPreviewImg.getAttribute('src') !== thumb) {
-        /* Phase 1 — fade image out, slide frame in exit direction */
-        indexPreviewImg.style.opacity = '0';
-        if (indexFrame && !prefersReducedMotion) {
-          indexFrame.style.transition = 'transform 200ms ' + EASE_OUT_VAL;
-          /* -direction: moving down the list → frame exits upward (-Y) */
-          indexFrame.style.transform = 'translateY(' + (direction * -10) + 'px)';
-        }
-
-        /* Wait for the 200ms CSS opacity fade to fully complete (+20ms
-           buffer) before swapping src and beginning the entrance. */
-        setTimeout(function () {
-          indexPreviewImg.src = thumb;
-          indexPreviewImg.alt = item.querySelector('.index__title')
-            ? item.querySelector('.index__title').textContent
-            : '';
-
-          /* Phase 2 — snap to arriving-from direction, then ease to rest.
-             Two rAFs guarantee the browser has committed the transform:none
-             before we add the transition that animates it back. */
-          if (indexFrame && !prefersReducedMotion) {
-            indexFrame.style.transition = 'none';
-            indexFrame.style.transform = 'translateY(' + (direction * 10) + 'px)';
-            requestAnimationFrame(function () {
-              requestAnimationFrame(function () {
-                indexFrame.style.transition = 'transform 320ms ' + EASE_OUT_VAL;
-                indexFrame.style.transform = 'translateY(0)';
-              });
-            });
-          }
-          indexPreviewImg.style.opacity = '1';
-        }, 220);
-      }
-
-      /* Fade meta text out/in in step with the image swap */
-      if (indexPreviewMeta && indexPreviewMeta.textContent !== meta) {
-        indexPreviewMeta.style.opacity = '0';
-        setTimeout(function () {
-          indexPreviewMeta.textContent = meta;
-          indexPreviewMeta.style.opacity = '1';
-        }, 160);
-      }
-    };
-
-    indexItems.forEach(function (item) {
-      item.addEventListener('mouseenter', function () { setActiveIndexItem(item); });
-      item.addEventListener('focus', function () { setActiveIndexItem(item); });
-    });
-
-    indexList.addEventListener('mouseleave', function () {
-      var current = indexList.querySelector('.index__item.is-active');
-      if (!current && indexItems.length) setActiveIndexItem(indexItems[0]);
-    });
-
-    /* Flag deliberate project navigation so the staggered mosaic reveal
-       only fires on click-through — not on reload or direct load. */
-    indexList.addEventListener('click', function (e) {
-      if (e.target.closest('a[href*="project.html"]')) {
-        sessionStorage.setItem('kta:from-projects', '1');
-      }
-    });
-
-    /* "More below" cue — only meaningful in this desktop branch, where the
-       list scrolls *internally* inside a pinned one-screen pane. Without it
-       the lower titles sit below the fold and the footer reads as the end of
-       the list (see ADR 0006). The count comes from the rendered rows, so it
-       tracks the Manifest automatically as projects are added. */
-    var indexEl = document.getElementById('project-index');
-    var indexCountEl = document.getElementById('project-index-count');
-    if (indexCountEl) indexCountEl.textContent = indexItems.length + ' Projects';
-
-    var updateMoreCue = function () {
-      if (!indexEl) return;
-      var remaining = indexList.scrollHeight - indexList.clientHeight - indexList.scrollTop;
-      indexEl.classList.toggle('has-more', remaining > 8); // 8px slack past the fade
-    };
-    indexList.addEventListener('scroll', updateMoreCue, { passive: true });
-    window.addEventListener('resize', updateMoreCue);
-    updateMoreCue(); // initial state — rows already rendered by index-render.js
   }
 
   /* ---------- Reel preview — small, click-anchored "loose print" ----------

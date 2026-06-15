@@ -34,37 +34,19 @@
      was "missing" projects on desktop. The list is short enough that a
      staggered entrance wasn't earning its keep; it's worth the trade for
      reliability. */
-  var rows = PROJECTS.map(function (p, i) {
-    var active = i === 0 ? ' is-active' : '';
+  var rows = PROJECTS.map(function (p) {
     var thumb = thumbOf(p);
-    var meta = p.meta || '';
     var title = p.title || '';
 
     return '' +
       '<li>' +
-        '<a class="index__item' + active + '" href="project.html?id=' + p.id + '"' +
-           ' data-thumb="' + esc(thumb) + '" data-type="' + esc(p.type || '') + '"' +
-           ' data-meta="' + esc(meta) + '">' +
+        '<a class="index__item" href="project.html?id=' + p.id + '"' +
+           ' data-thumb="' + esc(thumb) + '" data-type="' + esc(p.type || '') + '">' +
           '<span class="index__num">' + esc(p.id) + '</span>' +
           '<span class="index__title" data-title="' + esc(title) + '">' + esc(title) + '</span>' +
-          '<span class="index__cue" aria-hidden="true">View project &rarr;</span>' +
         '</a>' +
       '</li>';
   }).join('');
 
   list.innerHTML = rows;
-
-  /* Seed the hover-preview frame from the first project so the right-hand
-     column isn't empty before the first hover (matches the old hardcoded
-     seed, but driven by the Manifest). */
-  var first = PROJECTS[0];
-  if (first) {
-    var previewImg = document.getElementById('project-index-preview-img');
-    var previewMeta = document.getElementById('project-index-preview-meta');
-    if (previewImg) {
-      previewImg.src = thumbOf(first);
-      previewImg.alt = first.title || '';
-    }
-    if (previewMeta) previewMeta.textContent = first.meta || '';
-  }
 })();

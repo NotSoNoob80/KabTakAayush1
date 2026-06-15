@@ -9,10 +9,11 @@ implementation; this file is the source of truth for what we call things.
 - **The Void** — the homepage (`index.html`). A WebGL field of floating
   photo **frames** the visitor flies through. Has no normal page chrome of
   its own; it is its own self-contained experience.
-- **The Projects index** (or just **the index**) — `projects.html`. The
-  scrollable list of project **titles**. On large screens it is flanked by
-  the **wordmark pivot** and the **preview pane**; on small screens each row
-  carries its own **inline thumbnail** instead.
+- **The Projects index** (or just **the index**) — `projects.html`. A single,
+  centred, full-page-scrolling list of project **titles**, each row carrying its
+  own **inline thumbnail**. The *same* layout at every width — no separate
+  desktop tableau. See
+  [ADR 0007](docs/adr/0007-projects-index-unified-inline-thumbnail-list.md).
 - **The Mosaic** — a single project's page (`project.html`). An editorial
   collage grid of that project's images.
 - **The Listing** — the about page (`about.html`). A scroll-pinned
@@ -24,22 +25,14 @@ implementation; this file is the source of truth for what we call things.
 - **Frame** — one floating photo in the Void. (Not to be confused with a
   Listing card's paper edge.)
 - **Wordmark** — the big "KabTakAayush" lettering. The decorative one in the
-  page footer is **the footer wordmark**; the small centred one between the
-  index columns is **the wordmark pivot**.
-- **Preview pane** — the large hover-driven image on the right of the
-  Projects index that swaps to match the hovered title. A *hover* affordance:
-  it only exists where a pointer can hover.
-- **Inline thumbnail** — the small image shown *beside each title* on the
-  Projects index on small screens, replacing the Preview pane.
-- **More-below cue** — a small gold down-chevron + project count
-  ("12 PROJECTS") anchored at the bottom of the Projects index list on the
-  desktop (pinned) layout. Shown only while the list still has un-scrolled
-  **titles** below the fold; it fades out once the list reaches its end. It
-  exists because the desktop index is a fixed one-screen pane whose list
-  scrolls *internally* — without it, the **footer** reads as the end of the
-  list and the lower projects look "hidden." Desktop only; the compact
-  layout (its 46px-fade `46vh` box) does not show it. See
-  [ADR 0006](docs/adr/0006-projects-index-pinned-tableau-internal-scroll.md).
+  page footer is **the footer wordmark**. (There was once a **wordmark pivot**
+  centred between the old index columns; the unified index has no columns, so
+  the pivot is retired — see
+  [ADR 0007](docs/adr/0007-projects-index-unified-inline-thumbnail-list.md).)
+- **Inline thumbnail** — the image shown *beside each title* on every row of
+  the Projects index, at every width. On pointer devices it drops its
+  grayscale to full colour on hover — the brand's "contact-sheet" reveal,
+  shared with the Mosaic. The only hover affordance the index has.
 - **Card** — one classifieds clipping in the Listing (Roti / Kapda / Makaan /
   Art). Each card has a faint line-art **illustration** in its corner.
 - **Status** — the body line beneath a card's price (its "ad copy"). On small

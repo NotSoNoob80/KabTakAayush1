@@ -1,7 +1,12 @@
 # 0006 — Projects index keeps a pinned one-screen tableau with an internally-scrolling list on desktop
 
-- Status: Accepted
+- Status: Superseded by [ADR 0007](0007-projects-index-unified-inline-thumbnail-list.md)
 - Date: 2026-06-15
+
+> **Superseded 2026-06-15.** The "future change" anticipated in the last
+> consequence below arrived almost immediately: we chose to drop the desktop
+> pinned tableau entirely and serve the inline-thumbnail list at every width.
+> The more-below cue introduced here was retired with it. See ADR 0007.
 
 ## Context
 

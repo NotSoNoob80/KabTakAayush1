@@ -802,101 +802,6 @@ a {
    hover-preview JS is skipped on touch (see script.js) so there
    are no ghost active/hover states.
    ============================================================ */
-/* The inline-thumbnail layout is the right one for any *small* screen,
-   not only touch devices: a narrow desktop window, a touch-laptop that
-   reports a fine pointer, and every device emulator all need it too.
-   Keying it on width as well as pointer means the clean thumbnail-beside-
-   title layout shows whenever the hover-driven preview pane can't earn
-   its keep — and the JS flag in script.js mirrors this same condition. */
-@media (hover: none), (pointer: coarse), (max-width: 768px) {
-  /* Every selector below is parent-qualified (`.index …`, or `.index.index`
-     for the container itself) to lift specificity to (0,2,0). The base
-     `.index*` rules sit LATER in this file, so bare same-specificity
-     selectors here would lose the cascade to them and this layout would
-     only half-apply — the panes reappearing and the list keeping its
-     internal scroll. The prefix makes the small-screen layout win
-     regardless of source order. */
-  .index.index {
-    display: block;
-    grid-template-columns: none;
-    height: auto;
-    min-height: 0;
-    overflow: visible;
-    gap: 0;
-    padding: 0 20px 40px;
-    margin-top: var(--nav-h);
-  }
-
-  /* The centre wordmark and the right preview only make sense as
-     hover anchors — drop them entirely on small screens. */
-  .index .index__mark,
-  .index .index__preview {
-    display: none;
-  }
-
-  /* The whole page scrolls now, so the list is a plain block — no fixed
-     height, no internal scroll, no edge-fade mask. */
-  .index .index__list {
-    display: block;
-    height: auto;
-    max-height: none;
-    overflow: visible;
-    padding: 24px 0;
-    -webkit-mask-image: none;
-    mask-image: none;
-  }
-
-  /* Each row becomes a thumbnail-beside-title card. */
-  .index .index__item {
-    align-items: center;
-    gap: 16px;
-    padding: 16px 2px;
-    color: var(--cream);
-  }
-
-  /* Always-visible inline thumbnail, injected via ::before using the
-     row's own data-thumb attribute — no extra markup needed, and it
-     works for every project automatically. */
-  .index .index__item::before {
-    content: '';
-    flex: 0 0 auto;
-    width: 64px;
-    height: 80px;
-    background-image: var(--thumb);
-    background-size: cover;
-    background-position: center;
-    background-color: var(--black-soft);
-    border-radius: 2px;
-    filter: grayscale(0.35) brightness(0.92);
-  }
-
-  .index .index__num {
-    font-size: 12px;
-    color: var(--gold-dim);
-    flex: 0 0 auto;
-  }
-
-  .index .index__title {
-    /* No hover sweep on touch — keep it solid cream, sized to fit. */
-    font-size: clamp(24px, 7vw, 38px);
-    transform: none;
-    flex: 1 1 auto;
-    line-height: 0.98;
-  }
-
-  /* The hover gold-sweep overlay would just sit clipped at 0 forever
-     on touch; hide it so there's no half-rendered ghost. */
-  .index .index__title::before {
-    display: none;
-  }
-
-  /* The "View project →" cue was a hover affordance; the thumbnail +
-     whole-row tap is the affordance now. */
-  .index .index__cue {
-    display: none;
-  }
-}
-
 /* ============================================================
    project.html (mosaic) — touch / small-screen polish
    The grid already reflows to 1 column at ≤640px. The back button
@@ -1096,104 +1001,31 @@ a {
 }
 
 /* ============================================================
-   Project index (Projects page)
-   Title list ←→ wordmark (still pivot) ←→ thumbnail preview.
+   Projects index (Projects page) — one unified inline-thumbnail
+   list at every width. A single centred column of
+   [thumbnail] [num] [title] rows; the whole page scrolls. No
+   pinned pane, no hover preview, no wordmark pivot. The one hover
+   affordance (pointer devices only) is the thumbnail dropping
+   grayscale to full colour — the brand's contact-sheet reveal,
+   shared with the Mosaic. See ADR 0007.
    ============================================================ */
 .index {
-  position: relative; /* anchors the desktop .index__more cue (ADR 0006) */
-  display: grid;
-  grid-template-columns: 1.15fr auto 1fr;
-  align-items: stretch;
-  gap: 56px;
-  padding: 0 48px;
   margin-top: var(--nav-h);
-  height: calc(100vh - var(--nav-h));
-  overflow: hidden;
+  padding: 0 20px 40px;
 }
 
-/* "More below" cue — the index is a pinned one-screen pane whose list
-   scrolls internally, so the lower titles sit below the fold and the
-   footer reads as the end of the list. This sits over the list's bottom
-   mask fade and names how many titles there are; script.js reveals it
-   (adds `has-more` to `.index`) only while the list has un-scrolled
-   titles below. Desktop pinned layout only. See ADR 0006. */
-.index__more {
-  position: absolute;
-  left: 48px;        /* matches .index horizontal padding */
-  bottom: 22px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--text);
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--gold);
-  opacity: 0;
-  transform: translateY(4px);
-  pointer-events: none; /* never intercepts a click meant for a title row */
-  transition: opacity 300ms var(--ease-out), transform 300ms var(--ease-out);
-}
-
-.index.has-more .index__more {
-  opacity: 1;
-  transform: none;
-}
-
-.index__more-chevron {
-  display: inline-block;
-  animation: index-more-bob 1.6s var(--ease-out) infinite;
-}
-
-@keyframes index-more-bob {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(3px); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .index__more { transition: none; }
-  .index__more-chevron { animation: none; }
-}
-
-/* The list is the one thing on this screen that scrolls — titles can
-   run long, the wordmark and preview stay put as still anchors either
-   side of it. A soft fade at both edges hints that more sits beyond. */
+/* Centred reading column — keeps the single-column list from stranding
+   against the left edge on wide screens. The whole page scrolls; the
+   list is a plain block with no internal scroll or edge-fade mask. */
 .index__list {
   list-style: none;
-  display: flex;
-  flex-direction: column;
-  /* "safe center" keeps a short list (today's five titles) sitting dead
-     centre on the screen — but the moment the list grows tall enough to
-     overflow, it falls back to start-aligned so nothing is ever stuck
-     unreachable above the fold. No breakpoint needed: it self-adjusts
-     as projects are added. */
-  justify-content: safe center;
-  height: 100%;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 28px 22px 28px 0;
-  margin: 0;
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
-  mask-image: linear-gradient(to bottom, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%);
-  scrollbar-width: thin;
-  scrollbar-color: var(--gold-dim) transparent;
-}
-
-.index__list::-webkit-scrollbar {
-  width: 5px;
-}
-
-.index__list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.index__list::-webkit-scrollbar-thumb {
-  background: var(--gold-dim);
-  border-radius: 3px;
+  display: block;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 0;
 }
 
 .index__list li {
-  flex: 0 0 auto;
   border-bottom: 1px solid var(--line);
 }
 
@@ -1201,356 +1033,91 @@ a {
   border-top: 1px solid var(--line);
 }
 
+/* Each row is a thumbnail-beside-title card; the whole <a> taps through. */
 .index__item {
-  position: relative;
   display: flex;
-  align-items: baseline;
-  gap: 22px;
-  padding: 22px 4px;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 2px;
   text-decoration: none;
-  color: var(--grey);
-  transition: color 280ms var(--ease-out), padding 280ms var(--ease-out);
+  color: var(--cream);
 }
 
-.index__item::after {
+/* Always-visible inline thumbnail, painted from the row's own data-thumb
+   (mirrored to --thumb in script.js) via ::before — no extra markup, and
+   it works for every project automatically. */
+.index__item::before {
   content: '';
-  position: absolute;
-  left: 4px;
-  bottom: 0;
-  width: calc(100% - 8px);
-  height: 1px;
-  background: var(--gold);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 320ms var(--ease-out);
+  flex: 0 0 auto;
+  width: 64px;
+  height: 80px;
+  background-image: var(--thumb);
+  background-size: cover;
+  background-position: center;
+  background-color: var(--black-soft);
+  border-radius: 2px;
+  filter: grayscale(0.35) brightness(0.92);
+  transition: filter 460ms var(--ease-out);
+}
+
+/* Pointer-only hover — the thumbnail blooms to full colour, echoing the
+   Mosaic's grayscale→colour reveal. The only hover affordance the index
+   has; no layout shift. */
+@media (hover: hover) and (pointer: fine) {
+  .index__item:hover::before,
+  .index__item:focus-visible::before {
+    filter: grayscale(0) brightness(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .index__item::before {
+    transition: none;
+  }
 }
 
 .index__num {
   font-family: var(--text);
-  font-size: 13px;
+  font-size: 12px;
   letter-spacing: 0.12em;
   color: var(--gold-dim);
-  transition: color 280ms var(--ease-out);
+  flex: 0 0 auto;
 }
 
-/* Solid cream by default — same plain, confident type as everywhere
-   else on the site (no outline trick; that read as a half-rendered
-   font and looked off). A solid gold double sits exactly on top,
-   fully clipped out of view; hovering wipes that clip back from left
-   to right, so gold sweeps across the existing letterforms like a
-   light pass over a frame, rather than the title "filling in" from
-   nothing. `attr(data-title)` mirrors the visible text into the
-   overlay so both layers always read identically without duplicating
-   markup. */
 .index__title {
-  position: relative;
-  display: inline-block;
   font-family: var(--display);
   text-transform: uppercase;
-  font-size: clamp(28px, 4vw, 46px);
-  line-height: 1;
+  font-size: clamp(24px, 7vw, 38px);
+  line-height: 0.98;
   color: var(--cream);
-  /* Isolated nudge: only the title text glides right on hover/active —
-     the number stays anchored so the gold sweep passes across
-     stationary letterforms rather than chasing moving ones. */
-  transition: transform 300ms var(--ease-out);
+  flex: 1 1 auto;
 }
 
-.index__title::before {
-  content: attr(data-title);
-  position: absolute;
-  inset: 0;
-  color: var(--gold);
-  text-transform: inherit;
-  /* Must wrap exactly like the visible title underneath. `inset: 0` gives
-     this overlay the same box, and the text/font are identical, so default
-     (normal) wrapping breaks it at the same points — a long title like
-     "Water that was still" lands on two lines in BOTH layers and they stay
-     aligned. (Forcing `nowrap` here kept the gold on one line over a
-     two-line cream title, so the sweep showed a doubled/garbled word.) The
-     clip-path wipe then reveals the gold left-to-right across the whole
-     wrapped block. */
-  clip-path: inset(0 100% 0 0);
-  transition: clip-path 560ms var(--ease-out);
-  pointer-events: none;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .index__item:hover .index__title::before,
-  .index__item:focus-visible .index__title::before {
-    clip-path: inset(0 0 0 0);
+/* Wider screens — let the centred column breathe: a larger thumbnail and
+   title so it reads as a deliberate page rather than a stranded mobile
+   view. Same single-column layout, just scaled up a notch. */
+@media (min-width: 769px) {
+  .index__item {
+    gap: 22px;
+    padding: 20px 2px;
   }
-}
-
-.index__item.is-active .index__title::before {
-  clip-path: inset(0 0 0 0);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .index__title::before {
-    transition: none;
-  }
-}
-
-/* "Clean visual cue" — a small gold prompt that slides into view,
-   telling the viewer plainly that the title is the click target. */
-.index__cue {
-  font-family: var(--text);
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--gold);
-  white-space: nowrap;
-  opacity: 0;
-  transform: translateX(-10px);
-  transition: opacity 280ms var(--ease-out), transform 280ms var(--ease-out);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .index__item:hover,
-  .index__item:focus-visible {
-    color: var(--cream);
-    /* No whole-item padding nudge — the number stays put as a fixed
-       anchor; only the title glides right (see .index__title below),
-       so the gold sweep travels across stationary letterforms. */
-  }
-
-  .index__item:hover .index__num,
-  .index__item:focus-visible .index__num {
-    color: var(--gold);
-  }
-
-  .index__item:hover .index__title,
-  .index__item:focus-visible .index__title {
-    transform: translateX(10px);
-  }
-
-  .index__item:hover .index__cue,
-  .index__item:focus-visible .index__cue {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.index__item.is-active {
-  color: var(--cream);
-}
-
-.index__item.is-active::after {
-  transform: scaleX(1);
-}
-
-.index__item.is-active .index__num {
-  color: var(--gold);
-}
-
-.index__item.is-active .index__title {
-  transform: translateX(10px);
-}
-
-.index__item:focus-visible {
-  outline: none;
-}
-
-/* The wordmark — a still pivot between list and preview. It holds the
-   centre while the preview swaps, but rewards a hover: the dim grey
-   mark simply blooms into its full natural color — quiet, no glow,
-   no fuss. */
-.index__mark {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  padding: 0 12px;
-  opacity: 0.9;
-  /* Enters before the list items stagger in — quiet, no drama. */
-  animation: index-mark-enter 600ms var(--ease-out) 80ms both;
-}
-
-.index__logo {
-  width: clamp(120px, 12vw, 220px);
-  height: auto;
-  filter: grayscale(1) brightness(1.4);
-  transition: filter 460ms var(--ease-out), transform 460ms var(--ease-out);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .index__mark:hover .index__logo {
-    filter: grayscale(0) brightness(1) saturate(1.1);
-    transform: scale(1.05);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .index__logo {
-    transition: none;
-  }
-  /* Cancel entrance choreography — mark and preview are visible from
-     the first frame at their resting state, no sliding or scaling. */
-  .index__mark,
-  .index__preview-frame {
-    animation: none;
-    opacity: 0.9; /* restore .index__mark resting value */
-  }
-  .index__preview-frame {
-    opacity: 1;
+  .index__item::before {
+    width: 88px;
+    height: 110px;
   }
   .index__title {
-    transition: none;
-  }
-  .index__preview-meta {
-    transition: none;
-  }
-}
-
-.index__logo-fallback {
-  font-family: var(--display);
-  text-transform: uppercase;
-  font-size: 44px;
-  letter-spacing: 0.08em;
-  color: var(--grey);
-}
-
-.index__preview {
-  position: relative;
-  grid-column: 3;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: center;
-}
-
-/* Capped to a share of the viewport's own height so the image always
-   sits fully on screen — never taller than the space below the nav. */
-.index__preview-frame {
-  position: relative;
-  height: min(74%, 640px);
-  width: auto;
-  aspect-ratio: 4 / 5;
-  overflow: hidden;
-  background: var(--black-soft);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
-  /* Enters after the mark — slides in from the right on page load,
-     completing the left→centre→right entrance read of the layout. */
-  animation: index-preview-enter 700ms var(--ease-out) 240ms both;
-}
-
-/* Slow continuous drift — the still preview never quite sits still,
-   the way a projected slide breathes faintly against the screen.
-   Runs independently of which thumbnail is currently loaded, so the
-   swap-fade (`opacity` transition below) and the drift never fight
-   over the same property. `overflow: hidden` on the frame crops the
-   excess, so nothing ever spills past its edge. */
-/* Page entrance — logo mark scales up from 88% opacity 0 → 0.9 */
-@keyframes index-mark-enter {
-  from { opacity: 0; transform: scale(0.88); }
-  to   { opacity: 0.9; transform: scale(1); }
-}
-
-/* Page entrance — preview frame slides in from the right column edge */
-@keyframes index-preview-enter {
-  from { opacity: 0; transform: translateX(32px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes index-preview-drift {
-  from { transform: scale(1) translate(0, 0); }
-  to   { transform: scale(1.08) translate(-1.5%, -1.5%); }
-}
-
-.index__preview-img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  filter: grayscale(0.5) brightness(0.85);
-  opacity: 1;
-  transform-origin: center;
-  transition: opacity 200ms ease-out;
-  /* `ease-in-out` (not --ease-out) so the return journey feels
-     identical to the outgoing drift — --ease-out is asymmetric:
-     fast start / slow end on the forward pass, which when reversed
-     for `alternate` becomes slow start / fast end going back. */
-  animation: index-preview-drift 22s ease-in-out infinite alternate;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .index__preview-img {
-    animation: none;
-  }
-}
-
-.index__preview-meta {
-  margin-top: 16px;
-  font-size: 13px;
-  letter-spacing: 0.06em;
-  color: var(--grey);
-  /* Fades in/out with the image swap — script.js sets opacity 0/1
-     in step with the thumbnail crossfade so copy and photo change
-     as one unit rather than the text snapping while the image fades. */
-  transition: opacity 160ms ease-out;
-}
-
-@media (max-width: 980px) {
-  .index {
-    grid-template-columns: 1fr;
-    align-items: stretch;
-    gap: 24px;
-    padding: 16px 32px 32px;
-    height: auto;
-    min-height: calc(100vh - var(--nav-h));
-    overflow: visible;
-  }
-
-  /* The compact layout flows the whole page and the footer is a clearly
-     separate section below it — no pinned pane, so the cue isn't needed
-     (and script.js doesn't toggle it here either). See ADR 0006. */
-  .index__more {
-    display: none;
-  }
-
-  .index__list {
-    height: auto;
-    max-height: 46vh;
-    padding: 16px 14px 16px 0;
-  }
-
-  .index__mark {
-    order: -1;
-    height: auto;
-    padding: 8px 0;
-  }
-
-  .index__logo {
-    width: clamp(88px, 18vw, 140px);
-  }
-
-  .index__preview {
-    height: auto;
-    align-items: center;
-  }
-
-  .index__preview-frame {
-    height: auto;
-    width: 100%;
-    aspect-ratio: 16 / 10;
-    max-width: 480px;
+    font-size: clamp(34px, 4.4vw, 44px);
   }
 }
 
 @media (max-width: 640px) {
   .index {
-    padding: 12px 24px 28px;
+    padding: 0 14px 28px;
   }
 
   .index__item {
     gap: 14px;
-    padding: 16px 4px;
-  }
-
-  .index__cue {
-    display: none;
+    padding: 14px 2px;
   }
 }
 

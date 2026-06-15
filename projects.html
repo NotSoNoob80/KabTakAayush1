@@ -24,38 +24,15 @@
   </nav>
 
   <!-- ============ PROJECT INDEX ============
-       A title list on the left, the wordmark fixed and centered as a
-       still pivot, and a thumbnail preview on the right that swaps to
-       match whichever title is being hovered or focused. script.js
-       drives the swap and the active-state bookkeeping; the arrow +
-       sliding underline on each title is the "click me" cue. ======= -->
+       One centred, full-page-scrolling list of project titles, each row
+       carrying its own inline thumbnail. The same layout at every width
+       (no desktop tableau / hover preview). script.js paints each row's
+       thumbnail and flags click-through for the mosaic reveal. See ADR 0007. -->
   <section class="index" id="project-index" aria-label="Project index">
 
     <!-- Rows are rendered from the Manifest (PROJECTS in projects-data.js)
          by index-render.js — do not hand-author <li>s here. See ADR 0004. -->
     <ul class="index__list" id="project-index-list"></ul>
-
-    <!-- Desktop-only "more below" cue. The index is a pinned one-screen
-         pane whose list scrolls internally, so the lower titles fall below
-         the fold and the footer reads as the end of the list. script.js
-         measures the overflow and adds `has-more` to `.index` while there
-         are un-scrolled titles. Decorative: the real <a> rows are the
-         accessible list. See ADR 0006. -->
-    <div class="index__more" aria-hidden="true">
-      <span class="index__more-count" id="project-index-count"></span>
-      <span class="index__more-chevron">&darr;</span>
-    </div>
-
-    <!-- Right column — thumbnail preview that swaps on hover/focus -->
-    <div class="index__preview">
-      <div class="index__preview-frame">
-        <img src="assets/projects/01/thumbnail/thumbnail.webp"
-             alt="Supreme"
-             class="index__preview-img"
-             id="project-index-preview-img" />
-      </div>
-      <p class="index__preview-meta" id="project-index-preview-meta">Photowalk · Mumbai</p>
-    </div>
 
   </section>
 
