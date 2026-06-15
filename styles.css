@@ -1015,24 +1015,39 @@ a {
 @media (prefers-reduced-motion: reduce) {
   .index__item::before {
     transition: none;
+    transform: none;
   }
 }
 
 /* Pointer-only row hover — the contact-sheet reveal. On a pointer device,
    thumbs sit dim and grey at rest and bloom back to full colour when their
-   row is hovered or focused. The title gets a quiet nudge + gold tint to
-   match. Touch devices get neither (no `:hover`); their thumbs stay full
-   colour at idle so a static list still reads cleanly there. */
+   row is hovered or focused, and the thumbnail itself enlarges in place
+   (transform-only, no reflow) — the row IS the preview. The title gets a
+   quiet nudge + gold tint to match. Touch devices get neither (no
+   `:hover`); their thumbs stay full colour at idle so a static list still
+   reads cleanly there. See ADR 0008. */
 @media (hover: hover) and (pointer: fine) {
   .index__item::before {
     filter: grayscale(1) brightness(0.78);
+    /* Grow down-and-right from the title's first line so the enlarge
+       doesn't push into the row above — matches the contact-sheet anchor
+       the meta line already uses. */
+    transform-origin: left top;
+    transition: filter 220ms var(--ease-out), transform 220ms var(--ease-out);
   }
   .index__title {
-    transition: transform 460ms var(--ease-out), color 460ms var(--ease-out);
+    transition: transform 220ms var(--ease-out), color 220ms var(--ease-out);
   }
   .index__item:hover::before,
   .index__item:focus-visible::before {
     filter: grayscale(0) brightness(1);
+    transform: scale(1.18);
+  }
+  .index__item:hover,
+  .index__item:focus-visible {
+    /* Lift the enlarged thumbnail above the next row so it isn't clipped. */
+    position: relative;
+    z-index: 1;
   }
   .index__item:hover .index__title,
   .index__item:focus-visible .index__title {
@@ -1139,71 +1154,6 @@ a {
   .index__item {
     gap: 14px;
     padding: 14px 2px;
-  }
-}
-
-/* Desktop-only left-rail preview. Hovering a row drops a big, anchored
-   thumbnail into the empty space left of the centred list — the
-   contact-sheet idea scaled up. Pointer-only by design; touch and narrow
-   viewports never see it (markup stays in the DOM either way). Gated at
-   1100px so the preview doesn't crash into the row content; the list
-   itself maxes at 1100px, so on viewports below that there is no room. */
-.index__preview {
-  display: none;
-}
-
-@media (hover: hover) and (pointer: fine) and (min-width: 1100px) {
-  /* On a desktop pointer device the list permanently anchors to the
-     right and the preview lives in the reserved left half. Both grow
-     with the viewport so wide monitors stay balanced instead of going
-     left-heavy: the preview scales from 240px on a 1100px laptop up to
-     480px on a 4K monitor (~22vw between), and the list's max-width
-     stretches from 1100px up to 1500px in lockstep. The list's left
-     margin is driven by the preview's actual right edge so there's a
-     fixed 40px gap between them at every width, and its right margin
-     mirrors the preview's left inset so the page feels visually
-     symmetric end-to-end. Mobile / narrower / no-hover screens (≤1099px,
-     or any touch/coarse-pointer device) keep the centred `margin: 0
-     auto` from the base block — they have no preview, so they have
-     nothing to make room for. */
-  .index__list {
-    margin-left: calc(clamp(20px, 3vw, 60px) + clamp(240px, 22vw, 480px) + 40px);
-    margin-right: clamp(20px, 3vw, 60px);
-    max-width: clamp(1100px, 70vw, 1500px);
-  }
-
-  .index__preview {
-    display: block;
-    position: fixed;
-    left: clamp(20px, 3vw, 60px);
-    top: 50%;
-    width: clamp(240px, 22vw, 480px);
-    aspect-ratio: 4 / 5;
-    border-radius: 3px;
-    overflow: hidden;
-    background: var(--black-soft);
-    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
-    pointer-events: none;
-    opacity: 0;
-    transform: translate(-14px, -50%) scale(0.97);
-    transition: opacity 360ms var(--ease-out), transform 480ms var(--ease-out);
-    z-index: 5;
-  }
-  .index__preview.is-visible {
-    opacity: 1;
-    transform: translate(0, -50%) scale(1);
-  }
-  .index__preview-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .index__preview {
-    transition: none;
   }
 }
 

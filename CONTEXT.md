@@ -37,21 +37,13 @@ implementation; this file is the source of truth for what we call things.
   the pivot is retired — see
   [ADR 0007](docs/adr/0007-projects-index-unified-inline-thumbnail-list.md).)
 - **Inline thumbnail** — the image shown *beside each title* on every row of
-  the Projects index, at every width. On pointer devices it drops its
-  grayscale to full colour on hover — the brand's "contact-sheet" reveal,
-  shared with the Mosaic. The desktop-only **"type · location" meta line**
-  opposite the title does not animate or react to hover.
-- **The left-rail preview** — on a pointer-capable desktop (≥1100px) the
-  Projects index floats a *bigger* version of the hovered row's thumbnail
-  at the left edge of the viewport: same contact-sheet reveal, bigger
-  format. On those viewports the index list permanently anchors to the
-  right so the left edge is dedicated space the preview can occupy
-  without ever overlapping a row — the layout doesn't shift on hover, the
-  preview just fades in over space that was already empty. Hidden on
-  touch and below 1100px (where there is no preview, and the list stays
-  centred). This is the additive desktop affordance
-  [ADR 0007](docs/adr/0007-projects-index-unified-inline-thumbnail-list.md)
-  left the door open for — it does not bring back the pinned tableau.
+  the Projects index, at every width. On pointer devices, hovering a row
+  enlarges its thumbnail *in place* (the row IS the preview — no separate
+  preview pane) and blooms its grayscale to full colour — the brand's
+  "contact-sheet" reveal, shared with the Mosaic. See
+  [ADR 0008](docs/adr/0008-projects-index-row-is-the-preview.md). The
+  desktop-only **"type · location" meta line** opposite the title does not
+  animate or react to hover.
 - **Card** — one classifieds clipping in the Listing (Roti / Kapda / Makaan /
   Art). Each card has a faint line-art **illustration** in its corner.
 - **Status** — the body line beneath a card's price (its "ad copy"). On small
