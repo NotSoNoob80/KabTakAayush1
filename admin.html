@@ -690,10 +690,18 @@
     }
 
     // Fetch a same-origin text file fresh (no cache), so we splice the latest.
+    // fetch() only works over http — opening admin.html as a file:// page makes
+    // it reject with a bare "Failed to fetch", so we translate that into a
+    // clear instruction to run the Admin through the local server.
     function fetchText(path) {
       return fetch(path, { cache: 'no-store' }).then(function (r) {
-        if (!r.ok) throw new Error('Couldn’t read ' + path + ' (HTTP ' + r.status + '). Are you viewing the Admin through the server, not a file:// path?');
+        if (!r.ok) throw new Error('Couldn’t read ' + path + ' (HTTP ' + r.status + ').');
         return r.text();
+      }).catch(function (err) {
+        if (err instanceof TypeError) {
+          throw new Error('Couldn’t read ' + path + '. Open the Admin through the local server — double-click preview-void.bat, then go to http://localhost:8765/admin.html — not by opening the file directly.');
+        }
+        throw err;
       });
     }
 
@@ -813,6 +821,18 @@
       tabBtns[k].addEventListener('click', function () { setTab(k); });
     });
     setTab(localStorage.getItem(TAB_KEY) || 'project');
+
+    /* The Admin reads the current project/reel files over http to update them.
+       Opened as a file:// page that can't happen — warn up front rather than
+       letting Generate fail with a cryptic error. */
+    if (location.protocol === 'file:') {
+      var fileWarn = '<strong>Open this through the local server.</strong> ' +
+        'Double-click <code>preview-void.bat</code>, then visit ' +
+        '<code>http://localhost:8765/admin.html</code>. Opened as a file, ' +
+        'Generate can’t read or update your project files.';
+      setNotice('proj-notice', fileWarn, true);
+      setNotice('reel-notice', fileWarn, true);
+    }
 
     /* ════════════════════════════════════════════
        PROJECT NUMBER BADGE
