@@ -866,21 +866,30 @@ a {
 }
 
 /* Footer per-letter hover "peek" must not get stuck on touch —
-   coarse pointers latch :hover until the next tap elsewhere. Strip
-   the hover transforms/colours entirely on no-hover devices so a
-   tapped letter never sticks lifted or gold. */
+   coarse pointers latch :hover until the next tap elsewhere, and once
+   a WAAPI press (the Glissando) finishes and clears itself, that
+   latched :hover would reassert and pull the letter back down + gold.
+   Strip the hover transforms/colours entirely on no-hover devices so a
+   tapped letter never sticks lifted or gold.
+
+   Each selector is qualified with the `.footer` ancestor purely for
+   specificity: the real `:hover` press rules live much LATER in the
+   file (the `--piano` block), so at equal specificity they would win on
+   source order and this neutraliser would do nothing. The extra `.footer`
+   class lifts every selector here one notch above its counterpart so the
+   reset wins regardless of source order. */
 @media (hover: none), (pointer: coarse) {
-  .footer__wordmark .char:hover,
-  .footer__wordmark .char:hover + .char,
-  .footer__wordmark .char:has(+ .char:hover),
-  .footer__wordmark--flicker .char:hover,
-  .footer__wordmark--flicker .char:hover + .char,
-  .footer__wordmark--flicker .char:has(+ .char:hover),
-  .footer__wordmark--piano .char:hover,
-  .footer__wordmark--piano .char:hover + .char,
-  .footer__wordmark--piano .char:has(+ .char:hover),
-  .footer__wordmark--piano .char:hover + .char + .char,
-  .footer__wordmark--piano .char:has(+ .char + .char:hover) {
+  .footer .footer__wordmark .char:hover,
+  .footer .footer__wordmark .char:hover + .char,
+  .footer .footer__wordmark .char:has(+ .char:hover),
+  .footer .footer__wordmark--flicker .char:hover,
+  .footer .footer__wordmark--flicker .char:hover + .char,
+  .footer .footer__wordmark--flicker .char:has(+ .char:hover),
+  .footer .footer__wordmark--piano .char:hover,
+  .footer .footer__wordmark--piano .char:hover + .char,
+  .footer .footer__wordmark--piano .char:has(+ .char:hover),
+  .footer .footer__wordmark--piano .char:hover + .char + .char,
+  .footer .footer__wordmark--piano .char:has(+ .char + .char:hover) {
     color: var(--cream);
     transform: none;
     filter: none;
