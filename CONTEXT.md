@@ -64,6 +64,16 @@ implementation; this file is the source of truth for what we call things.
   screens each card shows a **trimmed status** — a short one-line variant — in
   place of the full desktop paragraph, so the card fits a phone-height frame.
 
+- **The reticle** — the on-canvas joystick knob shown *only while The Reach is
+  active*. A subtle gold ring at the screen centre that represents the hand's
+  offset from the **rest zone**; brightens as the hand pushes outward, and
+  takes a distinct filled state while pinch-grabbing. There is deliberately
+  **no on-screen camera preview** — the reticle plus the **camera-active
+  indicator** are the only feedback channels.
+- **Camera-active indicator** — a small persistent red dot + "Camera on"
+  label, shown for as long as The Reach is streaming. Non-decorative — its
+  job is privacy honesty in the absence of a self-view.
+
 ## Behavioural vocabulary
 
 - **Small screen** — a screen we serve the compact layout to. Defined by

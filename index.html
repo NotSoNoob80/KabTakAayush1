@@ -225,6 +225,142 @@
     @media (prefers-reduced-motion: reduce) {
       #void-grain { animation: none; }
     }
+
+    /* ─── The Reach (opt-in hand steering) ─── */
+    .reach-cta {
+      position: fixed;
+      bottom: clamp(20px, 3vh, 36px);
+      left: clamp(24px, 3vw, 52px);
+      z-index: 20;
+      font-family: var(--text, 'Helvetica Neue', sans-serif);
+      font-size: 10px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: var(--gold, #c5a44c);
+      background: transparent;
+      border: 1px solid rgba(197, 164, 76, 0.55);
+      padding: 12px 18px;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.7s ease, color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    }
+    .reach-cta.is-visible { opacity: 0.9; pointer-events: auto; }
+    .reach-cta:hover {
+      color: #080808;
+      background: var(--gold, #c5a44c);
+      border-color: var(--gold, #c5a44c);
+    }
+    .reach-cta.is-on {
+      color: #080808;
+      background: var(--gold, #c5a44c);
+      border-color: var(--gold, #c5a44c);
+    }
+    .reach-cta.is-failed {
+      color: rgba(255, 120, 120, 0.85);
+      border-color: rgba(255, 120, 120, 0.55);
+    }
+
+    .reach-indicator {
+      position: fixed;
+      top: clamp(14px, 2.4vh, 28px);
+      right: clamp(14px, 2.4vw, 28px);
+      z-index: 22;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      font-family: var(--text, 'Helvetica Neue', sans-serif);
+      font-size: 9px;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.78);
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 80, 80, 0.5);
+      border-radius: 99px;
+      pointer-events: none;
+    }
+    .reach-indicator.is-on { display: inline-flex; }
+    .reach-indicator::before {
+      content: '';
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #ff3838;
+      box-shadow: 0 0 6px rgba(255, 56, 56, 0.7);
+      animation: reach-blink 1.4s ease-in-out infinite;
+    }
+    @keyframes reach-blink {
+      0%, 100% { opacity: 1; }
+      50%      { opacity: 0.35; }
+    }
+
+    .reach-reticle {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      z-index: 18;
+      width: 22px;
+      height: 22px;
+      margin-left: -11px;
+      margin-top: -11px;
+      border-radius: 50%;
+      border: 1px solid rgba(197, 164, 76, 0.7);
+      background: rgba(197, 164, 76, 0.06);
+      pointer-events: none;
+      display: none;
+      transform: translate(0, 0);
+      transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .reach-reticle.is-on { display: block; }
+    .reach-reticle.is-pushing {
+      background: rgba(197, 164, 76, 0.22);
+      border-color: var(--gold, #c5a44c);
+      box-shadow: 0 0 18px rgba(197, 164, 76, 0.35);
+    }
+    .reach-reticle.is-pinching {
+      background: var(--gold, #c5a44c);
+      border-color: #fff;
+      box-shadow: 0 0 22px rgba(197, 164, 76, 0.8);
+    }
+
+    .reach-hint {
+      position: fixed;
+      bottom: clamp(64px, 8vh, 96px);
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      font-family: var(--text, 'Helvetica Neue', sans-serif);
+      font-size: 9px;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: var(--gold, #c5a44c);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+      white-space: nowrap;
+    }
+    .reach-hint.is-visible { opacity: 0.55; }
+
+    @media (max-width: 767px), (pointer: coarse) {
+      .reach-cta {
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(46px, 7vh, 70px));
+        font-size: 9px;
+        letter-spacing: 0.28em;
+        padding: 10px 16px;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+      }
+      .reach-hint { bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(96px, 14vh, 130px)); }
+    }
+
+    /* Reduced-motion: The Reach is explicitly motion-first and is not
+       offered to a visitor who has opted out of motion. */
+    @media (prefers-reduced-motion: reduce) {
+      .reach-cta { display: none !important; }
+    }
   </style>
 </head>
 <body>
@@ -271,6 +407,12 @@
 
   <!-- ─── Scroll hint ─── -->
   <p class="void-hint" id="void-hint">Scroll · drag · click a frame</p>
+
+  <!-- ─── The Reach (opt-in hand steering) ─── -->
+  <button type="button" class="reach-cta" id="reach-cta" aria-pressed="false">Steer with your hand</button>
+  <div class="reach-indicator" id="reach-indicator" aria-live="polite">Camera on</div>
+  <div class="reach-reticle" id="reach-reticle" aria-hidden="true"></div>
+  <p class="reach-hint" id="reach-hint">Show your hand</p>
 
   <!-- Three.js r128 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -327,8 +469,19 @@
     var INTRO_FROM   = -34;           // camera start (deep inside the field)
     var INTRO_TO     = 26;            // camera settle position
 
+    // The Reach — opt-in hand-steering tunables (see ADR 0010)
+    var REACH_PAN          = 0.55;
+    var REACH_FLY          = 28.0;
+    var REACH_REST_ZONE    = 0.07;
+    var REACH_DETECTION_HZ = 30;
+    var REACH_PINCH_ON     = 0.055;
+    var REACH_PINCH_OFF    = 0.090;
+    var REACH_SMOOTH       = 0.35;
+    var REACH_LOSS_HINT_MS = 2000;
+
     // Mobile: a lighter field of evenly-spread frames.
     if (IS_MOBILE) SLOTS = MOBILE_SLOTS;
+    if (IS_MOBILE) REACH_DETECTION_HZ = 18;   // throttle hand inference on phones
 
     // Touch devices get touch-appropriate hint wording.
     if (IS_MOBILE) {
@@ -649,6 +802,7 @@
             var hintEl = document.getElementById('void-hint');
             hintEl.classList.add('is-visible');
             setTimeout(function () { hintEl.classList.remove('is-visible'); }, 6000);
+            showReachCta();
           }
         }
         requestAnimationFrame(tickIntro);
@@ -803,6 +957,327 @@
 
     // Logo / links in the nav must never be draggable
     navEl.addEventListener('dragstart', function (e) { e.preventDefault(); });
+
+    /* ══════════════════════════════════════════
+       THE REACH — opt-in hand steering (ADR 0010)
+
+       An additive writer to camTarget. The CTA below is the only enable
+       path: no auto-enable, no hotkey, no URL param. Camera and model are
+       not touched until the visitor presses it.
+    ══════════════════════════════════════════ */
+    var REACH_PREFERS_REDUCED = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+    var reach = {
+      enabled:      false,
+      starting:    false,
+      stream:      null,
+      videoEl:     null,
+      landmarker:  null,
+      loopTimer:   null,
+      hand:        null,    // smoothed { x, y, size, pinch } in normalised frame coords
+      calib:       null,    // { x, y, size } captured neutral
+      calibSamples: null,
+      pinching:    false,
+      lastSeenAt:  0,
+      ctaEl:       null,
+      indicatorEl: null,
+      reticleEl:   null,
+      hintEl:      null,
+      hintShown:   false
+    };
+    var _reachLandmarkerPromise = null;
+
+    function reachInitDom() {
+      reach.ctaEl       = document.getElementById('reach-cta');
+      reach.indicatorEl = document.getElementById('reach-indicator');
+      reach.reticleEl   = document.getElementById('reach-reticle');
+      reach.hintEl      = document.getElementById('reach-hint');
+      if (!reach.ctaEl) return;
+
+      if (REACH_PREFERS_REDUCED) {
+        // CSS already hides it, but make doubly sure we never wire it up.
+        return;
+      }
+
+      reach.ctaEl.addEventListener('click', function () {
+        if (reach.starting) return;
+        if (reach.enabled) disableReach();
+        else enableReach();
+      });
+    }
+
+    function showReachCta() {
+      if (REACH_PREFERS_REDUCED) return;
+      if (!reach.ctaEl) return;
+      reach.ctaEl.classList.add('is-visible');
+    }
+
+    function setReachCtaState(state) {
+      if (!reach.ctaEl) return;
+      reach.ctaEl.classList.remove('is-on', 'is-failed');
+      if (state === 'on') {
+        reach.ctaEl.classList.add('is-on');
+        reach.ctaEl.textContent = 'Release · Esc';
+        reach.ctaEl.setAttribute('aria-pressed', 'true');
+      } else if (state === 'failed-perm') {
+        reach.ctaEl.classList.add('is-failed');
+        reach.ctaEl.textContent = 'Camera blocked';
+        reach.ctaEl.setAttribute('aria-pressed', 'false');
+      } else if (state === 'failed-model') {
+        reach.ctaEl.classList.add('is-failed');
+        reach.ctaEl.textContent = 'Hand model failed';
+        reach.ctaEl.setAttribute('aria-pressed', 'false');
+      } else {
+        reach.ctaEl.textContent = 'Steer with your hand';
+        reach.ctaEl.setAttribute('aria-pressed', 'false');
+      }
+    }
+
+    function loadHandLandmarker() {
+      if (_reachLandmarkerPromise) return _reachLandmarkerPromise;
+      _reachLandmarkerPromise = import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs')
+        .then(function (vision) {
+          return vision.FilesetResolver
+            .forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm')
+            .then(function (fileset) {
+              return vision.HandLandmarker.createFromOptions(fileset, {
+                baseOptions: {
+                  modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+                  delegate: IS_MOBILE ? 'CPU' : 'GPU'
+                },
+                runningMode: 'VIDEO',
+                numHands: 1
+              });
+            });
+        })
+        .catch(function (err) {
+          _reachLandmarkerPromise = null;
+          throw err;
+        });
+      return _reachLandmarkerPromise;
+    }
+
+    function enableReach() {
+      if (reach.enabled || reach.starting) return;
+      reach.starting = true;
+      hideUiForever();
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        reach.starting = false;
+        setReachCtaState('failed-perm');
+        return;
+      }
+
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+        .then(function (stream) {
+          reach.stream = stream;
+          var v = document.createElement('video');
+          v.autoplay    = true;
+          v.muted       = true;
+          v.playsInline = true;
+          v.setAttribute('playsinline', '');   // iOS Safari needs the attribute too
+          v.setAttribute('muted', '');
+          // iOS Safari won't advance frames unless the element is in the DOM.
+          v.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;top:0;left:0;';
+          document.body.appendChild(v);
+          v.srcObject   = stream;
+          reach.videoEl = v;
+          if (reach.indicatorEl) reach.indicatorEl.classList.add('is-on');
+          if (reach.reticleEl)   reach.reticleEl.classList.add('is-on');
+          return v.play().then(function () { return loadHandLandmarker(); });
+        })
+        .then(function (landmarker) {
+          reach.landmarker  = landmarker;
+          reach.enabled     = true;
+          reach.starting    = false;
+          reach.calib       = null;
+          reach.calibSamples = [];
+          reach.lastSeenAt  = performance.now();
+          setReachCtaState('on');
+          reachScheduleDetection();
+        })
+        .catch(function (err) {
+          var perm = !!(err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || err.name === 'NotFoundError'));
+          reachTeardown();
+          setReachCtaState(perm ? 'failed-perm' : 'failed-model');
+        });
+    }
+
+    function disableReach() {
+      if (!reach.enabled && !reach.starting) return;
+      reachTeardown();
+      setReachCtaState('off');
+    }
+
+    function reachTeardown() {
+      reach.enabled  = false;
+      reach.starting = false;
+      if (reach.loopTimer) { clearTimeout(reach.loopTimer); reach.loopTimer = null; }
+      if (reach.stream) {
+        var tracks = reach.stream.getTracks();
+        for (var i = 0; i < tracks.length; i++) tracks[i].stop();
+        reach.stream = null;
+      }
+      if (reach.videoEl) {
+        try { reach.videoEl.pause(); } catch (e) {}
+        reach.videoEl.srcObject = null;
+        if (reach.videoEl.parentNode) reach.videoEl.parentNode.removeChild(reach.videoEl);
+        reach.videoEl = null;
+      }
+      if (reach.indicatorEl) reach.indicatorEl.classList.remove('is-on');
+      if (reach.reticleEl)   reach.reticleEl.classList.remove('is-on', 'is-pushing', 'is-pinching');
+      reachClearHint();
+      reach.hand     = null;
+      reach.pinching = false;
+      reach.calib    = null;
+      reach.calibSamples = null;
+    }
+
+    function reachScheduleDetection() {
+      if (!reach.enabled) return;
+      var interval = Math.max(16, Math.round(1000 / REACH_DETECTION_HZ));
+      reach.loopTimer = setTimeout(function () {
+        reachDetect();
+        reachScheduleDetection();
+      }, interval);
+    }
+
+    function reachDetect() {
+      if (!reach.enabled || !reach.videoEl || !reach.landmarker) return;
+      if (reach.videoEl.readyState < 2) return;
+      var ts = performance.now();
+      var result;
+      try {
+        result = reach.landmarker.detectForVideo(reach.videoEl, ts);
+      } catch (e) { return; }
+      var lms = result && result.landmarks && result.landmarks[0];
+      if (!lms || !lms.length) {
+        reach.hand = null;
+        return;
+      }
+      reach.lastSeenAt = ts;
+
+      // Palm centre ≈ middle-finger MCP (landmark 9). Mirror x for selfie view.
+      var palm   = lms[9];
+      var wrist  = lms[0];
+      var thumb  = lms[4];
+      var index  = lms[8];
+
+      var palmX = 1 - palm.x;
+      var palmY = palm.y;
+
+      var dx = (1 - palm.x) - (1 - wrist.x);
+      var dy = palm.y - wrist.y;
+      var size = Math.sqrt(dx * dx + dy * dy);
+
+      var px = (1 - thumb.x) - (1 - index.x);
+      var py = thumb.y - index.y;
+      var pinchDist = Math.sqrt(px * px + py * py);
+
+      // Calibration: average the first ~12 samples to set neutral
+      if (!reach.calib) {
+        reach.calibSamples.push({ x: palmX, y: palmY, size: size });
+        if (reach.calibSamples.length >= 12) {
+          var sx = 0, sy = 0, ss = 0, n = reach.calibSamples.length;
+          for (var k = 0; k < n; k++) {
+            sx += reach.calibSamples[k].x;
+            sy += reach.calibSamples[k].y;
+            ss += reach.calibSamples[k].size;
+          }
+          reach.calib = { x: sx / n, y: sy / n, size: ss / n };
+          reach.calibSamples = null;
+        }
+        return;
+      }
+
+      // Smoothed update
+      var prev = reach.hand;
+      var next = { x: palmX, y: palmY, size: size, pinch: pinchDist };
+      if (prev) {
+        next.x     = prev.x     + (palmX     - prev.x)     * REACH_SMOOTH;
+        next.y     = prev.y     + (palmY     - prev.y)     * REACH_SMOOTH;
+        next.size  = prev.size  + (size      - prev.size)  * REACH_SMOOTH;
+        next.pinch = prev.pinch + (pinchDist - prev.pinch) * REACH_SMOOTH;
+      }
+      reach.hand = next;
+
+      // Pinch-grab → Focus, with hysteresis to stop chatter
+      if (!reach.pinching && next.pinch < REACH_PINCH_ON) {
+        reach.pinching = true;
+        var hit = raycastFrames(W / 2, H / 2);
+        if (hit) {
+          if (!focused || focused !== hit) setFocus(hit);
+        }
+        if (reach.reticleEl) reach.reticleEl.classList.add('is-pinching');
+      } else if (reach.pinching && next.pinch > REACH_PINCH_OFF) {
+        reach.pinching = false;
+        if (focused) releaseFocus();
+        if (reach.reticleEl) reach.reticleEl.classList.remove('is-pinching');
+      }
+    }
+
+    function reachApplyToTarget() {
+      if (!reach.enabled) return;
+      if (focused) {
+        if (reach.reticleEl) reach.reticleEl.classList.remove('is-pushing');
+        return;
+      }
+      if (!reach.hand || !reach.calib) {
+        if (reach.reticleEl) reach.reticleEl.classList.remove('is-pushing');
+        if (reach.lastSeenAt && (performance.now() - reach.lastSeenAt) > REACH_LOSS_HINT_MS) {
+          reachShowHint();
+        }
+        return;
+      }
+      reachClearHint();
+
+      var ox = reach.hand.x - reach.calib.x;
+      var oy = reach.hand.y - reach.calib.y;
+      var r  = Math.sqrt(ox * ox + oy * oy);
+
+      if (reach.reticleEl) {
+        var dxPx = (ox / 0.4) * Math.min(W, H) * 0.18;
+        var dyPx = (oy / 0.4) * Math.min(W, H) * 0.18;
+        reach.reticleEl.style.transform = 'translate(' + dxPx + 'px,' + dyPx + 'px)';
+        if (r > REACH_REST_ZONE) reach.reticleEl.classList.add('is-pushing');
+        else reach.reticleEl.classList.remove('is-pushing');
+      }
+
+      if (r > REACH_REST_ZONE) {
+        var scale = (r - REACH_REST_ZONE) / r;
+        // Pan: mirror the existing drag sign — hand right ⇒ camera looks right
+        camTarget.x += -ox * scale * REACH_PAN;
+        camTarget.y +=  oy * scale * REACH_PAN;
+      }
+
+      // Depth: bigger hand ⇒ closer to camera ⇒ fly forward (z decreases)
+      var ds = reach.hand.size - reach.calib.size;
+      if (Math.abs(ds) > 0.008) {
+        camTarget.z -= ds * REACH_FLY;
+      }
+    }
+
+    function reachShowHint() {
+      if (reach.hintShown || !reach.hintEl) return;
+      reach.hintShown = true;
+      reach.hintEl.classList.add('is-visible');
+    }
+    function reachClearHint() {
+      if (!reach.hintShown || !reach.hintEl) return;
+      reach.hintShown = false;
+      reach.hintEl.classList.remove('is-visible');
+    }
+
+    // Esc and tab-hide also disable The Reach (Esc additionally releases Focus
+    // via the existing keydown listener above — both run, which is fine).
+    window.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && reach.enabled) disableReach();
+    });
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden && reach.enabled) disableReach();
+    });
+
+    reachInitDom();
 
     /* ══════════════════════════════════════════
        INPUT — TOUCH
@@ -974,6 +1449,10 @@
       } else {
         zVel = 0;
       }
+
+      // The Reach contributes its per-frame deltas to camTarget here, so it
+      // inherits the chase, inertia, focus tween, and idle sway for free.
+      reachApplyToTarget();
 
       // Camera chase
       cam.x += (camTarget.x - cam.x) * LERP_CAM;
