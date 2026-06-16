@@ -227,6 +227,10 @@
     }
 
     /* ─── The Reach (opt-in hand steering) ─── */
+    /* The CTA is visually distinct from the rest of the site chrome — a gold
+       pill with an inline palm glyph and a slow, soft outer pulse — because
+       it opts the visitor into something genuinely unusual (camera access,
+       hand-steering) and that deserves a button that looks unusual. */
     .reach-cta {
       position: fixed;
       bottom: clamp(20px, 3vh, 36px);
@@ -237,15 +241,30 @@
       letter-spacing: 0.32em;
       text-transform: uppercase;
       color: var(--gold, #c5a44c);
-      background: transparent;
+      background: rgba(197, 164, 76, 0.04);
       border: 1px solid rgba(197, 164, 76, 0.55);
-      padding: 12px 18px;
+      border-radius: 99px;
+      padding: 9px 18px 9px 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
       cursor: pointer;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.7s ease, color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+      transition: opacity 0.7s ease, color 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
     }
-    .reach-cta.is-visible { opacity: 0.9; pointer-events: auto; }
+    .reach-cta__icon { width: 16px; height: 16px; display: block; color: currentColor; }
+    .reach-cta__label { display: inline-block; }
+    .reach-cta.is-visible { opacity: 0.95; pointer-events: auto; }
+    /* Idle pulse — only while the CTA is visible and the Reach is neither on
+       nor failed. Soft outer gold glow that breathes once every 2.4s. */
+    @keyframes reach-cta-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(197, 164, 76, 0); }
+      50%      { box-shadow: 0 0 0 5px rgba(197, 164, 76, 0.16); }
+    }
+    .reach-cta.is-visible:not(.is-on):not(.is-failed) {
+      animation: reach-cta-pulse 2.4s ease-in-out infinite;
+    }
     .reach-cta:hover {
       color: #080808;
       background: var(--gold, #c5a44c);
@@ -259,6 +278,7 @@
     .reach-cta.is-failed {
       color: rgba(255, 120, 120, 0.85);
       border-color: rgba(255, 120, 120, 0.55);
+      background: transparent;
     }
 
     .reach-indicator {
@@ -294,6 +314,10 @@
       50%      { opacity: 0.35; }
     }
 
+    /* The reticle is the on-canvas joystick knob. It has two visual modes:
+       - calibrating: the 22px gold circle below (no gesture class set)
+       - gesturing:   the matching palm/fist/pinch SVG (via .is-palm/.is-fist/.is-pinching)
+       The clutch ring (::after) composes on top of either mode. */
     .reach-reticle {
       position: fixed;
       left: 50%;
@@ -306,10 +330,11 @@
       border-radius: 50%;
       border: 1px solid rgba(197, 164, 76, 0.7);
       background: rgba(197, 164, 76, 0.06);
+      color: var(--gold, #c5a44c);
       pointer-events: none;
       display: none;
       transform: translate(0, 0);
-      transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
     }
     .reach-reticle.is-on { display: block; }
     .reach-reticle.is-pushing {
@@ -317,11 +342,57 @@
       border-color: var(--gold, #c5a44c);
       box-shadow: 0 0 18px rgba(197, 164, 76, 0.35);
     }
+    /* Gesture mode: the hand SVG IS the cursor — fade out the circle so the
+       silhouette reads cleanly. The pushing glow still composes via box-shadow. */
+    .reach-reticle.is-palm,
+    .reach-reticle.is-fist,
     .reach-reticle.is-pinching {
-      background: var(--gold, #c5a44c);
-      border-color: #fff;
-      box-shadow: 0 0 22px rgba(197, 164, 76, 0.8);
+      border-color: transparent;
+      background: transparent;
     }
+    .reach-reticle__hand {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 32px;
+      height: 32px;
+      margin-left: -16px;
+      margin-top: -16px;
+      color: var(--gold, #c5a44c);
+      opacity: 0;
+      transform: scale(0.85);
+      transform-origin: center;
+      transition: opacity 150ms ease, transform 150ms ease;
+      pointer-events: none;
+    }
+    .reach-reticle.is-palm     .reach-reticle__hand[data-gesture="palm"],
+    .reach-reticle.is-fist     .reach-reticle__hand[data-gesture="fist"],
+    .reach-reticle.is-pinching .reach-reticle__hand[data-gesture="pinch"] {
+      opacity: 0.95;
+      transform: scale(1);
+    }
+    /* The clutch ring — a thin concentric outer ring around the reticle that
+       appears only while depth-clutched. ~1.4× the reticle's radius
+       (reticle r ≈ 11px ⇒ ring r ≈ 15.4px), in the existing reticle gold,
+       with a 120ms opacity fade. The ring rides the reticle's transform so
+       the centre (whether dot or fist glyph) keeps tracking pan offset while
+       the ring is held. */
+    .reach-reticle::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 38px;
+      height: 38px;
+      margin-left: -19px;
+      margin-top: -19px;
+      border-radius: 50%;
+      border: 1.5px solid var(--gold, #c5a44c);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 120ms ease;
+    }
+    .reach-reticle.is-clutched::after { opacity: 0.85; }
 
     .reach-hint {
       position: fixed;
@@ -340,6 +411,40 @@
       white-space: nowrap;
     }
     .reach-hint.is-visible { opacity: 0.55; }
+
+    /* The Reach guide — replaces the void-hint while The Reach is on. Three
+       illustrated gestures stacked over their names, occupying the same
+       lower-right slot the scroll/drag/click line used to. */
+    .reach-guide {
+      position: fixed;
+      bottom: clamp(20px, 3vh, 36px);
+      right: clamp(24px, 3vw, 52px);
+      z-index: 20;
+      display: flex;
+      gap: clamp(14px, 2vw, 22px);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.7s ease;
+      color: var(--gold, #c5a44c);
+    }
+    .reach-guide.is-visible { opacity: 0.7; }
+    .reach-guide__item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .reach-guide__icon {
+      width: 22px;
+      height: 22px;
+      color: currentColor;
+    }
+    .reach-guide__label {
+      font-family: var(--text, 'Helvetica Neue', sans-serif);
+      font-size: 9px;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+    }
 
     @media (max-width: 767px), (pointer: coarse) {
       .reach-cta {
@@ -409,10 +514,65 @@
   <p class="void-hint" id="void-hint">Scroll · drag · click a frame</p>
 
   <!-- ─── The Reach (opt-in hand steering) ─── -->
-  <button type="button" class="reach-cta" id="reach-cta" aria-pressed="false">Steer with your hand</button>
+  <!-- Hand-gesture SVG symbol library, reused by the CTA, the guide, and the reticle -->
+  <svg width="0" height="0" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden">
+    <defs>
+      <symbol id="reach-icon-palm" viewBox="0 0 24 24">
+        <g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7.5 13.5V6"/>
+          <path d="M10.8 13.5V3.5"/>
+          <path d="M14 13.5V4"/>
+          <path d="M17.2 13.5V6.5"/>
+          <path d="M5 13.5L3 10.5"/>
+          <path d="M5 13.5Q4.5 21 12 21Q19.5 21 19.5 13.5"/>
+        </g>
+      </symbol>
+      <symbol id="reach-icon-fist" viewBox="0 0 24 24">
+        <g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 11Q7 7 11 7H14Q18 7 18 11V17Q18 21 14 21H11Q7 21 7 17Z"/>
+          <path d="M9 10.5H16"/>
+          <path d="M9 13.5H16"/>
+          <path d="M9 16.5H16"/>
+          <path d="M7 14Q4.5 14 4.5 16Q4.5 18 7 17.5"/>
+        </g>
+      </symbol>
+      <symbol id="reach-icon-pinch" viewBox="0 0 24 24">
+        <g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="8.5" cy="6.5" r="2.5"/>
+          <path d="M11.5 9V14"/>
+          <path d="M14.5 9.5V14"/>
+          <path d="M17.5 10.5V14"/>
+          <path d="M7 9Q5.5 16 10 19Q15.5 22 18 14"/>
+        </g>
+      </symbol>
+    </defs>
+  </svg>
+
+  <button type="button" class="reach-cta" id="reach-cta" aria-pressed="false">
+    <svg class="reach-cta__icon" aria-hidden="true"><use href="#reach-icon-palm"/></svg>
+    <span class="reach-cta__label">The Reach</span>
+  </button>
   <div class="reach-indicator" id="reach-indicator" aria-live="polite">Camera on</div>
-  <div class="reach-reticle" id="reach-reticle" aria-hidden="true"></div>
+  <div class="reach-reticle" id="reach-reticle" aria-hidden="true">
+    <svg class="reach-reticle__hand" data-gesture="palm"  aria-hidden="true"><use href="#reach-icon-palm"/></svg>
+    <svg class="reach-reticle__hand" data-gesture="fist"  aria-hidden="true"><use href="#reach-icon-fist"/></svg>
+    <svg class="reach-reticle__hand" data-gesture="pinch" aria-hidden="true"><use href="#reach-icon-pinch"/></svg>
+  </div>
   <p class="reach-hint" id="reach-hint">Show your hand</p>
+  <div class="reach-guide" id="reach-guide" aria-hidden="true">
+    <div class="reach-guide__item">
+      <svg class="reach-guide__icon" aria-hidden="true"><use href="#reach-icon-palm"/></svg>
+      <span class="reach-guide__label">Palm</span>
+    </div>
+    <div class="reach-guide__item">
+      <svg class="reach-guide__icon" aria-hidden="true"><use href="#reach-icon-fist"/></svg>
+      <span class="reach-guide__label">Fist</span>
+    </div>
+    <div class="reach-guide__item">
+      <svg class="reach-guide__icon" aria-hidden="true"><use href="#reach-icon-pinch"/></svg>
+      <span class="reach-guide__label">Pinch</span>
+    </div>
+  </div>
 
   <!-- Three.js r128 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -478,6 +638,9 @@
     var REACH_PINCH_OFF    = 0.090;
     var REACH_SMOOTH       = 0.35;
     var REACH_LOSS_HINT_MS = 2000;
+    var REACH_CURL_OPEN_RATIO = 0.85;   // curl > this * calib.curl ⇒ clutched→open
+    var REACH_CURL_FIST_RATIO = 0.55;   // curl < this * calib.curl ⇒ open→clutched
+    var REACH_CLUTCH_DWELL_MS = 120;    // intention-dwell on clutch transitions
 
     // Mobile: a lighter field of evenly-spread frames.
     if (IS_MOBILE) SLOTS = MOBILE_SLOTS;
@@ -974,10 +1137,14 @@
       videoEl:     null,
       landmarker:  null,
       loopTimer:   null,
-      hand:        null,    // smoothed { x, y, size, pinch } in normalised frame coords
-      calib:       null,    // { x, y, size } captured neutral
+      hand:        null,    // smoothed { x, y, size, pinch, curl } in normalised frame coords
+      calib:       null,    // { x, y, size, curl } captured neutral
       calibSamples: null,
       pinching:    false,
+      clutched:    false,   // The clutch: fist pins depth (camTarget.z) while pan stays live
+      clutchSince: 0,       // ts of first open→clutched candidate frame, for dwell
+      openSince:   0,       // ts of first clutched→open candidate frame, for dwell
+      recalibSizeOnNext: false,  // on clutched→open, re-anchor calib.size (see ADR 0011)
       lastSeenAt:  0,
       ctaEl:       null,
       indicatorEl: null,
@@ -989,6 +1156,8 @@
 
     function reachInitDom() {
       reach.ctaEl       = document.getElementById('reach-cta');
+      reach.ctaLabelEl  = reach.ctaEl ? reach.ctaEl.querySelector('.reach-cta__label') : null;
+      reach.guideEl     = document.getElementById('reach-guide');
       reach.indicatorEl = document.getElementById('reach-indicator');
       reach.reticleEl   = document.getElementById('reach-reticle');
       reach.hintEl      = document.getElementById('reach-hint');
@@ -1015,20 +1184,21 @@
     function setReachCtaState(state) {
       if (!reach.ctaEl) return;
       reach.ctaEl.classList.remove('is-on', 'is-failed');
+      var labelEl = reach.ctaLabelEl;
       if (state === 'on') {
         reach.ctaEl.classList.add('is-on');
-        reach.ctaEl.textContent = 'Release · Esc';
+        if (labelEl) labelEl.textContent = 'Release · Esc';
         reach.ctaEl.setAttribute('aria-pressed', 'true');
       } else if (state === 'failed-perm') {
         reach.ctaEl.classList.add('is-failed');
-        reach.ctaEl.textContent = 'Camera blocked';
+        if (labelEl) labelEl.textContent = 'Camera blocked';
         reach.ctaEl.setAttribute('aria-pressed', 'false');
       } else if (state === 'failed-model') {
         reach.ctaEl.classList.add('is-failed');
-        reach.ctaEl.textContent = 'Hand model failed';
+        if (labelEl) labelEl.textContent = 'Hand model failed';
         reach.ctaEl.setAttribute('aria-pressed', 'false');
       } else {
-        reach.ctaEl.textContent = 'Steer with your hand';
+        if (labelEl) labelEl.textContent = 'The Reach';
         reach.ctaEl.setAttribute('aria-pressed', 'false');
       }
     }
@@ -1094,6 +1264,11 @@
           reach.calibSamples = [];
           reach.lastSeenAt  = performance.now();
           setReachCtaState('on');
+          // The Reach is now live: the gesture guide replaces the
+          // scroll/drag/click hint for as long as we are streaming.
+          if (reach.guideEl) reach.guideEl.classList.add('is-visible');
+          var voidHintOnEnable = document.getElementById('void-hint');
+          if (voidHintOnEnable) voidHintOnEnable.classList.remove('is-visible');
           reachScheduleDetection();
         })
         .catch(function (err) {
@@ -1125,10 +1300,15 @@
         reach.videoEl = null;
       }
       if (reach.indicatorEl) reach.indicatorEl.classList.remove('is-on');
-      if (reach.reticleEl)   reach.reticleEl.classList.remove('is-on', 'is-pushing', 'is-pinching');
+      if (reach.reticleEl)   reach.reticleEl.classList.remove('is-on', 'is-pushing', 'is-pinching', 'is-clutched', 'is-palm', 'is-fist');
+      if (reach.guideEl)     reach.guideEl.classList.remove('is-visible');
       reachClearHint();
       reach.hand     = null;
       reach.pinching = false;
+      reach.clutched = false;
+      reach.clutchSince = 0;
+      reach.openSince   = 0;
+      reach.recalibSizeOnNext = false;
       reach.calib    = null;
       reach.calibSamples = null;
     }
@@ -1174,17 +1354,32 @@
       var py = thumb.y - index.y;
       var pinchDist = Math.sqrt(px * px + py * py);
 
+      // Openness signal: mean tip→MCP distance over fingers 2-5, normalised by
+      // hand size. Roughly [0,1] — palm-open ≈ 1, fist ≈ 0. Per-visitor neutral
+      // is captured in calib.curl during the calibration window below.
+      var FINGER_LM = [[8, 5], [12, 9], [16, 13], [20, 17]];
+      var curlSum = 0;
+      for (var f = 0; f < FINGER_LM.length; f++) {
+        var tip = lms[FINGER_LM[f][0]];
+        var mcp = lms[FINGER_LM[f][1]];
+        var fx = tip.x - mcp.x;
+        var fy = tip.y - mcp.y;
+        curlSum += Math.sqrt(fx * fx + fy * fy);
+      }
+      var curl = (size > 1e-6) ? (curlSum / FINGER_LM.length) / size : 0;
+
       // Calibration: average the first ~12 samples to set neutral
       if (!reach.calib) {
-        reach.calibSamples.push({ x: palmX, y: palmY, size: size });
+        reach.calibSamples.push({ x: palmX, y: palmY, size: size, curl: curl });
         if (reach.calibSamples.length >= 12) {
-          var sx = 0, sy = 0, ss = 0, n = reach.calibSamples.length;
+          var sx = 0, sy = 0, ss = 0, sc = 0, n = reach.calibSamples.length;
           for (var k = 0; k < n; k++) {
             sx += reach.calibSamples[k].x;
             sy += reach.calibSamples[k].y;
             ss += reach.calibSamples[k].size;
+            sc += reach.calibSamples[k].curl;
           }
-          reach.calib = { x: sx / n, y: sy / n, size: ss / n };
+          reach.calib = { x: sx / n, y: sy / n, size: ss / n, curl: sc / n };
           reach.calibSamples = null;
         }
         return;
@@ -1192,39 +1387,130 @@
 
       // Smoothed update
       var prev = reach.hand;
-      var next = { x: palmX, y: palmY, size: size, pinch: pinchDist };
+      var next = { x: palmX, y: palmY, size: size, pinch: pinchDist, curl: curl };
       if (prev) {
         next.x     = prev.x     + (palmX     - prev.x)     * REACH_SMOOTH;
         next.y     = prev.y     + (palmY     - prev.y)     * REACH_SMOOTH;
         next.size  = prev.size  + (size      - prev.size)  * REACH_SMOOTH;
         next.pinch = prev.pinch + (pinchDist - prev.pinch) * REACH_SMOOTH;
+        next.curl  = prev.curl  + (curl      - prev.curl)  * REACH_SMOOTH;
       }
       reach.hand = next;
 
-      // Pinch-grab → Focus, with hysteresis to stop chatter
-      if (!reach.pinching && next.pinch < REACH_PINCH_ON) {
+      // ADR 0011: on the first sample after a clutched→open transition, the
+      // open-palm size anchor has drifted (visitor may have shifted distance,
+      // or the hand was a fist a frame ago). Re-anchor calib.size to the
+      // current smoothed size so the depth contribution starts from ~0 and
+      // does not jerk the camera forward or backward.
+      if (reach.recalibSizeOnNext) {
+        reach.calib.size = next.size;
+        reach.recalibSizeOnNext = false;
+      }
+
+      // Clutch state machine.
+      //
+      // Three named states: open, clutched, pinching. The discriminator
+      // between clutched and pinching is the openness of fingers 3-5 — a
+      // pinch keeps them extended (curl ≈ neutral); a fist curls them. A
+      // thumb-index touch with the other fingers curled is ambiguous and
+      // produces no transition, so the previous state holds.
+      //
+      // Transitions are gated by hysteresis bands AND an intention-dwell of
+      // REACH_CLUTCH_DWELL_MS so a stray curl during a normal steer does not
+      // pin the camera under the visitor.
+      var curlNeutral = reach.calib.curl;
+      var openCurl    = curlNeutral * REACH_CURL_OPEN_RATIO;
+      var fistCurl    = curlNeutral * REACH_CURL_FIST_RATIO;
+
+      // Pinch-grab → Focus. Gated by curl > openCurl and !clutched so a
+      // thumb-index touch with curled fingers is ambiguous, not a pinch.
+      if (!reach.pinching && next.pinch < REACH_PINCH_ON
+          && next.curl > openCurl && !reach.clutched) {
         reach.pinching = true;
+        // Plan: pinching=true also force-sets clutch state to open so that
+        // on Focus release the clutch ring is not stale.
+        reach.clutched    = false;
+        reach.clutchSince = 0;
+        reach.openSince   = 0;
         var hit = raycastFrames(W / 2, H / 2);
         if (hit) {
           if (!focused || focused !== hit) setFocus(hit);
         }
-        if (reach.reticleEl) reach.reticleEl.classList.add('is-pinching');
+        // Reticle gesture class is owned by reachApplyToTarget() — it reads
+        // reach.pinching / reach.clutched and morphs the cursor per frame.
       } else if (reach.pinching && next.pinch > REACH_PINCH_OFF) {
         reach.pinching = false;
         if (focused) releaseFocus();
-        if (reach.reticleEl) reach.reticleEl.classList.remove('is-pinching');
+      }
+
+      // Open ↔ clutched with intention-dwell.
+      if (!reach.clutched) {
+        if (next.curl < fistCurl && next.pinch > REACH_PINCH_OFF && !reach.pinching) {
+          if (!reach.clutchSince) reach.clutchSince = ts;
+          else if (ts - reach.clutchSince >= REACH_CLUTCH_DWELL_MS) {
+            reach.clutched    = true;
+            reach.clutchSince = 0;
+          }
+        } else {
+          reach.clutchSince = 0;
+        }
+        reach.openSince = 0;
+      } else {
+        if (next.curl > openCurl) {
+          if (!reach.openSince) reach.openSince = ts;
+          else if (ts - reach.openSince >= REACH_CLUTCH_DWELL_MS) {
+            reach.clutched          = false;
+            reach.openSince         = 0;
+            reach.recalibSizeOnNext = true;   // ADR 0011: re-anchor on next sample
+          }
+        } else {
+          reach.openSince = 0;
+        }
+        reach.clutchSince = 0;
       }
     }
 
     function reachApplyToTarget() {
       if (!reach.enabled) return;
       if (focused) {
-        if (reach.reticleEl) reach.reticleEl.classList.remove('is-pushing');
+        // Focus owns the camera; The Reach contributes nothing. Also clear
+        // any clutch state so releasing Focus does not leave a stale clutch
+        // ring on the reticle, even if the visitor's hand happened to be in
+        // a fist at the moment Focus was entered.
+        if (reach.clutched || reach.clutchSince || reach.openSince) {
+          reach.clutched    = false;
+          reach.clutchSince = 0;
+          reach.openSince   = 0;
+        }
+        if (reach.reticleEl) reach.reticleEl.classList.remove('is-pushing', 'is-clutched', 'is-palm', 'is-fist', 'is-pinching');
         return;
       }
       if (!reach.hand || !reach.calib) {
-        if (reach.reticleEl) reach.reticleEl.classList.remove('is-pushing');
-        if (reach.lastSeenAt && (performance.now() - reach.lastSeenAt) > REACH_LOSS_HINT_MS) {
+        var lostFor = reach.lastSeenAt ? (performance.now() - reach.lastSeenAt) : 0;
+        var withinGrace = (lostFor <= REACH_LOSS_HINT_MS);
+        if (reach.reticleEl) {
+          reach.reticleEl.classList.remove('is-pushing');
+          // Calibrating (or briefly lost): drop back to the plain circle
+          // cursor — no gesture class until detection re-stabilises.
+          reach.reticleEl.classList.remove('is-palm', 'is-fist', 'is-pinching');
+          // Clutch ring survives short tracking losses (a sneeze, a flicker,
+          // a missed frame) — only fade it once we have actually auto-released.
+          if (!(withinGrace && reach.clutched)) {
+            reach.reticleEl.classList.remove('is-clutched');
+          }
+        }
+        if (reach.lastSeenAt && lostFor > REACH_LOSS_HINT_MS) {
+          // Long loss: auto-release the clutch and queue a fresh calibration
+          // of all four calib fields on re-detection — the visitor has
+          // probably repositioned, so x/y/size/curl all need re-anchoring.
+          if (reach.clutched || reach.calib) {
+            reach.clutched          = false;
+            reach.clutchSince       = 0;
+            reach.openSince         = 0;
+            reach.recalibSizeOnNext = false;
+            reach.calib             = null;
+            reach.calibSamples      = [];
+          }
           reachShowHint();
         }
         return;
@@ -1241,6 +1527,17 @@
         reach.reticleEl.style.transform = 'translate(' + dxPx + 'px,' + dyPx + 'px)';
         if (r > REACH_REST_ZONE) reach.reticleEl.classList.add('is-pushing');
         else reach.reticleEl.classList.remove('is-pushing');
+        if (reach.clutched) reach.reticleEl.classList.add('is-clutched');
+        else reach.reticleEl.classList.remove('is-clutched');
+        // Morph the cursor to match the visitor's current gesture: pinch
+        // wins over clutch (Focus is a hard switch), clutch wins over open
+        // palm. Calibration / loss branches above clear all three classes.
+        var gesturePalm  = !reach.pinching && !reach.clutched;
+        var gestureFist  = reach.clutched && !reach.pinching;
+        var gesturePinch = reach.pinching;
+        reach.reticleEl.classList.toggle('is-palm',     gesturePalm);
+        reach.reticleEl.classList.toggle('is-fist',     gestureFist);
+        reach.reticleEl.classList.toggle('is-pinching', gesturePinch);
       }
 
       if (r > REACH_REST_ZONE) {
@@ -1250,10 +1547,14 @@
         camTarget.y +=  oy * scale * REACH_PAN;
       }
 
-      // Depth: bigger hand ⇒ closer to camera ⇒ fly forward (z decreases)
-      var ds = reach.hand.size - reach.calib.size;
-      if (Math.abs(ds) > 0.008) {
-        camTarget.z -= ds * REACH_FLY;
+      // Depth: bigger hand ⇒ closer to camera ⇒ fly forward (z decreases).
+      // While clutched, depth is pinned: skip the depth contribution. Pan
+      // (above) keeps writing, and any prior zVel coasts on FLY_FRICTION.
+      if (!reach.clutched) {
+        var ds = reach.hand.size - reach.calib.size;
+        if (Math.abs(ds) > 0.008) {
+          camTarget.z -= ds * REACH_FLY;
+        }
       }
     }
 
