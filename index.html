@@ -681,7 +681,9 @@
     var REACH_FLY          = 28.0;
     var REACH_REST_ZONE    = 0.07;
     var REACH_RETICLE_GAIN = 0.34;      // on-screen reticle travel per unit hand offset (was 0.18)
-    var REACH_DETECTION_HZ = 30;
+    var REACH_DETECTION_HZ = 24;        // how often we look for the hand. The per-frame glide
+                                        // (REACH_RENDER_EASE) hides the lower rate, and each skipped
+                                        // detection is main-thread time given back to the 3D render.
     var REACH_SMOOTH       = 0.35;
     var REACH_RENDER_EASE  = 0.45;      // per-frame (60fps) catch-up that glides the cursor/void
                                         // between 30Hz detections so motion doesn't step. Lower =
@@ -1290,7 +1292,18 @@
         return;
       }
 
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+      // Cap the capture size: hand tracking is plenty accurate at ~640x480 and
+      // each detectForVideo() call (which runs on the main thread, competing
+      // with the 3D render) scales with pixel count, so a smaller frame frees
+      // up frames for drawing. "ideal" is a soft hint — the browser picks the
+      // nearest supported size and never fails if the exact size is unavailable.
+      navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'user',
+          width:  { ideal: 640 },
+          height: { ideal: 480 }
+        }
+      })
         .then(function (stream) {
           reach.stream = stream;
           var v = document.createElement('video');
