@@ -1248,6 +1248,10 @@
         reach.ctaEl.classList.add('is-failed');
         if (labelEl) labelEl.textContent = 'Hand model failed';
         reach.ctaEl.setAttribute('aria-pressed', 'false');
+        // Surface the real reason on hover so a stale-cache / network failure is
+        // distinguishable from a genuine model error without opening DevTools.
+        if (reach.lastError) reach.ctaEl.setAttribute('title', 'The Reach: ' + reach.lastError);
+        else reach.ctaEl.removeAttribute('title');
       } else {
         if (labelEl) labelEl.textContent = 'The Reach';
         reach.ctaEl.setAttribute('aria-pressed', 'false');
@@ -1362,6 +1366,13 @@
         })
         .catch(function (err) {
           var perm = !!(err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || err.name === 'NotFoundError'));
+          // Don't swallow the real reason — a generic "Hand model failed" chip
+          // hides whether this was the camera, v.play(), or the worker/model.
+          // The message is needed to tell a stale-cache failure from a real one.
+          if (!perm) {
+            try { console.error('[The Reach] start failed:', (err && err.name) || '', (err && err.message) || err, err); } catch (e) {}
+            reach.lastError = (err && (err.name ? err.name + ': ' : '') + (err.message || '')) || String(err);
+          }
           reachTeardown();
           setReachCtaState(perm ? 'failed-perm' : 'failed-model');
         });
