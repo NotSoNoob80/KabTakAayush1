@@ -444,6 +444,46 @@
       text-transform: uppercase;
     }
 
+    /* Transient onboarding cue — shown once when The Reach turns on, then
+       fades on its own after a few seconds. Three short lines, centred. */
+    .reach-onboard {
+      position: fixed;
+      top: 38%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 21;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      pointer-events: none;
+      text-align: center;
+      opacity: 0;
+      transition: opacity 0.8s ease;
+      color: var(--gold, #c5a44c);
+    }
+    .reach-onboard.is-visible { opacity: 0.85; }
+    .reach-onboard__line {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--text, 'Helvetica Neue', sans-serif);
+      font-size: clamp(10px, 1.4vw, 13px);
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .reach-onboard__icon {
+      width: clamp(18px, 2vw, 22px);
+      height: clamp(18px, 2vw, 22px);
+      flex: none;
+      color: currentColor;
+    }
+    .reach-onboard__line b {
+      font-weight: 600;
+      color: #f0e2b0;
+    }
+
     @media (max-width: 767px), (pointer: coarse) {
       .reach-cta {
         left: 50%;
@@ -566,6 +606,20 @@
       <span class="reach-guide__label">Fist</span>
     </div>
   </div>
+  <div class="reach-onboard" id="reach-onboard" aria-hidden="true">
+    <span class="reach-onboard__line">
+      <svg class="reach-onboard__icon" aria-hidden="true"><use href="#reach-icon-palm"/></svg>
+      <span class="reach-onboard__text">Push <b>forward</b> to dive in</span>
+    </span>
+    <span class="reach-onboard__line">
+      <svg class="reach-onboard__icon" aria-hidden="true"><use href="#reach-icon-palm"/></svg>
+      <span class="reach-onboard__text">Pull <b>back</b> to fly out</span>
+    </span>
+    <span class="reach-onboard__line">
+      <svg class="reach-onboard__icon" aria-hidden="true"><use href="#reach-icon-fist"/></svg>
+      <span class="reach-onboard__text">Make a <b>fist</b> to hold still</span>
+    </span>
+  </div>
 
   <!-- Three.js r128 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -633,6 +687,7 @@
     var REACH_CURL_OPEN_RATIO = 0.85;   // curl > this * calib.curl ⇒ clutched→open
     var REACH_CURL_FIST_RATIO = 0.55;   // curl < this * calib.curl ⇒ open→clutched
     var REACH_CLUTCH_DWELL_MS = 120;    // intention-dwell on clutch transitions
+    var REACH_ONBOARD_MS      = 6000;   // how long the one-time guide cue lingers before fading
 
     // Mobile: a lighter field of evenly-spread frames.
     if (IS_MOBILE) SLOTS = MOBILE_SLOTS;
@@ -1150,6 +1205,7 @@
       reach.ctaEl       = document.getElementById('reach-cta');
       reach.ctaLabelEl  = reach.ctaEl ? reach.ctaEl.querySelector('.reach-cta__label') : null;
       reach.guideEl     = document.getElementById('reach-guide');
+      reach.onboardEl   = document.getElementById('reach-onboard');
       reach.indicatorEl = document.getElementById('reach-indicator');
       reach.reticleEl   = document.getElementById('reach-reticle');
       reach.hintEl      = document.getElementById('reach-hint');
@@ -1261,6 +1317,7 @@
           if (reach.guideEl) reach.guideEl.classList.add('is-visible');
           var voidHintOnEnable = document.getElementById('void-hint');
           if (voidHintOnEnable) voidHintOnEnable.classList.remove('is-visible');
+          reachShowOnboard();
           reachScheduleDetection();
         })
         .catch(function (err) {
@@ -1295,6 +1352,7 @@
       if (reach.reticleEl)   reach.reticleEl.classList.remove('is-on', 'is-pushing', 'is-clutched', 'is-palm', 'is-fist');
       if (reach.guideEl)     reach.guideEl.classList.remove('is-visible');
       reachClearHint();
+      reachClearOnboard();
       reach.hand     = null;
       reach.clutched = false;
       reach.clutchSince = 0;
@@ -1555,6 +1613,19 @@
       if (!reach.hintShown || !reach.hintEl) return;
       reach.hintShown = false;
       reach.hintEl.classList.remove('is-visible');
+    }
+
+    // One-time guide cue: fades in on enable, then fades itself out after a
+    // few seconds. Self-arming timer so it never lingers across a teardown.
+    function reachShowOnboard() {
+      if (!reach.onboardEl) return;
+      if (reach.onboardTimer) { clearTimeout(reach.onboardTimer); reach.onboardTimer = null; }
+      reach.onboardEl.classList.add('is-visible');
+      reach.onboardTimer = setTimeout(reachClearOnboard, REACH_ONBOARD_MS);
+    }
+    function reachClearOnboard() {
+      if (reach.onboardTimer) { clearTimeout(reach.onboardTimer); reach.onboardTimer = null; }
+      if (reach.onboardEl) reach.onboardEl.classList.remove('is-visible');
     }
 
     // Esc and tab-hide also disable The Reach (Esc additionally releases Focus
