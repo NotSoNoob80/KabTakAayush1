@@ -1270,7 +1270,16 @@
                   delegate: IS_MOBILE ? 'CPU' : 'GPU'
                 },
                 runningMode: 'VIDEO',
-                numHands: 1
+                numHands: 1,
+                // Be "stickier" so a fast, motion-blurred hand isn't dropped
+                // (which forces a slow full re-search — the ~1s recovery gap).
+                // These only change how readily the tracker holds/re-grabs the
+                // hand; they add no extra work, so they don't cost frame rate.
+                // Defaults are 0.5; lower = holds through blur and re-acquires
+                // faster, at the cost of occasionally clinging a beat too long.
+                minHandDetectionConfidence: 0.4,
+                minHandPresenceConfidence: 0.3,
+                minTrackingConfidence: 0.3
               });
             });
         })
