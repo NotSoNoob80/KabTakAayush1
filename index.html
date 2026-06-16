@@ -681,7 +681,7 @@
     var REACH_FLY          = 28.0;
     var REACH_REST_ZONE    = 0.07;
     var REACH_RETICLE_GAIN = 0.34;      // on-screen reticle travel per unit hand offset (was 0.18)
-    var REACH_DETECTION_HZ = 24;        // how often we look for the hand. The per-frame glide
+    var REACH_DETECTION_HZ = 20;        // how often we look for the hand. The per-frame glide
                                         // (REACH_RENDER_EASE) hides the lower rate, and each skipped
                                         // detection is main-thread time given back to the 3D render.
     var REACH_SMOOTH       = 0.35;
@@ -1300,8 +1300,8 @@
       navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'user',
-          width:  { ideal: 640 },
-          height: { ideal: 480 }
+          width:  { ideal: 480 },
+          height: { ideal: 360 }
         }
       })
         .then(function (stream) {
