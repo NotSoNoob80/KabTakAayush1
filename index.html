@@ -458,6 +458,15 @@
         display: inline-flex;
         align-items: center;
       }
+      /* Once The Reach is on, the centred "Release · Esc" pill would sit on top
+         of the bottom-right gesture guide. On phones, shift it down into the
+         bottom-left corner so the two never overlap. (Desktop keeps it where
+         the idle CTA was.) */
+      .reach-cta.is-on {
+        left: clamp(16px, 4vw, 24px);
+        transform: none;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(16px, 3vh, 28px));
+      }
       .reach-hint { bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(96px, 14vh, 130px)); }
     }
 
@@ -635,8 +644,8 @@
     var REACH_REST_ZONE    = 0.07;
     var REACH_RETICLE_GAIN = 0.34;      // on-screen reticle travel per unit hand offset (was 0.18)
     var REACH_DETECTION_HZ = 30;
-    var REACH_PINCH_ON     = 0.055;
-    var REACH_PINCH_OFF    = 0.090;
+    var REACH_PINCH_ON     = 0.40;      // thumb–index gap ÷ hand size, below ⇒ pinch (was raw 0.055)
+    var REACH_PINCH_OFF    = 0.58;      // above ⇒ release; hysteresis band (was raw 0.090)
     var REACH_SMOOTH       = 0.35;
     var REACH_LOSS_HINT_MS = 2000;
     var REACH_CURL_OPEN_RATIO = 0.85;   // curl > this * calib.curl ⇒ clutched→open
@@ -1351,23 +1360,36 @@
       var dy = palm.y - wrist.y;
       var size = Math.sqrt(dx * dx + dy * dy);
 
+      // Pinch distance: thumb-tip ↔ index-tip gap, normalised by hand size so
+      // the threshold is the SAME whether the hand is close to the camera or
+      // far from it. (Previously raw, which only matched at one distance — the
+      // main reason pinch was rarely recognised.)
       var px = (1 - thumb.x) - (1 - index.x);
       var py = thumb.y - index.y;
-      var pinchDist = Math.sqrt(px * px + py * py);
+      var pinchRaw  = Math.sqrt(px * px + py * py);
+      var pinchDist = (size > 1e-6) ? pinchRaw / size : pinchRaw;
 
-      // Openness signal: mean tip→MCP distance over fingers 2-5, normalised by
-      // hand size. Roughly [0,1] — palm-open ≈ 1, fist ≈ 0. Per-visitor neutral
-      // is captured in calib.curl during the calibration window below.
+      // Openness signals: mean tip→MCP distance, normalised by hand size.
+      //   curl    — fingers 2-5 (index..pinky), used to set the calibrated
+      //             neutral and to read overall hand openness.
+      //   curl345 — fingers 3-5 (middle, ring, pinky) ONLY. This is the
+      //             pinch/fist discriminator: a pinch curls the INDEX to meet
+      //             the thumb but keeps 3-5 extended, a fist curls 3-5 too.
+      //             Gating on curl345 means a pinch's curled index no longer
+      //             looks like a partial fist and no longer blocks the pinch.
       var FINGER_LM = [[8, 5], [12, 9], [16, 13], [20, 17]];
-      var curlSum = 0;
+      var curlSum = 0, curl345Sum = 0;
       for (var f = 0; f < FINGER_LM.length; f++) {
         var tip = lms[FINGER_LM[f][0]];
         var mcp = lms[FINGER_LM[f][1]];
         var fx = tip.x - mcp.x;
         var fy = tip.y - mcp.y;
-        curlSum += Math.sqrt(fx * fx + fy * fy);
+        var fd = Math.sqrt(fx * fx + fy * fy);
+        curlSum += fd;
+        if (f >= 1) curl345Sum += fd;   // skip index (f === 0)
       }
-      var curl = (size > 1e-6) ? (curlSum / FINGER_LM.length) / size : 0;
+      var curl    = (size > 1e-6) ? (curlSum / 4) / size : 0;
+      var curl345 = (size > 1e-6) ? (curl345Sum / 3) / size : 0;
 
       // Calibration: average the first ~12 samples to set neutral
       if (!reach.calib) {
@@ -1388,13 +1410,14 @@
 
       // Smoothed update
       var prev = reach.hand;
-      var next = { x: palmX, y: palmY, size: size, pinch: pinchDist, curl: curl };
+      var next = { x: palmX, y: palmY, size: size, pinch: pinchDist, curl: curl, curl345: curl345 };
       if (prev) {
-        next.x     = prev.x     + (palmX     - prev.x)     * REACH_SMOOTH;
-        next.y     = prev.y     + (palmY     - prev.y)     * REACH_SMOOTH;
-        next.size  = prev.size  + (size      - prev.size)  * REACH_SMOOTH;
-        next.pinch = prev.pinch + (pinchDist - prev.pinch) * REACH_SMOOTH;
-        next.curl  = prev.curl  + (curl      - prev.curl)  * REACH_SMOOTH;
+        next.x       = prev.x       + (palmX     - prev.x)       * REACH_SMOOTH;
+        next.y       = prev.y       + (palmY     - prev.y)       * REACH_SMOOTH;
+        next.size    = prev.size    + (size      - prev.size)    * REACH_SMOOTH;
+        next.pinch   = prev.pinch   + (pinchDist - prev.pinch)   * REACH_SMOOTH;
+        next.curl    = prev.curl    + (curl      - prev.curl)    * REACH_SMOOTH;
+        next.curl345 = prev.curl345 + (curl345   - prev.curl345) * REACH_SMOOTH;
       }
       reach.hand = next;
 
@@ -1423,10 +1446,13 @@
       var openCurl    = curlNeutral * REACH_CURL_OPEN_RATIO;
       var fistCurl    = curlNeutral * REACH_CURL_FIST_RATIO;
 
-      // Pinch-grab → Focus. Gated by curl > openCurl and !clutched so a
-      // thumb-index touch with curled fingers is ambiguous, not a pinch.
+      // Pinch-grab → Focus. Gated by curl345 (fingers 3-5) > openCurl and
+      // !clutched: a real pinch keeps 3-5 extended, so this fires; a fist or a
+      // thumb-index touch with 3-5 curled has low curl345 and stays ambiguous.
+      // Crucially this no longer reads the curled INDEX as a partial fist, so
+      // a deliberate pinch is recognised instead of being suppressed.
       if (!reach.pinching && next.pinch < REACH_PINCH_ON
-          && next.curl > openCurl && !reach.clutched) {
+          && next.curl345 > openCurl && !reach.clutched) {
         reach.pinching = true;
         // Plan: pinching=true also force-sets clutch state to open so that
         // on Focus release the clutch ring is not stale.
@@ -1444,9 +1470,11 @@
         if (focused) releaseFocus();
       }
 
-      // Open ↔ clutched with intention-dwell.
+      // Open ↔ clutched with intention-dwell. Fingers 3-5 are the discriminator:
+      // a fist curls them (curl345 low), so curl345 alone separates fist from
+      // pinch — no pinchDist guard needed.
       if (!reach.clutched) {
-        if (next.curl < fistCurl && next.pinch > REACH_PINCH_OFF && !reach.pinching) {
+        if (next.curl345 < fistCurl && !reach.pinching) {
           if (!reach.clutchSince) reach.clutchSince = ts;
           else if (ts - reach.clutchSince >= REACH_CLUTCH_DWELL_MS) {
             reach.clutched    = true;
@@ -1457,7 +1485,7 @@
         }
         reach.openSince = 0;
       } else {
-        if (next.curl > openCurl) {
+        if (next.curl345 > openCurl) {
           if (!reach.openSince) reach.openSince = ts;
           else if (ts - reach.openSince >= REACH_CLUTCH_DWELL_MS) {
             reach.clutched          = false;
