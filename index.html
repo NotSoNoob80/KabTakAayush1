@@ -1446,28 +1446,35 @@
       var openCurl    = curlNeutral * REACH_CURL_OPEN_RATIO;
       var fistCurl    = curlNeutral * REACH_CURL_FIST_RATIO;
 
-      // Pinch-grab → Focus. Gated by curl345 (fingers 3-5) > openCurl and
-      // !clutched: a real pinch keeps 3-5 extended, so this fires; a fist or a
-      // thumb-index touch with 3-5 curled has low curl345 and stays ambiguous.
-      // Crucially this no longer reads the curled INDEX as a partial fist, so
-      // a deliberate pinch is recognised instead of being suppressed.
+      // Pinch-grab → Focus, as a TAP TOGGLE (not a hold). The pinch-DOWN edge
+      // is one tap: if a frame is focused it releases, otherwise it focuses the
+      // centred frame. Opening the hand afterwards does nothing to Focus — it
+      // only re-arms the next tap. So the visitor pinches briefly, relaxes
+      // their hand, and the frame stays focused until a second pinch; they
+      // never have to hold an awkward pinch or "open" precisely to release.
+      //
+      // Gated by curl345 (fingers 3-5) > openCurl and !clutched: a real pinch
+      // keeps 3-5 extended, so this fires; a fist or a thumb-index touch with
+      // 3-5 curled has low curl345 and stays ambiguous.
       if (!reach.pinching && next.pinch < REACH_PINCH_ON
           && next.curl345 > openCurl && !reach.clutched) {
-        reach.pinching = true;
-        // Plan: pinching=true also force-sets clutch state to open so that
-        // on Focus release the clutch ring is not stale.
+        reach.pinching = true;   // pinch-down edge — consume as a single tap
+        // pinching=true also force-sets clutch state to open so that on Focus
+        // release the clutch ring is not stale.
         reach.clutched    = false;
         reach.clutchSince = 0;
         reach.openSince   = 0;
-        var hit = raycastFrames(W / 2, H / 2);
-        if (hit) {
-          if (!focused || focused !== hit) setFocus(hit);
+        if (focused) {
+          releaseFocus();
+        } else {
+          var hit = raycastFrames(W / 2, H / 2);
+          if (hit) setFocus(hit);
         }
         // Reticle gesture class is owned by reachApplyToTarget() — it reads
         // reach.pinching / reach.clutched and morphs the cursor per frame.
       } else if (reach.pinching && next.pinch > REACH_PINCH_OFF) {
+        // Hand opened — just re-arm for the next tap. Focus is untouched.
         reach.pinching = false;
-        if (focused) releaseFocus();
       }
 
       // Open ↔ clutched with intention-dwell. Fingers 3-5 are the discriminator:
