@@ -567,8 +567,9 @@
     </div>
   </div>
 
-  <!-- Three.js r128 -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Three.js r128. crossorigin so it still loads under the homepage's
+       Cross-Origin-Embedder-Policy: require-corp (cdnjs sends ACAO: *). -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
 
   <script>
   (function () {
@@ -633,10 +634,17 @@
     var REACH_CURL_OPEN_RATIO = 0.85;   // curl > this * calib.curl ⇒ clutched→open
     var REACH_CURL_FIST_RATIO = 0.55;   // curl < this * calib.curl ⇒ open→clutched
     var REACH_CLUTCH_DWELL_MS = 120;    // intention-dwell on clutch transitions
+    // Performance — inference runs in a worker; these gate cost & cadence.
+    var REACH_CAPTURE_W       = 480;    // capped capture width  (was uncapped 720p/1080p)
+    var REACH_CAPTURE_H       = 360;    // capped capture height
+    var REACH_DETECTION_HZ_MAX = 30;    // ceiling; adaptive degradation steps down from here
+    var REACH_DETECTION_HZ_MIN = 12;    // floor; never throttle below this
+    var REACH_RETICLE_EASE    = 0.35;   // reticle glide toward target per render frame
+    var REACH_DEBUG = /[?&]reachdebug\b/.test(location.search);  // dev-only FPS/inference overlay
 
     // Mobile: a lighter field of evenly-spread frames.
     if (IS_MOBILE) SLOTS = MOBILE_SLOTS;
-    if (IS_MOBILE) REACH_DETECTION_HZ = 18;   // throttle hand inference on phones
+    if (IS_MOBILE) { REACH_DETECTION_HZ = 18; REACH_DETECTION_HZ_MAX = 18; }   // throttle hand inference on phones
 
     // Touch devices get touch-appropriate hint wording.
     if (IS_MOBILE) {
@@ -1127,9 +1135,18 @@
       starting:    false,
       stream:      null,
       videoEl:     null,
-      landmarker:  null,
+      worker:      null,    // inference worker (reach-worker.js) — owns HandLandmarker
+      workerReady: false,
+      workerBusy:  false,   // a frame is in flight; don't queue a second
       loopTimer:   null,
       hand:        null,    // smoothed { x, y, size, curl, curl345 } in normalised frame coords
+      reticleX:    0,       // eased reticle px offset (glides at render rate, not detection rate)
+      reticleY:    0,
+      lastInfMs:   0,       // last worker inference time, for the dev overlay
+      fpsEMA:      0,       // smoothed render fps, drives adaptive degradation
+      lastFrameMs: 0,
+      lastAdaptMs: 0,
+      debugEl:     null,
       calib:       null,    // { x, y, size, curl } captured neutral
       calibSamples: null,
       clutched:    false,   // The clutch: fist pins depth (camTarget.z) while pan stays live
@@ -1144,7 +1161,6 @@
       hintEl:      null,
       hintShown:   false
     };
-    var _reachLandmarkerPromise = null;
 
     function reachInitDom() {
       reach.ctaEl       = document.getElementById('reach-cta');
@@ -1195,28 +1211,43 @@
       }
     }
 
-    function loadHandLandmarker() {
-      if (_reachLandmarkerPromise) return _reachLandmarkerPromise;
-      _reachLandmarkerPromise = import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs')
-        .then(function (vision) {
-          return vision.FilesetResolver
-            .forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm')
-            .then(function (fileset) {
-              return vision.HandLandmarker.createFromOptions(fileset, {
-                baseOptions: {
-                  modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-                  delegate: IS_MOBILE ? 'CPU' : 'GPU'
-                },
-                runningMode: 'VIDEO',
-                numHands: 1
-              });
-            });
-        })
-        .catch(function (err) {
-          _reachLandmarkerPromise = null;
-          throw err;
-        });
-      return _reachLandmarkerPromise;
+    // Spin up the inference worker and resolve once it reports the model is
+    // loaded. Inference runs there from now on; the render loop never blocks on
+    // it. Delegate split (ADR 0012): desktop GPU (has headroom), mobile CPU so
+    // inference uses spare CPU cores instead of fighting the WebGL GPU that is
+    // already busy drawing the Void.
+    function reachStartWorker() {
+      return new Promise(function (resolve, reject) {
+        var worker;
+        try { worker = new Worker('reach-worker.js', { type: 'module' }); }
+        catch (e) { reject(e); return; }
+        reach.worker      = worker;
+        reach.workerReady = false;
+        reach.workerBusy  = false;
+        var settled = false;
+        worker.onmessage = function (e) {
+          var msg = e.data;
+          if (msg.type === 'ready') {
+            reach.workerReady = true;
+            if (!settled) { settled = true; resolve(); }
+            return;
+          }
+          if (msg.type === 'error') {
+            if (!settled) { settled = true; reject(new Error(msg.message)); }
+            return;
+          }
+          if (msg.type === 'landmarks') {
+            reach.workerBusy = false;
+            if (typeof msg.inf === 'number') reach.lastInfMs = msg.inf;
+            reachOnLandmarks(msg.landmarks, msg.ts);
+          }
+        };
+        worker.onerror = function (err) {
+          if (!settled) { settled = true; reject(err || new Error('worker error')); }
+          else if (reach.enabled) disableReach();   // mid-session crash → fail safe
+        };
+        worker.postMessage({ type: 'init', delegate: IS_MOBILE ? 'CPU' : 'GPU' });
+      });
     }
 
     function enableReach() {
@@ -1230,7 +1261,13 @@
         return;
       }
 
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+      navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'user',
+          width:  { ideal: REACH_CAPTURE_W },
+          height: { ideal: REACH_CAPTURE_H }
+        }
+      })
         .then(function (stream) {
           reach.stream = stream;
           var v = document.createElement('video');
@@ -1246,14 +1283,16 @@
           reach.videoEl = v;
           if (reach.indicatorEl) reach.indicatorEl.classList.add('is-on');
           if (reach.reticleEl)   reach.reticleEl.classList.add('is-on');
-          return v.play().then(function () { return loadHandLandmarker(); });
+          return v.play().then(function () { return reachStartWorker(); });
         })
-        .then(function (landmarker) {
-          reach.landmarker  = landmarker;
+        .then(function () {
           reach.enabled     = true;
           reach.starting    = false;
           reach.calib       = null;
           reach.calibSamples = [];
+          reach.reticleX    = 0;
+          reach.reticleY    = 0;
+          REACH_DETECTION_HZ = REACH_DETECTION_HZ_MAX;   // start at the ceiling each session
           reach.lastSeenAt  = performance.now();
           setReachCtaState('on');
           // The Reach is now live: the gesture guide replaces the
@@ -1280,6 +1319,13 @@
       reach.enabled  = false;
       reach.starting = false;
       if (reach.loopTimer) { clearTimeout(reach.loopTimer); reach.loopTimer = null; }
+      if (reach.worker) {
+        try { reach.worker.postMessage({ type: 'dispose' }); } catch (e0) {}
+        reach.worker.terminate();
+        reach.worker = null;
+      }
+      reach.workerReady = false;
+      reach.workerBusy  = false;
       if (reach.stream) {
         var tracks = reach.stream.getTracks();
         for (var i = 0; i < tracks.length; i++) tracks[i].stop();
@@ -1303,41 +1349,59 @@
       reach.wasFocused = false;
       reach.calib    = null;
       reach.calibSamples = null;
+      reach.reticleX = 0;
+      reach.reticleY = 0;
+      reach.fpsEMA   = 0;
+      reach.lastFrameMs = 0;
+      reach.lastInfMs   = 0;
     }
 
     function reachScheduleDetection() {
       if (!reach.enabled) return;
       var interval = Math.max(16, Math.round(1000 / REACH_DETECTION_HZ));
       reach.loopTimer = setTimeout(function () {
-        reachDetect();
+        reachSendFrame();
         reachScheduleDetection();
       }, interval);
     }
 
-    function reachDetect() {
-      if (!reach.enabled || !reach.videoEl || !reach.landmarker) return;
-      if (reach.videoEl.readyState < 2) return;
+    // Paced frame grab: snapshot the current video frame as an ImageBitmap and
+    // transfer it (zero-copy) to the worker. We never queue a second frame
+    // while one is in flight — skip the tick instead, so a slow device simply
+    // detects less often rather than building a backlog of stale frames.
+    function reachSendFrame() {
+      if (!reach.enabled || !reach.worker || !reach.workerReady || reach.workerBusy) return;
+      var v = reach.videoEl;
+      if (!v || v.readyState < 2) return;
+      reach.workerBusy = true;
       var ts = performance.now();
-      var result;
-      try {
-        result = reach.landmarker.detectForVideo(reach.videoEl, ts);
-      } catch (e) { return; }
-      var lms = result && result.landmarks && result.landmarks[0];
-      if (!lms || !lms.length) {
-        reach.hand = null;
-        return;
-      }
+      createImageBitmap(v).then(function (bmp) {
+        if (!reach.enabled || !reach.worker) { bmp.close(); reach.workerBusy = false; return; }
+        reach.worker.postMessage({ type: 'frame', bitmap: bmp, ts: ts }, [bmp]);
+      }).catch(function () {
+        reach.workerBusy = false;
+      });
+    }
+
+    // Worker reply handler. `flat` is the 21 landmarks as a Float32Array
+    // [x0,y0,z0, x1,y1,z1, …] or null when no hand was found. Everything below
+    // is the former reachDetect() body, unchanged in behaviour — only the
+    // landmark accessor differs (flat-array indexing vs {x,y} landmark objects),
+    // so calibration, smoothing, and the clutch state machine are byte-for-byte
+    // identical to before the worker split.
+    function reachOnLandmarks(flat, ts) {
+      if (!reach.enabled) return;
+      if (!flat) { reach.hand = null; return; }
+      function lmx(i) { return flat[i * 3]; }
+      function lmy(i) { return flat[i * 3 + 1]; }
       reach.lastSeenAt = ts;
 
       // Palm centre ≈ middle-finger MCP (landmark 9). Mirror x for selfie view.
-      var palm   = lms[9];
-      var wrist  = lms[0];
+      var palmX = 1 - lmx(9);
+      var palmY = lmy(9);
 
-      var palmX = 1 - palm.x;
-      var palmY = palm.y;
-
-      var dx = (1 - palm.x) - (1 - wrist.x);
-      var dy = palm.y - wrist.y;
+      var dx = (1 - lmx(9)) - (1 - lmx(0));
+      var dy = lmy(9) - lmy(0);
       var size = Math.sqrt(dx * dx + dy * dy);
 
       // Openness signals: mean tip→MCP distance, normalised by hand size.
@@ -1351,10 +1415,8 @@
       var FINGER_LM = [[8, 5], [12, 9], [16, 13], [20, 17]];
       var curlSum = 0, curl345Sum = 0;
       for (var f = 0; f < FINGER_LM.length; f++) {
-        var tip = lms[FINGER_LM[f][0]];
-        var mcp = lms[FINGER_LM[f][1]];
-        var fx = tip.x - mcp.x;
-        var fy = tip.y - mcp.y;
+        var fx = lmx(FINGER_LM[f][0]) - lmx(FINGER_LM[f][1]);
+        var fy = lmy(FINGER_LM[f][0]) - lmy(FINGER_LM[f][1]);
         var fd = Math.sqrt(fx * fx + fy * fy);
         curlSum += fd;
         if (f >= 1) curl345Sum += fd;   // skip index (f === 0)
@@ -1511,9 +1573,15 @@
         var reticleMax  = reticleSpan * 0.42;
         var dxPx = (ox / 0.4) * reticleSpan * REACH_RETICLE_GAIN;
         var dyPx = (oy / 0.4) * reticleSpan * REACH_RETICLE_GAIN;
-        dxPx = Math.max(-reticleMax, Math.min(reticleMax, dxPx));
-        dyPx = Math.max(-reticleMax, Math.min(reticleMax, dyPx));
-        reach.reticleEl.style.transform = 'translate(' + dxPx + 'px,' + dyPx + 'px)';
+        var tx = Math.max(-reticleMax, Math.min(reticleMax, dxPx));
+        var ty = Math.max(-reticleMax, Math.min(reticleMax, dyPx));
+        // Glide toward the target every render frame (60fps) rather than
+        // snapping at the 18–30 Hz detection rate — this is what stops the
+        // reticle from visibly stepping. The hand state it reads only changes
+        // at detection rate; the easing fills the gaps.
+        reach.reticleX += (tx - reach.reticleX) * REACH_RETICLE_EASE;
+        reach.reticleY += (ty - reach.reticleY) * REACH_RETICLE_EASE;
+        reach.reticleEl.style.transform = 'translate(' + reach.reticleX + 'px,' + reach.reticleY + 'px)';
         if (r > REACH_REST_ZONE) reach.reticleEl.classList.add('is-pushing');
         else reach.reticleEl.classList.remove('is-pushing');
         if (reach.clutched) reach.reticleEl.classList.add('is-clutched');
@@ -1555,6 +1623,52 @@
       if (!reach.hintShown || !reach.hintEl) return;
       reach.hintShown = false;
       reach.hintEl.classList.remove('is-visible');
+    }
+
+    // Per-frame render-health monitor (only runs while The Reach is on).
+    // Tracks a smoothed fps and, once a second, nudges the detection rate:
+    // sustained jank steps it down toward the floor (30→24→18→12), sustained
+    // health steps it back up toward the ceiling. The schedule loop reads
+    // REACH_DETECTION_HZ live, so the change takes effect on the next tick.
+    function reachFrameMonitor() {
+      if (!reach.enabled) return;
+      var nowMs = performance.now();
+      if (reach.lastFrameMs) {
+        var dt = nowMs - reach.lastFrameMs;
+        if (dt > 0) {
+          var inst = 1000 / dt;
+          reach.fpsEMA = reach.fpsEMA ? reach.fpsEMA + (inst - reach.fpsEMA) * 0.05 : inst;
+        }
+      }
+      reach.lastFrameMs = nowMs;
+
+      if (nowMs - reach.lastAdaptMs > 1000) {
+        reach.lastAdaptMs = nowMs;
+        var fps = reach.fpsEMA || 60;
+        if (fps < 50 && REACH_DETECTION_HZ > REACH_DETECTION_HZ_MIN) {
+          REACH_DETECTION_HZ = Math.max(REACH_DETECTION_HZ_MIN, REACH_DETECTION_HZ - 6);
+        } else if (fps > 57 && REACH_DETECTION_HZ < REACH_DETECTION_HZ_MAX) {
+          REACH_DETECTION_HZ = Math.min(REACH_DETECTION_HZ_MAX, REACH_DETECTION_HZ + 6);
+        }
+        if (REACH_DEBUG) reachDebugUpdate();
+      }
+    }
+
+    // Dev-only overlay (enable with ?reachdebug). Never built unless asked for.
+    function reachDebugUpdate() {
+      if (!REACH_DEBUG) return;
+      if (!reach.debugEl) {
+        var d = document.createElement('div');
+        d.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:99999;font:11px/1.4 monospace;' +
+          'color:#0f0;background:rgba(0,0,0,.62);padding:4px 7px;border-radius:4px;pointer-events:none;white-space:pre;';
+        document.body.appendChild(d);
+        reach.debugEl = d;
+      }
+      reach.debugEl.textContent =
+        'fps ' + (reach.fpsEMA ? reach.fpsEMA.toFixed(0) : '–') +
+        '   inf ' + (reach.lastInfMs ? reach.lastInfMs.toFixed(1) : '–') + 'ms' +
+        '   hz ' + REACH_DETECTION_HZ +
+        '   coi ' + (self.crossOriginIsolated ? 'on' : 'off');
     }
 
     // Esc and tab-hide also disable The Reach (Esc additionally releases Focus
@@ -1742,6 +1856,7 @@
       // The Reach contributes its per-frame deltas to camTarget here, so it
       // inherits the chase, inertia, focus tween, and idle sway for free.
       reachApplyToTarget();
+      reachFrameMonitor();
 
       // Camera chase
       cam.x += (camTarget.x - cam.x) * LERP_CAM;
