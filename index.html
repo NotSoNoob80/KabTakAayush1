@@ -1240,16 +1240,16 @@
         reach.ctaEl.classList.add('is-on');
         if (labelEl) labelEl.textContent = 'Release · Esc';
         reach.ctaEl.setAttribute('aria-pressed', 'true');
-      } else if (state === 'failed-perm') {
+      } else if (state === 'failed-perm' || state === 'failed-cam' || state === 'failed-model') {
         reach.ctaEl.classList.add('is-failed');
-        if (labelEl) labelEl.textContent = 'Camera blocked';
+        if (labelEl) {
+          labelEl.textContent = state === 'failed-perm'  ? 'Camera blocked'
+                              : state === 'failed-cam'   ? 'Camera unavailable'
+                              :                            'Hand model failed';
+        }
         reach.ctaEl.setAttribute('aria-pressed', 'false');
-      } else if (state === 'failed-model') {
-        reach.ctaEl.classList.add('is-failed');
-        if (labelEl) labelEl.textContent = 'Hand model failed';
-        reach.ctaEl.setAttribute('aria-pressed', 'false');
-        // Surface the real reason on hover so a stale-cache / network failure is
-        // distinguishable from a genuine model error without opening DevTools.
+        // Surface the real reason on hover (and in the console) so a busy camera
+        // or a network/model error is distinguishable without opening DevTools.
         if (reach.lastError) reach.ctaEl.setAttribute('title', 'The Reach: ' + reach.lastError);
         else reach.ctaEl.removeAttribute('title');
       } else {
@@ -1365,16 +1365,22 @@
           reachScheduleDetection();
         })
         .catch(function (err) {
-          var perm = !!(err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || err.name === 'NotFoundError'));
-          // Don't swallow the real reason — a generic "Hand model failed" chip
-          // hides whether this was the camera, v.play(), or the worker/model.
-          // The message is needed to tell a stale-cache failure from a real one.
-          if (!perm) {
-            try { console.error('[The Reach] start failed:', (err && err.name) || '', (err && err.message) || err, err); } catch (e) {}
-            reach.lastError = (err && (err.name ? err.name + ': ' : '') + (err.message || '')) || String(err);
-          }
+          // Classify honestly. The old code labelled EVERYTHING that wasn't a
+          // permission/not-found error as "Hand model failed" — so a camera
+          // that's busy in another app (NotReadableError), a constraint miss,
+          // or an aborted stream all blamed the model, which loads fine. Only a
+          // genuine worker/model error should say "Hand model failed".
+          var name = (err && err.name) || '';
+          var blocked = name === 'NotAllowedError' || name === 'PermissionDeniedError' || name === 'SecurityError';
+          var camHw   = name === 'NotFoundError'    || name === 'DevicesNotFoundError' ||
+                        name === 'NotReadableError'  || name === 'TrackStartError' ||
+                        name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError' ||
+                        name === 'AbortError';
+          var state = blocked ? 'failed-perm' : (camHw ? 'failed-cam' : 'failed-model');
+          reach.lastError = (name ? name + ': ' : '') + ((err && err.message) || String(err));
+          try { console.error('[The Reach] start failed (' + state + '):', reach.lastError, err); } catch (e) {}
           reachTeardown();
-          setReachCtaState(perm ? 'failed-perm' : 'failed-model');
+          setReachCtaState(state);
         });
     }
 
