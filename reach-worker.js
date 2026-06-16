@@ -15,9 +15,16 @@
 
 var landmarker = null;
 
+// The bundle and WASM stay on jsDelivr: both responses carry
+// `Cross-Origin-Resource-Policy: cross-origin`, so they satisfy the page's
+// COEP `require-corp` (set in vercel.json to win cross-origin isolation, hence
+// the threaded WASM build). The MediaPipe model on storage.googleapis.com does
+// NOT send a CORP header, so under require-corp its fetch is blocked and the
+// landmarker never loads — that was the v23 regression. We self-host the model
+// instead: a same-origin asset is exempt from COEP entirely. See ADR 0012.
 var TASKS_VISION = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs';
 var WASM_ROOT    = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm';
-var MODEL_PATH   = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+var MODEL_PATH   = 'models/hand_landmarker.task';
 
 function init(delegate) {
   // Dynamic import keeps the model code out of the worker until The Reach is
