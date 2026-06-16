@@ -158,22 +158,24 @@
      boxes so the driver survives reflow (font load, viewport resize,
      orientation change) with no cache to invalidate.
 
-     The press itself is driven by the Web Animations API rather than a
-     toggled CSS class. WAAPI is interruptible and self-reverting: a
-     re-struck letter cancels its in-flight press and restarts cleanly
-     from zero with no `void offsetWidth` reflow hack, and each note tidies
-     itself up (`fill: 'none'`) with no `animationend` bookkeeping. The
-     keyframes mirror the desktop `:hover` press exactly — fast ease-out
-     strike, spring-back tail — so touch and pointer feel like one
-     instrument. ------------------------------------------------------- */
+     The press is hold-and-release, driven by the Web Animations API: a
+     letter presses DOWN and STAYS down while the finger rests on it, and
+     springs back the instant the finger leaves it or lifts. So a plain
+     tap holds for as long as you hold, then releases on lift — and a
+     glissando depresses each letter under the finger and lets it spring
+     back as the finger moves on. WAAPI keeps this interruptible (the
+     spring-back can start from a still-pressing key) with no toggled
+     class, no reflow hack, and no `animationend` bookkeeping. Depth +
+     colour mirror the desktop `:hover` press so touch and pointer feel
+     like one instrument. ----------------------------------------------- */
   if (wordmarkIsTouch && !prefersReducedMotion && wordmarks.length &&
       typeof Element !== 'undefined' &&
       typeof Element.prototype.animate === 'function') {
-    /* A piano key you can feel. One short tick per struck letter mirrors
-       the visual press — the haptic equivalent of the note landing.
-       Feature-detected (mostly Android Chrome; iOS Safari ignores it
-       gracefully) and already inside the touch + non-reduced-motion
-       gate, so it never fires where it isn't wanted. */
+    /* A piano key you can feel. One short tick when a letter is pressed
+       mirrors the visual press — the haptic equivalent of the note
+       landing. Feature-detected (mostly Android Chrome; iOS Safari
+       ignores it gracefully) and already inside the touch +
+       non-reduced-motion gate, so it never fires where it isn't wanted. */
     var canVibrate = typeof navigator !== 'undefined' &&
       typeof navigator.vibrate === 'function';
 
@@ -187,31 +189,61 @@
       goldDim: rootStyle.getPropertyValue('--gold-dim').trim() || '#b98f30'
     };
 
-    /* Easings shared with the CSS press: a strong ease-out strike (the
-       key is already under the finger — it must snap), then an
-       overshooting spring as the key resettles. */
+    /* Strong ease-out strike (the key is already under the finger — it
+       must snap down) and an overshooting spring as it resettles. */
     var STRIKE = 'cubic-bezier(0.23, 1, 0.32, 1)';
     var SPRING = 'cubic-bezier(0.34, 1.56, 0.64, 1)';
+    var PRESS_T = 'translateY(0.16em) scaleY(0.92)'; /* full press, struck letter */
+    var NEAR_T = 'translateY(0.08em) scaleY(0.96)';  /* shallow dip, neighbours */
 
-    function pressKeyframes(depthY, depthScale, peak) {
-      return [
-        { transform: 'none', color: COL.cream, transformOrigin: 'bottom', easing: STRIKE },
-        { transform: 'translateY(' + depthY + ') scaleY(' + depthScale + ')',
-          color: peak, transformOrigin: 'bottom', offset: 0.24, easing: SPRING },
-        { transform: 'none', color: COL.cream, transformOrigin: 'bottom' }
-      ];
+    /* Press a letter down and HOLD it there (fill: forwards) until it is
+       released. The held animation is parked on the element so release()
+       can find and unwind it. */
+    function pressHold(el) {
+      el.getAnimations().forEach(function (a) { a.cancel(); });
+      el.__press = el.animate(
+        [
+          { transform: 'none', color: COL.cream, transformOrigin: 'bottom' },
+          { transform: PRESS_T, color: COL.gold, transformOrigin: 'bottom' }
+        ],
+        { duration: 130, easing: STRIKE, fill: 'forwards' }
+      );
     }
 
-    function animateChar(el, depthY, depthScale, peak, delay) {
-      /* Cancel any in-flight press so a re-struck letter restarts from
-         zero — WAAPI keeps this interruptible without a reflow restart. */
+    /* Spring a held letter back to rest. Cancelling the held animation
+       reverts the element to base, but the spring-back keyframe pins the
+       pressed state at offset 0 on the same frame, so there is no flicker
+       — the key simply resettles from where it was. */
+    function release(el) {
+      if (!el || !el.__press) return;
+      el.__press.cancel();
+      el.__press = null;
+      el.animate(
+        [
+          { transform: PRESS_T, color: COL.gold, transformOrigin: 'bottom' },
+          { transform: 'none', color: COL.cream, transformOrigin: 'bottom' }
+        ],
+        { duration: 320, easing: SPRING, fill: 'none' }
+      );
+    }
+
+    /* Neighbour ripple — a transient dip that returns on its own, 40ms
+       behind the struck letter so the press cascades outward. Neighbours
+       are not held; only the touched letter holds. */
+    function pulseNear(el) {
       el.getAnimations().forEach(function (a) { a.cancel(); });
-      el.animate(pressKeyframes(depthY, depthScale, peak),
-        { duration: 380, delay: delay || 0, fill: 'none' });
+      el.animate(
+        [
+          { transform: 'none', color: COL.cream, transformOrigin: 'bottom', easing: STRIKE },
+          { transform: NEAR_T, color: COL.goldDim, transformOrigin: 'bottom', offset: 0.3, easing: SPRING },
+          { transform: 'none', color: COL.cream, transformOrigin: 'bottom' }
+        ],
+        { duration: 360, delay: 40, fill: 'none' }
+      );
     }
 
     wordmarks.forEach(function (mark) {
-      var lastChar = null;
+      var heldChar = null;
 
       function charFromPoint(x, y) {
         var el = document.elementFromPoint(x, y);
@@ -221,49 +253,47 @@
         return candidate;
       }
 
-      function fireChar(c) {
-        if (!c) return;
-        /* Struck letter: full press depth + gold, plus one haptic tick. */
-        animateChar(c, '0.16em', 0.92, COL.gold, 0);
+      function pressChar(c) {
+        pressHold(c);
         if (canVibrate) navigator.vibrate(8);
-        /* Immediate neighbours dip shallower and 40ms later, so the
-           ripple cascades outward instead of firing in lockstep. */
         var prev = c.previousElementSibling;
         var next = c.nextElementSibling;
-        if (prev && prev.classList.contains('char')) animateChar(prev, '0.08em', 0.96, COL.goldDim, 40);
-        if (next && next.classList.contains('char')) animateChar(next, '0.08em', 0.96, COL.goldDim, 40);
+        if (prev && prev.classList.contains('char')) pulseNear(prev);
+        if (next && next.classList.contains('char')) pulseNear(next);
       }
 
       mark.addEventListener('pointerdown', function (e) {
         if (e.pointerType !== 'touch') return;
         var c = charFromPoint(e.clientX, e.clientY);
         if (c) {
-          lastChar = c;
-          fireChar(c);
+          heldChar = c;
+          pressChar(c);
         }
       });
 
       mark.addEventListener('pointermove', function (e) {
         if (e.pointerType !== 'touch') return;
         var c = charFromPoint(e.clientX, e.clientY);
-        /* Only fire on entry into a *different* char — stationary
-           finger does not strobe; re-entering a previously played
-           char re-fires it. */
-        if (c && c !== lastChar) {
-          lastChar = c;
-          fireChar(c);
-        }
+        /* Same letter (including staying off all letters) — leave the
+           held key exactly as it is; a stationary finger keeps its key
+           pressed without re-firing. */
+        if (c === heldChar) return;
+        /* Release the letter we're leaving, then press the new one. */
+        release(heldChar);
+        heldChar = c;
+        if (c) pressChar(c);
       });
 
-      function resetTracker(e) {
+      function liftOff(e) {
         if (e.pointerType !== 'touch') return;
-        lastChar = null;
-        /* No cleanup needed — each WAAPI press reverts itself
-           (`fill: 'none'`), and `pointercancel` (fired when the browser
-           hands the gesture off to vertical scroll) needs no extra work. */
+        /* Finger lifted (`pointerup`) or the browser took the gesture for
+           vertical scroll (`pointercancel`) — let the held key spring
+           back to its original position. */
+        release(heldChar);
+        heldChar = null;
       }
-      mark.addEventListener('pointerup', resetTracker);
-      mark.addEventListener('pointercancel', resetTracker);
+      mark.addEventListener('pointerup', liftOff);
+      mark.addEventListener('pointercancel', liftOff);
     });
   }
 

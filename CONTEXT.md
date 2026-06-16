@@ -71,14 +71,16 @@ implementation; this file is the source of truth for what we call things.
   (≤768px). See [ADR 0001](docs/adr/0001-responsive-switches-on-width-not-pointer.md).
 - **Glissando** (footer wordmark) — on touch devices, sliding a finger
   across the footer wordmark "plays" each letter it crosses like a piano key:
-  the touch counterpart to the desktop per-letter hover press. Each struck
-  letter snaps down (fast ease-out) and springs back, its neighbours dip 40ms
-  later so the ripple cascades, and supporting devices give one short haptic
-  tick per note. Driven by the Web Animations API (interruptible, self-
-  reverting) rather than a toggled CSS class. A horizontal-only gesture —
-  vertical drags still scroll the page. Under `prefers-reduced-motion` it does
-  not run (the long-press callout is still suppressed; that is a fix, not
-  motion).
+  the touch counterpart to the desktop per-letter hover press. Hold-and-
+  release: a letter presses down and *stays* down while the finger rests on
+  it, then springs back the instant the finger leaves it or lifts — so a tap
+  holds for as long as you hold. Its neighbours dip shallowly 40ms later
+  (a transient ripple, not held) so the press cascades, and supporting devices
+  give one short haptic tick per press. Driven by the Web Animations API
+  (interruptible — the spring-back can start from a still-pressing key)
+  rather than a toggled CSS class. A horizontal-only gesture — vertical drags
+  still scroll the page. Under `prefers-reduced-motion` it does not run (the
+  long-press callout is still suppressed; that is a fix, not motion).
 - **Focus** (Void) — clicking/tapping a frame so it glides front-and-centre.
 - **Beat** (Listing) — a resting point in the scrub the page can snap to.
 - **Listing on a small screen** — the Listing *keeps* the scrub on phones; it
