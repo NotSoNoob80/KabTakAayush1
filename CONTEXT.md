@@ -20,7 +20,11 @@ implementation; this file is the source of truth for what we call things.
   This is a refinement of
   [ADR 0007](docs/adr/0007-projects-index-unified-inline-thumbnail-list.md),
   not a reversal — unified single list, single page scroll, and pointer-only
-  grayscale reveal are all preserved.
+  grayscale reveal are all preserved. The column is *not quite* centred: it
+  carries a small, **bounded rightward bias** that grows with the viewport
+  (zero on phones, a measured nudge on wide screens) so the enlarged inline
+  thumbnail does not leave each row reading left-heavy — see
+  [ADR 0009](docs/adr/0009-projects-index-bounded-rightward-bias.md).
 - **The Mosaic** — a single project's page (`project.html`). An editorial
   collage grid of that project's images.
 - **The Listing** — the about page (`about.html`). A scroll-pinned
@@ -38,10 +42,13 @@ implementation; this file is the source of truth for what we call things.
   [ADR 0007](docs/adr/0007-projects-index-unified-inline-thumbnail-list.md).)
 - **Inline thumbnail** — the image shown *beside each title* on every row of
   the Projects index, at every width. On pointer devices, hovering a row
-  enlarges its thumbnail *in place* (the row IS the preview — no separate
-  preview pane) and blooms its grayscale to full colour — the brand's
-  "contact-sheet" reveal, shared with the Mosaic. See
-  [ADR 0008](docs/adr/0008-projects-index-row-is-the-preview.md). The
+  blooms its thumbnail *in place* from grayscale to full colour (the row IS
+  the preview — no separate preview pane) — the brand's "contact-sheet"
+  reveal, shared with the Mosaic. See
+  [ADR 0008](docs/adr/0008-projects-index-row-is-the-preview.md). The thumbnail
+  no longer also *enlarges* on hover: once it became large and responsive that
+  size jump spilled over the title and the next row, so it was dropped — see
+  [ADR 0009](docs/adr/0009-projects-index-bounded-rightward-bias.md). The
   desktop-only **"type · location" meta line** opposite the title does not
   animate or react to hover.
 - **Frame number** — the small project number (`01`–`12`) at the left edge of

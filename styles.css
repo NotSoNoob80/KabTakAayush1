@@ -955,7 +955,17 @@ a {
    ============================================================ */
 .index {
   margin-top: var(--nav-h);
+  /* Responsive rightward nudge. As the thumbnails grow the left of each row
+     gets heavier, so the centred column is given a *bounded* bias to the
+     right: extra left padding only — `--nudge` is ~0 on phones and grows
+     with the viewport, capped at 120px. Because it's padding (not a
+     transform or negative margin) the column can never overflow or clip,
+     and the list stays a plain centred block within the shifted content
+     box. This refines — does not reverse — the centred-column commitment in
+     ADR 0007 / ADR 0008. See ADR 0009. */
+  --nudge: clamp(0px, 7vw - 28px, 120px);
   padding: 0 20px 40px;
+  padding-left: calc(20px + var(--nudge));
 }
 
 /* Centred reading column — keeps the single-column list from stranding
@@ -1031,8 +1041,13 @@ a {
 .index__item::before {
   content: '';
   flex: 0 0 auto;
-  width: 72px;
-  height: 90px;
+  /* Fluid size from phone to large screen — one continuous clamp instead of
+     a phone/desktop pair of fixed sizes, so the thumbnail fills more of the
+     row as the viewport grows (≈88px wide on a small phone up to ≈200px on a
+     wide monitor) with no breakpoint jump. `aspect-ratio` holds the 4:5
+     contact-sheet portrait at every width, so only one dimension is set. */
+  width: clamp(88px, 12vw, 200px);
+  aspect-ratio: 4 / 5;
   background-image: var(--thumb);
   background-size: cover;
   background-position: center;
@@ -1064,20 +1079,21 @@ a {
 }
 
 /* Pointer-only row hover — the contact-sheet reveal. On a pointer device,
-   thumbs sit dim and grey at rest and bloom back to full colour when their
-   row is hovered or focused, and the thumbnail itself enlarges in place
-   (transform-only, no reflow) — the row IS the preview. The title gets a
-   quiet nudge + gold tint to match. Touch devices get neither (no
-   `:hover`); their thumbs stay full colour at idle so a static list still
-   reads cleanly there. See ADR 0008. */
+   thumbs sit dim and grey at rest and bloom to full colour when their row is
+   hovered or focused — the row IS the preview. The title gets a quiet nudge +
+   gold tint, the frame number tints with it. Touch devices get none of this
+   (no `:hover`); their thumbs stay full colour at idle so a static list still
+   reads cleanly there. See ADR 0008, refined by ADR 0009.
+
+   No size jump on the thumbnail: ADR 0008's ~1.18× in-place enlarge was tuned
+   for the old small (104px) thumbnail. With the responsive thumbnail (up to
+   200px, see ADR 0009) an 18% grow spilled past the gap into the title and
+   down into the next row, so the enlarge is dropped — the grayscale→colour
+   bloom is the feedback now, and nothing ever leaves the row. */
 @media (hover: hover) and (pointer: fine) {
   .index__item::before {
     filter: grayscale(1) brightness(0.78);
-    /* Grow down-and-right from the title's first line so the enlarge
-       doesn't push into the row above — matches the contact-sheet anchor
-       the meta line already uses. */
-    transform-origin: left top;
-    transition: filter 220ms var(--ease-out), transform 220ms var(--ease-out);
+    transition: filter 220ms var(--ease-out);
   }
   .index__title {
     transition: transform 220ms var(--ease-out), color 220ms var(--ease-out);
@@ -1092,13 +1108,6 @@ a {
   .index__item:hover::before,
   .index__item:focus-visible::before {
     filter: grayscale(0) brightness(1);
-    transform: scale(1.18);
-  }
-  .index__item:hover,
-  .index__item:focus-visible {
-    /* Lift the enlarged thumbnail above the next row so it isn't clipped. */
-    position: relative;
-    z-index: 1;
   }
   .index__item:hover .index__title,
   .index__item:focus-visible .index__title {
@@ -1175,10 +1184,8 @@ a {
     gap: 22px;
     padding: 20px 2px;
   }
-  .index__item::before {
-    width: 104px;
-    height: 130px;
-  }
+  /* The thumbnail size is now one continuous clamp on `.index__item::before`
+     (above); no desktop-only size override is needed. */
   /* Reveal the meta and pin it to the right edge of the row. The row is
      already a flex container with the title taking `flex: 1 1 auto`, so
      a sibling with `flex: 0 0 auto` and right-aligned text is enough to
@@ -1206,8 +1213,12 @@ a {
 }
 
 @media (max-width: 640px) {
+  /* Smaller side gutters on phones, but keep the same `--nudge` bias on the
+     left so the rightward shift stays continuous across the breakpoint
+     (the nudge is ~0 at phone widths anyway). */
   .index {
     padding: 0 14px 28px;
+    padding-left: calc(14px + var(--nudge));
   }
 
   .index__item {
