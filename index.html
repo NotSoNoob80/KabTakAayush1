@@ -683,6 +683,9 @@
     var REACH_RETICLE_GAIN = 0.34;      // on-screen reticle travel per unit hand offset (was 0.18)
     var REACH_DETECTION_HZ = 30;
     var REACH_SMOOTH       = 0.35;
+    var REACH_RENDER_EASE  = 0.45;      // per-frame (60fps) catch-up that glides the cursor/void
+                                        // between 30Hz detections so motion doesn't step. Lower =
+                                        // smoother but laggier; higher = snappier but steppier.
     var REACH_LOSS_HINT_MS = 2000;
     var REACH_CURL_OPEN_RATIO = 0.85;   // curl > this * calib.curl ⇒ clutched→open
     var REACH_CURL_FIST_RATIO = 0.55;   // curl < this * calib.curl ⇒ open→clutched
@@ -1185,6 +1188,7 @@
       landmarker:  null,
       loopTimer:   null,
       hand:        null,    // smoothed { x, y, size, curl, curl345 } in normalised frame coords
+      handRender:  null,    // per-frame eased { x, y } so cursor/void glide between detections
       calib:       null,    // { x, y, size, curl } captured neutral
       calibSamples: null,
       clutched:    false,   // The clutch: fist pins depth (camTarget.z) while pan stays live
@@ -1517,6 +1521,7 @@
         return;
       }
       if (!reach.hand || !reach.calib) {
+        reach.handRender = null;   // re-acquire snaps to the fresh position, no glide-from-stale
         var lostFor = reach.lastSeenAt ? (performance.now() - reach.lastSeenAt) : 0;
         var withinGrace = (lostFor <= REACH_LOSS_HINT_MS);
         if (reach.reticleEl) {
@@ -1557,8 +1562,22 @@
         reach.recalibSizeOnNext = true;
       }
 
-      var ox = reach.hand.x - reach.calib.x;
-      var oy = reach.hand.y - reach.calib.y;
+      // Per-frame catch-up: the render loop runs at ~60fps but detection only
+      // refreshes reach.hand at 30Hz, so reading reach.hand straight would step
+      // the cursor/void. Glide a render-rate copy of the position toward the
+      // latest sample instead (size/depth still read reach.hand directly, so
+      // the clutch and ADR 0011 re-anchoring are untouched). Snap on first
+      // acquire so the cursor appears where the hand is, then ease.
+      var hr = reach.handRender;
+      if (!hr) {
+        hr = reach.handRender = { x: reach.hand.x, y: reach.hand.y };
+      } else {
+        hr.x += (reach.hand.x - hr.x) * REACH_RENDER_EASE;
+        hr.y += (reach.hand.y - hr.y) * REACH_RENDER_EASE;
+      }
+
+      var ox = hr.x - reach.calib.x;
+      var oy = hr.y - reach.calib.y;
       var r  = Math.sqrt(ox * ox + oy * oy);
 
       if (reach.reticleEl) {
