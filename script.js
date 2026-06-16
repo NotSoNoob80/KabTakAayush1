@@ -156,8 +156,60 @@
 
      Hit-testing uses `elementFromPoint` rather than cached bounding
      boxes so the driver survives reflow (font load, viewport resize,
-     orientation change) with no cache to invalidate. ----------------- */
-  if (wordmarkIsTouch && !prefersReducedMotion && wordmarks.length) {
+     orientation change) with no cache to invalidate.
+
+     The press itself is driven by the Web Animations API rather than a
+     toggled CSS class. WAAPI is interruptible and self-reverting: a
+     re-struck letter cancels its in-flight press and restarts cleanly
+     from zero with no `void offsetWidth` reflow hack, and each note tidies
+     itself up (`fill: 'none'`) with no `animationend` bookkeeping. The
+     keyframes mirror the desktop `:hover` press exactly — fast ease-out
+     strike, spring-back tail — so touch and pointer feel like one
+     instrument. ------------------------------------------------------- */
+  if (wordmarkIsTouch && !prefersReducedMotion && wordmarks.length &&
+      typeof Element !== 'undefined' &&
+      typeof Element.prototype.animate === 'function') {
+    /* A piano key you can feel. One short tick per struck letter mirrors
+       the visual press — the haptic equivalent of the note landing.
+       Feature-detected (mostly Android Chrome; iOS Safari ignores it
+       gracefully) and already inside the touch + non-reduced-motion
+       gate, so it never fires where it isn't wanted. */
+    var canVibrate = typeof navigator !== 'undefined' &&
+      typeof navigator.vibrate === 'function';
+
+    /* Resolve the brand colours from the custom properties once, so the
+       keyframes carry concrete values rather than relying on var()
+       resolution inside WAAPI. */
+    var rootStyle = getComputedStyle(document.documentElement);
+    var COL = {
+      cream: rootStyle.getPropertyValue('--cream').trim() || '#f4f1ea',
+      gold: rootStyle.getPropertyValue('--gold').trim() || '#e3b23c',
+      goldDim: rootStyle.getPropertyValue('--gold-dim').trim() || '#b98f30'
+    };
+
+    /* Easings shared with the CSS press: a strong ease-out strike (the
+       key is already under the finger — it must snap), then an
+       overshooting spring as the key resettles. */
+    var STRIKE = 'cubic-bezier(0.23, 1, 0.32, 1)';
+    var SPRING = 'cubic-bezier(0.34, 1.56, 0.64, 1)';
+
+    function pressKeyframes(depthY, depthScale, peak) {
+      return [
+        { transform: 'none', color: COL.cream, transformOrigin: 'bottom', easing: STRIKE },
+        { transform: 'translateY(' + depthY + ') scaleY(' + depthScale + ')',
+          color: peak, transformOrigin: 'bottom', offset: 0.24, easing: SPRING },
+        { transform: 'none', color: COL.cream, transformOrigin: 'bottom' }
+      ];
+    }
+
+    function animateChar(el, depthY, depthScale, peak, delay) {
+      /* Cancel any in-flight press so a re-struck letter restarts from
+         zero — WAAPI keeps this interruptible without a reflow restart. */
+      el.getAnimations().forEach(function (a) { a.cancel(); });
+      el.animate(pressKeyframes(depthY, depthScale, peak),
+        { duration: 380, delay: delay || 0, fill: 'none' });
+    }
+
     wordmarks.forEach(function (mark) {
       var lastChar = null;
 
@@ -169,21 +221,17 @@
         return candidate;
       }
 
-      function play(el, cls) {
-        /* Restart the animation if a stale class is still on the
-           element (rare — `animationend` normally clears it). */
-        el.classList.remove(cls);
-        void el.offsetWidth;
-        el.classList.add(cls);
-      }
-
       function fireChar(c) {
         if (!c) return;
-        play(c, 'is-press');
+        /* Struck letter: full press depth + gold, plus one haptic tick. */
+        animateChar(c, '0.16em', 0.92, COL.gold, 0);
+        if (canVibrate) navigator.vibrate(8);
+        /* Immediate neighbours dip shallower and 40ms later, so the
+           ripple cascades outward instead of firing in lockstep. */
         var prev = c.previousElementSibling;
         var next = c.nextElementSibling;
-        if (prev && prev.classList.contains('char')) play(prev, 'is-press-near');
-        if (next && next.classList.contains('char')) play(next, 'is-press-near');
+        if (prev && prev.classList.contains('char')) animateChar(prev, '0.08em', 0.96, COL.goldDim, 40);
+        if (next && next.classList.contains('char')) animateChar(next, '0.08em', 0.96, COL.goldDim, 40);
       }
 
       mark.addEventListener('pointerdown', function (e) {
@@ -210,21 +258,12 @@
       function resetTracker(e) {
         if (e.pointerType !== 'touch') return;
         lastChar = null;
-        /* No class cleanup — `animationend` handles that, and
-           `pointercancel` (which fires when the browser hands the
-           gesture off to vertical scroll) needs no extra work. */
+        /* No cleanup needed — each WAAPI press reverts itself
+           (`fill: 'none'`), and `pointercancel` (fired when the browser
+           hands the gesture off to vertical scroll) needs no extra work. */
       }
       mark.addEventListener('pointerup', resetTracker);
       mark.addEventListener('pointercancel', resetTracker);
-
-      mark.addEventListener('animationend', function (e) {
-        var name = e.animationName;
-        if (name === 'footer-char-press') {
-          e.target.classList.remove('is-press');
-        } else if (name === 'footer-char-press-near') {
-          e.target.classList.remove('is-press-near');
-        }
-      });
     });
   }
 
@@ -856,6 +895,24 @@
         sessionStorage.setItem('kta:from-projects', '1');
       }
     });
+
+    /* Sticky-hover-on-scroll fix. During a wheel/trackpad scroll the browser
+       doesn't re-evaluate :hover until the pointer next moves, so the row that
+       was hovered before the scroll keeps its grayscale→colour bloom until the
+       user stops — the bloom appears "stuck" on the wrong row. Flagging
+       `is-scrolling` on the list while scrolling lets the CSS drop the rows out
+       of hit-testing (pointer-devices only — see styles.css), which clears the
+       stale :hover at once; the flag is removed a beat after scrolling stops so
+       the row genuinely under the cursor then takes the bloom. Passive + a
+       single debounced timer, so it adds nothing to scroll cost. */
+    var scrollIdleTimer;
+    window.addEventListener('scroll', function () {
+      indexList.classList.add('is-scrolling');
+      clearTimeout(scrollIdleTimer);
+      scrollIdleTimer = setTimeout(function () {
+        indexList.classList.remove('is-scrolling');
+      }, 120);
+    }, { passive: true });
   }
 
   /* ---------- Reel preview — small, click-anchored "loose print" ----------

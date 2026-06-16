@@ -1109,6 +1109,15 @@ a {
   .index__item:focus-visible::before {
     filter: grayscale(0) brightness(1);
   }
+  /* While the page is scrolling, take the rows out of hit-testing so the
+     browser can't keep a stale :hover pinned to the row that was under the
+     cursor before the scroll started (it doesn't re-evaluate :hover during a
+     wheel scroll until the pointer moves). script.js toggles `is-scrolling`
+     and clears it shortly after scrolling stops. Pointer devices only — this
+     lives inside the hover media query — so touch tapping is never affected. */
+  .index__list.is-scrolling .index__item {
+    pointer-events: none;
+  }
   .index__item:hover .index__title,
   .index__item:focus-visible .index__title {
     transform: translateX(8px);
@@ -2241,38 +2250,15 @@ html.intro-armed {
 }
 
 /* ---- Glissando press (touch counterpart to :hover) -------------
-   Driven by JS-applied classes, not pseudo-classes — fingers don't
-   "hover", so the touch reward needs its own trigger. Each keyframe
-   plays the full press-down → spring-back arc on its own, then the
-   class is removed on `animationend` so the letter is free to fire
-   again the next time the finger crosses it. Depth + colour mirror
-   the existing `:hover` press above so touch and desktop feel like
-   the same instrument. */
-@keyframes footer-char-press {
-  0%   { transform: none; color: var(--cream);
-         animation-timing-function: cubic-bezier(0.4, 0, 1, 1); }
-  32%  { transform: translateY(0.16em) scaleY(0.92); color: var(--gold);
-         animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); }
-  100% { transform: none; color: var(--cream); }
-}
-
-@keyframes footer-char-press-near {
-  0%   { transform: none; color: var(--cream);
-         animation-timing-function: cubic-bezier(0.4, 0, 1, 1); }
-  32%  { transform: translateY(0.08em) scaleY(0.96); color: var(--gold-dim);
-         animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); }
-  100% { transform: none; color: var(--cream); }
-}
-
-.footer__wordmark--piano .char.is-press {
-  animation: footer-char-press 460ms both;
-  position: relative;
-  z-index: 1;
-}
-
-.footer__wordmark--piano .char.is-press-near {
-  animation: footer-char-press-near 460ms both;
-}
+   The touch press is driven entirely by the Web Animations API in
+   script.js (the Glissando block), not by a CSS keyframe + toggled
+   class. Fingers don't "hover", so the reward needs a JS trigger; WAAPI
+   gives it an interruptible, self-reverting press that restarts cleanly
+   on re-strike with no reflow hack. The keyframes there mirror this
+   `:hover` press — fast ease-out strike, spring-back tail, squash from
+   the baseline (transform-origin: bottom) — so touch and desktop feel
+   like the same instrument. Nothing to declare here; reduced-motion is
+   handled by the JS gate (the driver never runs when motion is reduced). */
 
 @media (prefers-reduced-motion: reduce) {
   .footer__wordmark .char,
@@ -2285,9 +2271,7 @@ html.intro-armed {
   .footer__wordmark--piano .char:hover + .char,
   .footer__wordmark--piano .char:has(+ .char:hover),
   .footer__wordmark--piano .char:hover + .char + .char,
-  .footer__wordmark--piano .char:has(+ .char + .char:hover),
-  .footer__wordmark--piano .char.is-press,
-  .footer__wordmark--piano .char.is-press-near {
+  .footer__wordmark--piano .char:has(+ .char + .char:hover) {
     transition: none;
     animation: none;
     transform: none;
