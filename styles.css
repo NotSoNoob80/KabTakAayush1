@@ -877,7 +877,16 @@ a {
    file (the `--piano` block), so at equal specificity they would win on
    source order and this neutraliser would do nothing. The extra `.footer`
    class lifts every selector here one notch above its counterpart so the
-   reset wins regardless of source order. */
+   reset wins regardless of source order.
+
+   Deliberately resets colour/transform only — NOT `animation`. Every
+   `.char` permanently carries the once-per-load scroll-in shimmer
+   (`is-shimmer` → `footer-char-shimmer`, finished + held via `both`).
+   Toggling `animation: none` on here (during the latched :hover) and off
+   again (when the finger leaves) re-applies `animation-name`, which the
+   browser treats as a fresh animation and RESTARTS — replaying the gold
+   sweep on every letter the finger crosses. Leaving `animation` alone
+   keeps the shimmer a true one-shot. */
 @media (hover: none), (pointer: coarse) {
   .footer .footer__wordmark .char:hover,
   .footer .footer__wordmark .char:hover + .char,
@@ -893,7 +902,6 @@ a {
     color: var(--cream);
     transform: none;
     filter: none;
-    animation: none;
   }
 }
 

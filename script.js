@@ -196,12 +196,22 @@
     var PRESS_T = 'translateY(0.16em) scaleY(0.92)'; /* full press, struck letter */
     var NEAR_T = 'translateY(0.08em) scaleY(0.96)';  /* shallow dip, neighbours */
 
+    /* Cancel only THIS driver's in-flight press on a letter — never a
+       blanket `el.getAnimations()` sweep. That sweep would also catch the
+       CSS scroll-in shimmer (`footer-char-shimmer`) that every `.char`
+       permanently carries, and we have no business cancelling another
+       animation's lifecycle. We park our own handle on `el.__gliss` and
+       cancel just that. */
+    function clearGliss(el) {
+      if (el.__gliss) { el.__gliss.cancel(); el.__gliss = null; }
+    }
+
     /* Press a letter down and HOLD it there (fill: forwards) until it is
-       released. The held animation is parked on the element so release()
-       can find and unwind it. */
+       released. `el.__held` marks it so release() knows to unwind it. */
     function pressHold(el) {
-      el.getAnimations().forEach(function (a) { a.cancel(); });
-      el.__press = el.animate(
+      clearGliss(el);
+      el.__held = true;
+      el.__gliss = el.animate(
         [
           { transform: 'none', color: COL.cream, transformOrigin: 'bottom' },
           { transform: PRESS_T, color: COL.gold, transformOrigin: 'bottom' }
@@ -215,10 +225,10 @@
        pressed state at offset 0 on the same frame, so there is no flicker
        — the key simply resettles from where it was. */
     function release(el) {
-      if (!el || !el.__press) return;
-      el.__press.cancel();
-      el.__press = null;
-      el.animate(
+      if (!el || !el.__held) return;
+      el.__held = false;
+      clearGliss(el);
+      el.__gliss = el.animate(
         [
           { transform: PRESS_T, color: COL.gold, transformOrigin: 'bottom' },
           { transform: 'none', color: COL.cream, transformOrigin: 'bottom' }
@@ -231,8 +241,8 @@
        behind the struck letter so the press cascades outward. Neighbours
        are not held; only the touched letter holds. */
     function pulseNear(el) {
-      el.getAnimations().forEach(function (a) { a.cancel(); });
-      el.animate(
+      clearGliss(el);
+      el.__gliss = el.animate(
         [
           { transform: 'none', color: COL.cream, transformOrigin: 'bottom', easing: STRIKE },
           { transform: NEAR_T, color: COL.goldDim, transformOrigin: 'bottom', offset: 0.3, easing: SPRING },
