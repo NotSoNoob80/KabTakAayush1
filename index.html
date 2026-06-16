@@ -1262,7 +1262,11 @@
     function reachStartWorker() {
       return new Promise(function (resolve, reject) {
         var worker;
-        try { worker = new Worker('reach-worker.js', { type: 'module' }); }
+        // Classic (non-module) worker on purpose: MediaPipe's FilesetResolver
+        // loads its WASM glue via importScripts(), which module workers forbid
+        // ("Module scripts don't support importScripts()"). Dynamic import() of
+        // the CDN bundle still works fine in a classic worker. (v23 regression.)
+        try { worker = new Worker('reach-worker.js'); }
         catch (e) { reject(e); return; }
         reach.worker      = worker;
         reach.workerReady = false;

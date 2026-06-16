@@ -9,8 +9,10 @@
    state machine, ADR 0010/0011 re-anchoring — still happens on the main
    thread, unchanged. See plan-the-reach-performance.md (ADR 0012 at build).
 
-   Loaded as a module worker so it can dynamic-import the CDN bundle, exactly
-   like the old main-thread path did.
+   Loaded as a CLASSIC worker, not a module worker: MediaPipe's FilesetResolver
+   pulls its WASM glue in via importScripts(), which module workers forbid. A
+   classic worker still supports dynamic import() for the CDN bundle below, so
+   we keep the lazy-load and get importScripts() back.
    ════════════════════════════════════════════════════════════════════════ */
 
 var landmarker = null;
