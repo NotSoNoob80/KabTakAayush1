@@ -66,8 +66,9 @@ implementation; this file is the source of truth for what we call things.
 
 - **The reticle** — the on-canvas joystick knob shown *only while The Reach is
   active*. A subtle gold ring at the screen centre that represents the hand's
-  offset from the **rest zone**; brightens as the hand pushes outward, and
-  takes a distinct filled state while pinch-grabbing. There is deliberately
+  offset from the **rest zone**; brightens as the hand pushes outward, morphs
+  into a palm or fist silhouette to mirror the visitor's gesture, and gains
+  **the clutch ring** while depth is pinned. There is deliberately
   **no on-screen camera preview** — the reticle plus the **camera-active
   indicator** are the only feedback channels.
 - **Camera-active indicator** — a small persistent red dot + "Camera on"
@@ -103,9 +104,10 @@ implementation; this file is the source of truth for what we call things.
   visitor steer the Void with their bare hand, seen by the device's front
   camera. An open palm becomes a joystick: its offset from the **rest zone**
   pans `camTarget.x` / `camTarget.y`, and its apparent size flies
-  `camTarget.z`. A **pinch-grab** (thumb + index together) toggles Focus on
-  the centred frame — a quick pinch focuses it, a second pinch releases it,
-  so the hand never has to hold the pinch. Enabled only by pressing the
+  `camTarget.z`. Closing into a fist engages **the clutch**, which pins depth
+  so the visitor can pan around at a committed depth. The Reach has no
+  frame-selection gesture of its own — **Focus** stays a mouse click or a
+  touch tap. Enabled only by pressing the
   on-canvas "The Reach" CTA — no auto-enable, no hotkey, no
   URL parameter. Off by default; not advertised under
   `prefers-reduced-motion`. Hand tracking runs entirely on-device (MediaPipe
@@ -113,13 +115,6 @@ implementation; this file is the source of truth for what we call things.
   and writes into the same `camTarget` channels every existing input already
   mutates — see
   [ADR 0010](docs/adr/0010-the-reach-additive-camtarget-writer.md).
-- **Pinch-grab** (Void) — the gesture counterpart to a desktop click or a
-  phone tap inside The Reach. A quick pinch of thumb and index while a frame
-  is centred toggles Focus on that frame: pinch once to focus, pinch again to
-  release. It is a tap, not a hold — the visitor relaxes their hand between
-  pinches and the frame stays focused, so they never sustain the pinch or
-  "open" precisely to let go. The discriminator from **the clutch** is fingers
-  3–5: a pinch keeps them extended, a fist curls them.
 - **Rest zone** (Void) — the neutral dead-zone at the centre of the camera
   frame inside The Reach. Hand inside it ⇒ no motion (Void coasts on its
   existing inertia); hand outside it ⇒ drift in that direction at a speed
@@ -131,7 +126,7 @@ implementation; this file is the source of truth for what we call things.
   the hand back to a palm resumes depth steering without a jerk forward or
   backward, because the open-palm size anchor is re-anchored on the release
   frame — see [ADR 0011](docs/adr/0011-the-reach-clutch-calib-size-reanchor.md).
-  A fist is *not* a pinch-grab; pinch-grab requires fingers 3–5 extended,
+  The discriminator is the openness of fingers 3–5: an open palm extends them,
   the clutch curls them.
 - **Depth-clutched** (Void) — the state the Void is in while a visitor holds
   **the clutch**: `camTarget.z` does not integrate new hand input, but pan
