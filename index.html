@@ -443,6 +443,37 @@
       letter-spacing: 0.32em;
       text-transform: uppercase;
     }
+    /* Live legend: the chip for the gesture currently recognised brightens,
+       the other dims — turns the guide into feedback, not just a key. */
+    .reach-guide__item {
+      opacity: 0.4;
+      transition: opacity 0.25s ease;
+    }
+    .reach-guide__item.is-active { opacity: 1; }
+
+    /* First-run coach — the one-time instructional copy shown when a visitor
+       first enables The Reach. Fades the moment they steer (or after a short
+       fallback), then never returns; the compact live legend takes over. */
+    .reach-coach {
+      position: fixed;
+      left: 50%;
+      bottom: clamp(80px, 13vh, 132px);
+      transform: translateX(-50%);
+      z-index: 21;
+      width: min(86vw, 366px);
+      text-align: center;
+      font-family: var(--text, 'Helvetica Neue', sans-serif);
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--gold, #c5a44c);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.6s ease;
+    }
+    .reach-coach.is-visible { opacity: 0.92; }
+    .reach-coach p { margin: 0 0 9px; }
+    .reach-coach p:last-child { margin-bottom: 0; }
+    .reach-coach strong { font-weight: 600; }
 
     @media (max-width: 767px), (pointer: coarse) {
       .reach-cta {
@@ -557,14 +588,18 @@
   </div>
   <p class="reach-hint" id="reach-hint">Show your hand</p>
   <div class="reach-guide" id="reach-guide" aria-hidden="true">
-    <div class="reach-guide__item">
+    <div class="reach-guide__item" id="reach-guide-palm">
       <svg class="reach-guide__icon" aria-hidden="true"><use href="#reach-icon-palm"/></svg>
-      <span class="reach-guide__label">Palm</span>
+      <span class="reach-guide__label">Steer</span>
     </div>
-    <div class="reach-guide__item">
+    <div class="reach-guide__item" id="reach-guide-fist">
       <svg class="reach-guide__icon" aria-hidden="true"><use href="#reach-icon-fist"/></svg>
-      <span class="reach-guide__label">Fist</span>
+      <span class="reach-guide__label">Hold</span>
     </div>
+  </div>
+  <div class="reach-coach" id="reach-coach" aria-hidden="true">
+    <p>Move your <strong>palm</strong> toward the screen to go deep — pull back to fly out.</p>
+    <p>Make a <strong>fist</strong> to hold your depth and keep looking around.</p>
   </div>
 
   <!-- Three.js r128. crossorigin so it still loads under the homepage's
@@ -1159,7 +1194,12 @@
       indicatorEl: null,
       reticleEl:   null,
       hintEl:      null,
-      hintShown:   false
+      hintShown:   false,
+      coachEl:     null,    // first-run instructional copy
+      coachDone:   false,   // coach has been shown+dismissed this session
+      coachTimer:  0,       // fallback dismiss timer
+      guidePalmEl: null,    // live-legend chips (brighten on the active gesture)
+      guideFistEl: null
     };
 
     function reachInitDom() {
@@ -1169,6 +1209,9 @@
       reach.indicatorEl = document.getElementById('reach-indicator');
       reach.reticleEl   = document.getElementById('reach-reticle');
       reach.hintEl      = document.getElementById('reach-hint');
+      reach.coachEl     = document.getElementById('reach-coach');
+      reach.guidePalmEl = document.getElementById('reach-guide-palm');
+      reach.guideFistEl = document.getElementById('reach-guide-fist');
       if (!reach.ctaEl) return;
 
       if (REACH_PREFERS_REDUCED) {
@@ -1295,11 +1338,22 @@
           REACH_DETECTION_HZ = REACH_DETECTION_HZ_MAX;   // start at the ceiling each session
           reach.lastSeenAt  = performance.now();
           setReachCtaState('on');
-          // The Reach is now live: the gesture guide replaces the
-          // scroll/drag/click hint for as long as we are streaming.
-          if (reach.guideEl) reach.guideEl.classList.add('is-visible');
           var voidHintOnEnable = document.getElementById('void-hint');
           if (voidHintOnEnable) voidHintOnEnable.classList.remove('is-visible');
+          // First-ever enable gets the instructional coach; the compact live
+          // legend takes over once it's dismissed. Returning visitors skip
+          // straight to the legend. localStorage is best-effort (private mode
+          // may throw) — on failure we simply treat it as a first run.
+          var coachSeen = false;
+          try { coachSeen = localStorage.getItem('reachCoachSeen') === '1'; } catch (e) {}
+          if (coachSeen || !reach.coachEl) {
+            reach.coachDone = true;
+            if (reach.guideEl) reach.guideEl.classList.add('is-visible');
+          } else {
+            reach.coachDone = false;
+            reach.coachEl.classList.add('is-visible');
+            reach.coachTimer = setTimeout(reachDismissCoach, 9000);  // fallback if they never steer
+          }
           reachScheduleDetection();
         })
         .catch(function (err) {
@@ -1340,6 +1394,11 @@
       if (reach.indicatorEl) reach.indicatorEl.classList.remove('is-on');
       if (reach.reticleEl)   reach.reticleEl.classList.remove('is-on', 'is-pushing', 'is-clutched', 'is-palm', 'is-fist');
       if (reach.guideEl)     reach.guideEl.classList.remove('is-visible');
+      if (reach.coachEl)     reach.coachEl.classList.remove('is-visible');
+      if (reach.guidePalmEl) reach.guidePalmEl.classList.remove('is-active');
+      if (reach.guideFistEl) reach.guideFistEl.classList.remove('is-active');
+      if (reach.coachTimer) { clearTimeout(reach.coachTimer); reach.coachTimer = 0; }
+      reach.coachDone = false;
       reachClearHint();
       reach.hand     = null;
       reach.clutched = false;
@@ -1593,7 +1652,13 @@
         reach.reticleEl.classList.toggle('is-palm', !reach.clutched);
       }
 
+      // Live legend: brighten the chip for the gesture currently recognised.
+      if (reach.guidePalmEl) reach.guidePalmEl.classList.toggle('is-active', !reach.clutched);
+      if (reach.guideFistEl) reach.guideFistEl.classList.toggle('is-active',  reach.clutched);
+
       if (r > REACH_REST_ZONE) {
+        // First real steer out of the rest zone retires the first-run coach.
+        if (!reach.coachDone) reachDismissCoach();
         var scale = (r - REACH_REST_ZONE) / r;
         // Pan: mirror the existing drag sign — hand right ⇒ camera looks right
         camTarget.x += -ox * scale * REACH_PAN;
@@ -1623,6 +1688,18 @@
       if (!reach.hintShown || !reach.hintEl) return;
       reach.hintShown = false;
       reach.hintEl.classList.remove('is-visible');
+    }
+
+    // Fade the first-run coach and hand over to the compact live legend. Fired
+    // by the first steer out of the rest zone, or by the fallback timer. Marks
+    // the coach as seen so it never returns on later visits.
+    function reachDismissCoach() {
+      if (reach.coachDone) return;
+      reach.coachDone = true;
+      if (reach.coachTimer) { clearTimeout(reach.coachTimer); reach.coachTimer = 0; }
+      if (reach.coachEl)  reach.coachEl.classList.remove('is-visible');
+      if (reach.guideEl)  reach.guideEl.classList.add('is-visible');
+      try { localStorage.setItem('reachCoachSeen', '1'); } catch (e) {}
     }
 
     // Per-frame render-health monitor (only runs while The Reach is on).
