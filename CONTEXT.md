@@ -44,6 +44,13 @@ implementation; this file is the source of truth for what we call things.
   [ADR 0008](docs/adr/0008-projects-index-row-is-the-preview.md). The
   desktop-only **"type · location" meta line** opposite the title does not
   animate or react to hover.
+- **Frame number** — the small project number (`01`–`12`) at the left edge of
+  each Projects index row, set in the display face and stacked so the numbers
+  line up like the frame numbers running down a strip of film.
+- **Film marker** — the play glyph shown on the **inline thumbnail** of a row
+  whose project is a *film* (rather than a photo series), so a film reads as
+  motion at a glance at every width — including phones, where the
+  "type · location" meta line is hidden.
 - **Card** — one classifieds clipping in the Listing (Roti / Kapda / Makaan /
   Art). Each card has a faint line-art **illustration** in its corner.
 - **Status** — the body line beneath a card's price (its "ad copy"). On small

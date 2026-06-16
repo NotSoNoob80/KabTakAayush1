@@ -971,6 +971,31 @@ a {
 
 .index__list li {
   border-bottom: 1px solid var(--line);
+  /* Entrance cascade — each row fades up once on load, staggered by its
+     own `--row-i` (set by index-render.js). CSS-only, no scroll observer,
+     so it can never get stuck below the fold (the failure mode that retired
+     the old data-reveal version — see index-render.js). `forwards` leaves
+     the row at its resting state, where the pointer hover affordances live. */
+  opacity: 0;
+  transform: translateY(8px);
+  animation: index-row-in 360ms var(--ease-out) both;
+  animation-delay: calc(var(--row-i, 0) * 45ms);
+}
+
+@keyframes index-row-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Motion-sensitive visitors get the list fully formed, no rise, no stagger. */
+@media (prefers-reduced-motion: reduce) {
+  .index__list li {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
 }
 
 .index__list li:first-child {
@@ -1006,14 +1031,29 @@ a {
 .index__item::before {
   content: '';
   flex: 0 0 auto;
-  width: 64px;
-  height: 80px;
+  width: 72px;
+  height: 90px;
   background-image: var(--thumb);
   background-size: cover;
   background-position: center;
   background-color: var(--black-soft);
   border-radius: 2px;
   transition: filter 460ms var(--ease-out);
+}
+
+/* Film projects carry a play glyph centred on their thumbnail, so a film
+   reads as motion at a glance — including on phones, where the "Film · …"
+   meta line is hidden. Layered as a second background on the same ::before
+   (translucent disc + cream triangle over the photo), so it needs no extra
+   markup and scales with the thumbnail at every width. The renderer already
+   stamps `data-type="film"`; this is pure CSS. */
+.index__item[data-type="film"]::before {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Ccircle cx='24' cy='24' r='21' fill='%230a0a0a' fill-opacity='0.5'/%3E%3Ccircle cx='24' cy='24' r='21' fill='none' stroke='%23f3ede1' stroke-opacity='0.85' stroke-width='1.5'/%3E%3Cpath d='M20 16l14 8-14 8z' fill='%23f3ede1'/%3E%3C/svg%3E"),
+    var(--thumb);
+  background-position: center, center;
+  background-size: 40%, cover;
+  background-repeat: no-repeat, no-repeat;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1042,6 +1082,13 @@ a {
   .index__title {
     transition: transform 220ms var(--ease-out), color 220ms var(--ease-out);
   }
+  .index__num {
+    transition: color 220ms var(--ease-out);
+  }
+  .index__item:hover .index__num,
+  .index__item:focus-visible .index__num {
+    color: var(--gold);
+  }
   .index__item:hover::before,
   .index__item:focus-visible::before {
     filter: grayscale(0) brightness(1);
@@ -1066,12 +1113,20 @@ a {
   }
 }
 
+/* Frame numbers — pulled into their own left-edge lane (order:-1, ahead of
+   the thumbnail) so 01…12 stack like the frame numbers running down a strip
+   of film. Display face, dim gold at rest; tints to gold with the title on
+   hover (cohesion only — the meta line opposite stays inert, per ADR 0008). */
 .index__num {
-  font-family: var(--text);
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  color: var(--gold-dim);
+  order: -1;
   flex: 0 0 auto;
+  min-width: 2.2ch;
+  font-family: var(--display);
+  font-size: clamp(15px, 0.7vw + 11px, 21px);
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: var(--gold-dim);
+  padding-top: 0.18em;
 }
 
 /* One continuous fluid size from phone to large screen. The old pair of
@@ -1121,8 +1176,8 @@ a {
     padding: 20px 2px;
   }
   .index__item::before {
-    width: 88px;
-    height: 110px;
+    width: 104px;
+    height: 130px;
   }
   /* Reveal the meta and pin it to the right edge of the row. The row is
      already a flex container with the title taking `flex: 1 1 auto`, so

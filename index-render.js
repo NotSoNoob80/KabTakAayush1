@@ -27,19 +27,20 @@
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  /* No `data-reveal` on the index rows. The list scrolls inside a fixed-
-     height container, so items below the fold (and sometimes the visible
-     ones, depending on observer timing inside an `overflow: hidden`
-     ancestor) were getting stuck at opacity 0 — the page looked like it
-     was "missing" projects on desktop. The list is short enough that a
-     staggered entrance wasn't earning its keep; it's worth the trade for
-     reliability. */
-  var rows = PROJECTS.map(function (p) {
+  /* Entrance cascade. An earlier version used `data-reveal` +
+     IntersectionObserver and had rows stick at opacity 0 below the fold
+     while the list scrolled inside a fixed-height container. ADR 0007
+     deleted that internal-scroll container (the whole page scrolls now),
+     so the cascade is driven purely by CSS instead: each <li> carries its
+     own `--row-i` and `.index__list li` animates in once on load with a
+     small per-row `animation-delay`. No observer, no scroll dependency —
+     so it cannot get stuck, and it honours `prefers-reduced-motion` in CSS. */
+  var rows = PROJECTS.map(function (p, i) {
     var thumb = thumbOf(p);
     var title = p.title || '';
 
     return '' +
-      '<li>' +
+      '<li style="--row-i:' + i + '">' +
         '<a class="index__item" href="project.html?id=' + p.id + '"' +
            ' data-thumb="' + esc(thumb) + '" data-type="' + esc(p.type || '') + '">' +
           '<span class="index__num">' + esc(p.id) + '</span>' +
