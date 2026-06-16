@@ -137,8 +137,10 @@ a {
   transition: opacity 160ms var(--ease-out);
 }
 
-.nav__mark:hover {
-  opacity: 0.7;
+@media (hover: hover) and (pointer: fine) {
+  .nav__mark:hover {
+    opacity: 0.7;
+  }
 }
 
 .nav__logo {
@@ -492,8 +494,10 @@ a {
   filter: contrast(1.05);
 }
 
-.landing__frame:hover img {
-  transform: scale(1.05);
+@media (hover: hover) and (pointer: fine) {
+  .landing__frame:hover img {
+    transform: scale(1.05);
+  }
 }
 
 .landing__frame {
@@ -1921,8 +1925,10 @@ html.intro-armed {
   transition: transform 220ms var(--ease-out);
 }
 
-.footer__col a:hover::after {
-  transform: scaleX(1);
+@media (hover: hover) and (pointer: fine) {
+  .footer__col a:hover::after {
+    transform: scaleX(1);
+  }
 }
 
 .footer__base {
@@ -2010,12 +2016,12 @@ html.intro-armed {
   transition:
     color 260ms var(--ease-out),
     transform 320ms var(--ease-out);
-  will-change: transform;
 }
 
 .footer__wordmark .char:hover {
   color: var(--gold);
   transform: scale(1.1) translateY(-0.05em);
+  will-change: transform;
   /* Lift the hovered letter above its overlapping neighbours so
      the gold reads cleanly rather than getting clipped under the
      next glyph. */
