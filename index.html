@@ -484,6 +484,45 @@
       color: #f0e2b0;
     }
 
+    /* First-run acquisition cue — "Identifying powers" — shown once, while we
+       are still searching for the hand. Hidden the moment a hand is locked in
+       (calibrated), at which point the gesture onboard takes over. */
+    .reach-identify {
+      position: fixed;
+      top: 38%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 21;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.6s ease;
+      color: var(--gold, #c5a44c);
+      font-family: var(--text, 'Helvetica Neue', sans-serif);
+      font-size: clamp(11px, 1.5vw, 14px);
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .reach-identify.is-visible { opacity: 0.9; }
+    .reach-identify__dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: currentColor;
+      flex: none;
+      animation: reach-identify-pulse 1.1s ease-in-out infinite;
+    }
+    @keyframes reach-identify-pulse {
+      0%, 100% { opacity: 0.25; transform: scale(0.7); }
+      50%      { opacity: 1;    transform: scale(1.1); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .reach-identify__dot { animation: none; opacity: 0.85; }
+    }
+
     @media (max-width: 767px), (pointer: coarse) {
       .reach-cta {
         left: 50%;
@@ -620,6 +659,10 @@
       <span class="reach-onboard__text">Make a <b>fist</b> to hold still</span>
     </span>
   </div>
+  <div class="reach-identify" id="reach-identify" aria-hidden="true">
+    <span class="reach-identify__dot"></span>
+    <span class="reach-identify__text">Identifying powers</span>
+  </div>
 
   <!-- Three.js r128 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -681,9 +724,10 @@
     var REACH_FLY          = 28.0;
     var REACH_REST_ZONE    = 0.07;
     var REACH_RETICLE_GAIN = 0.34;      // on-screen reticle travel per unit hand offset (was 0.18)
-    var REACH_DETECTION_HZ = 20;        // how often we look for the hand. The per-frame glide
-                                        // (REACH_RENDER_EASE) hides the lower rate, and each skipped
-                                        // detection is main-thread time given back to the 3D render.
+    var REACH_DETECTION_HZ = 30;        // how often we look for the hand + read its gesture. Higher =
+                                        // the tracker re-reads pose/clutch sooner, so detection feels
+                                        // more responsive, at the cost of main-thread time the 3D
+                                        // render would otherwise use (a small smoothness trade).
     var REACH_SMOOTH       = 0.35;
     var REACH_RENDER_EASE  = 0.45;      // per-frame (60fps) catch-up that glides the cursor/void
                                         // between 30Hz detections so motion doesn't step. Lower =
@@ -696,7 +740,7 @@
 
     // Mobile: a lighter field of evenly-spread frames.
     if (IS_MOBILE) SLOTS = MOBILE_SLOTS;
-    if (IS_MOBILE) REACH_DETECTION_HZ = 18;   // throttle hand inference on phones
+    if (IS_MOBILE) REACH_DETECTION_HZ = 24;   // throttle hand inference on phones, but keep it lively
 
     // Touch devices get touch-appropriate hint wording.
     if (IS_MOBILE) {
@@ -1203,7 +1247,9 @@
       indicatorEl: null,
       reticleEl:   null,
       hintEl:      null,
-      hintShown:   false
+      hintShown:   false,
+      identifyEl:  null,    // first-run "Identifying powers" acquisition cue
+      identifyTimer: null
     };
     var _reachLandmarkerPromise = null;
 
@@ -1212,6 +1258,7 @@
       reach.ctaLabelEl  = reach.ctaEl ? reach.ctaEl.querySelector('.reach-cta__label') : null;
       reach.guideEl     = document.getElementById('reach-guide');
       reach.onboardEl   = document.getElementById('reach-onboard');
+      reach.identifyEl  = document.getElementById('reach-identify');
       reach.indicatorEl = document.getElementById('reach-indicator');
       reach.reticleEl   = document.getElementById('reach-reticle');
       reach.hintEl      = document.getElementById('reach-hint');
@@ -1301,16 +1348,17 @@
         return;
       }
 
-      // Cap the capture size: hand tracking is plenty accurate at ~640x480 and
-      // each detectForVideo() call (which runs on the main thread, competing
-      // with the 3D render) scales with pixel count, so a smaller frame frees
-      // up frames for drawing. "ideal" is a soft hint — the browser picks the
-      // nearest supported size and never fails if the exact size is unavailable.
+      // Capture size: a larger frame gives the landmarker more pixels to lock
+      // onto, so the hand and its finger pose read more accurately (better
+      // gesture discrimination, fewer drops). detectForVideo() runs on the main
+      // thread and its cost scales with pixel count, so this trades a little
+      // render headroom for detection quality. "ideal" is a soft hint — the
+      // browser picks the nearest supported size and never fails outright.
       navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'user',
-          width:  { ideal: 480 },
-          height: { ideal: 360 }
+          width:  { ideal: 640 },
+          height: { ideal: 480 }
         }
       })
         .then(function (stream) {
@@ -1343,7 +1391,10 @@
           if (reach.guideEl) reach.guideEl.classList.add('is-visible');
           var voidHintOnEnable = document.getElementById('void-hint');
           if (voidHintOnEnable) voidHintOnEnable.classList.remove('is-visible');
-          reachShowOnboard();
+          // First, the acquisition cue ("Identifying powers") while we search
+          // for the hand. The gesture onboard fires later, once the hand is
+          // actually locked in (see calibration in reachDetect).
+          reachShowIdentify();
           reachScheduleDetection();
         })
         .catch(function (err) {
@@ -1379,6 +1430,7 @@
       if (reach.guideEl)     reach.guideEl.classList.remove('is-visible');
       reachClearHint();
       reachClearOnboard();
+      reachClearIdentify();
       reach.hand     = null;
       reach.clutched = false;
       reach.clutchSince = 0;
@@ -1459,6 +1511,10 @@
           }
           reach.calib = { x: sx / n, y: sy / n, size: ss / n, curl: sc / n };
           reach.calibSamples = null;
+          // Hand is locked in: drop the "Identifying powers" cue and hand off
+          // to the gesture guide now that there's a hand to demonstrate with.
+          reachClearIdentify();
+          reachShowOnboard();
         }
         return;
       }
@@ -1667,6 +1723,26 @@
     function reachClearOnboard() {
       if (reach.onboardTimer) { clearTimeout(reach.onboardTimer); reach.onboardTimer = null; }
       if (reach.onboardEl) reach.onboardEl.classList.remove('is-visible');
+    }
+
+    // First-run acquisition cue: "Identifying powers", shown once per visitor
+    // while we hunt for the hand. Gated on a localStorage flag so it greets a
+    // newcomer but never nags a returning one. It clears the instant a hand is
+    // calibrated, and a safety timeout keeps it from lingering if none appears.
+    function reachIdentifySeen() {
+      try { return localStorage.getItem('reachIdentifySeen') === '1'; }
+      catch (e) { return false; }
+    }
+    function reachShowIdentify() {
+      if (!reach.identifyEl || reachIdentifySeen()) return;
+      try { localStorage.setItem('reachIdentifySeen', '1'); } catch (e) {}
+      if (reach.identifyTimer) { clearTimeout(reach.identifyTimer); reach.identifyTimer = null; }
+      reach.identifyEl.classList.add('is-visible');
+      reach.identifyTimer = setTimeout(reachClearIdentify, REACH_ONBOARD_MS * 2);
+    }
+    function reachClearIdentify() {
+      if (reach.identifyTimer) { clearTimeout(reach.identifyTimer); reach.identifyTimer = null; }
+      if (reach.identifyEl) reach.identifyEl.classList.remove('is-visible');
     }
 
     // Esc and tab-hide also disable The Reach (Esc additionally releases Focus
