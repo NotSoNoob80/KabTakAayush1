@@ -279,7 +279,12 @@ a {
   position: fixed;
   top: calc(var(--nav-h) + 14px);
   left: 24px;
-  z-index: 40;
+  /* Above the nav (z-index 100): the nav's oversized wordmark logo (a
+     link to the home page) overflows below the bar and would otherwise
+     sit over this button and swallow the click — which is exactly the
+     "works on mobile, dead on desktop" bug, since the desktop logo is
+     the tall one. Sitting on top keeps the back control clickable. */
+  z-index: 110;
   margin: 0;
   opacity: 0.32;
   background: rgba(10, 10, 10, 0.55);
