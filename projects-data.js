@@ -32,7 +32,7 @@ const PROJECTS = [
     title: 'Supreme',
     type: 'photo',
     typeLabel: 'Photos',
-    meta: 'Photos · Mumbai',
+    meta: 'Photos · World Trade Center, Mumbai',
     description: 'Frames from a Mumbai photowalk — chasing light, texture, and the city’s unscripted moments.',
     imageCount: 14
   },
@@ -41,7 +41,7 @@ const PROJECTS = [
     title: 'Tricking Fishes',
     type: 'photo',
     typeLabel: 'Photos',
-    meta: 'Photos · India',
+    meta: 'Photos · Worli Koliwada, Mumbai',
     description: 'A wander through reflections, water, and the quiet choreography of everyday street life.',
     imageCount: 13
   },
@@ -59,7 +59,7 @@ const PROJECTS = [
     title: 'Nawab Shit',
     type: 'photo',
     typeLabel: 'Photos',
-    meta: 'Photos · Curated Series',
+    meta: 'Photos · Rajajipuram, Lucknow',
     description: 'A curated walk through old streets and quieter corners — frame after frame of found moments.',
     imageCount: 15
   },
@@ -68,7 +68,7 @@ const PROJECTS = [
     title: 'Nomad Shit',
     type: 'photo',
     typeLabel: 'Photos',
-    meta: 'Photos · On the Move',
+    meta: 'Photos · Kondeshwar, Badlapur',
     description: 'Loose, in-between frames from the road — the small scenes that pass before you can plan for them.',
     imageCount: 9
   },
@@ -77,7 +77,7 @@ const PROJECTS = [
     title: 'Nandi Hills',
     type: 'photo',
     typeLabel: 'Photos',
-    meta: 'Photos · Nandi Hills',
+    meta: 'Photos · Nandi Hills, Karnataka',
     description: 'A last good morning before the week starts again — quiet hills, soft light, and no rush to be anywhere.',
     imageCount: 8
   },
@@ -86,7 +86,7 @@ const PROJECTS = [
     title: 'Water that was still',
     type: 'film',
     typeLabel: 'Video/s',
-    meta: 'Video/s · Banganga',
+    meta: 'Video/s · Banganga, Mumbai',
     description: 'A short poem.',
     imageCount: 0,
     videoCount: 9
@@ -96,7 +96,7 @@ const PROJECTS = [
     title: 'Supreme 2',
     type: 'photo',
     typeLabel: 'Photos',
-    meta: 'Photos · Mumbai',
+    meta: 'Photos · World Trade Center, Mumbai',
     description: 'Back on the streets — Mumbai unscripted, again.',
     imageCount: 14
   },
@@ -105,7 +105,7 @@ const PROJECTS = [
     title: 'Lights and Shadows',
     type: 'photo',
     typeLabel: 'Photos',
-    meta: 'Photos · Dadar',
+    meta: 'Photos · Dadar, Mumbai',
     description: 'Dadar in contrast — where the light cuts hard and the shadows hold still.',
     imageCount: 13
   },
@@ -114,7 +114,7 @@ const PROJECTS = [
     title: 'Before Christmas',
     type: 'photo',
     typeLabel: 'Photos',
-    meta: 'Photos · Bandra',
+    meta: 'Photos · Bandra, Mumbai',
     description: 'Bandra just before the lights come down — the calm before the celebration.',
     imageCount: 10
   },
@@ -123,7 +123,7 @@ const PROJECTS = [
     title: 'Chor Bazaar',
     type: 'photo',
     typeLabel: 'Photos',
-    meta: 'Photos · Mumbai',
+    meta: 'Photos · Chor Bazaar, Mumbai',
     description: 'A wander through Mumbai\'s oldest flea market — layered, loud, and full of forgotten things.',
     imageCount: 15
   },
@@ -132,7 +132,7 @@ const PROJECTS = [
     title: 'Anatomy of a flip',
     type: 'photo',
     typeLabel: 'Photos',
-    meta: 'Photos · Bangangaa',
+    meta: 'Photos · Banganga, Mumbai',
     description: 'Anatomy of a flip',
     imageCount: 10
   }
