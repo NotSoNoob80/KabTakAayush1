@@ -135,6 +135,17 @@ const PROJECTS = [
     meta: 'Photos · Banganga, Mumbai',
     description: 'Anatomy of a flip',
     imageCount: 10
+  },
+  {
+    id: '18',
+    title: 'The Mountain (Part2)',
+    type: 'video',
+    typeLabel: 'Video/s',
+    meta: 'Video/s · Konkan Kada, Maharashtra',
+    description: 'The Mountain (Part 2)',
+    imageCount: 0,
+    videoCount: 1,
+    media: 'v'
   }
 ];
 /* @PROJECTS-END */
