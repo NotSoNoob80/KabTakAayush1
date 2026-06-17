@@ -1144,13 +1144,12 @@
 
       /* Build the Manifest entry up front, so the ZIP and the on-screen
          confirmation describe the exact same project. */
-      var metaPrefix = type === 'video' ? 'Film' :
-                       type === 'photo+video' ? 'Photo + Film' : 'Photowalk';
-      var meta = metaPrefix + (location ? ' · ' + location : '');
       /* Derive the type label from what the project actually contains, using
          the same rule the site does (projectTypeLabel in projects-data.js):
-         photos only → 'Photos', videos only → 'Video/s', a mix → 'Collection'. */
+         photos only → 'Photos', videos only → 'Video/s', a mix → 'Collection'.
+         The meta line's prefix uses the same label, so both read consistently. */
       var typeLabel = projectTypeLabel({ imageCount: images.length, videoCount: okVideos.length });
+      var meta = typeLabel + (location ? ' · ' + location : '');
 
       var entry = {
         id: id, title: title, type: type, typeLabel: typeLabel,

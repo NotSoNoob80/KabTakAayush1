@@ -32,7 +32,7 @@ const PROJECTS = [
     title: 'Supreme',
     type: 'photo',
     typeLabel: 'Photos',
-    meta: 'Photowalk · Mumbai',
+    meta: 'Photos · Mumbai',
     description: 'Frames from a Mumbai photowalk — chasing light, texture, and the city’s unscripted moments.',
     imageCount: 14
   },
@@ -41,7 +41,7 @@ const PROJECTS = [
     title: 'Tricking Fishes',
     type: 'photo',
     typeLabel: 'Photos',
-    meta: 'Photowalk · India',
+    meta: 'Photos · India',
     description: 'A wander through reflections, water, and the quiet choreography of everyday street life.',
     imageCount: 13
   },
@@ -50,7 +50,7 @@ const PROJECTS = [
     title: 'Sassooooon',
     type: 'photo',
     typeLabel: 'Photos',
-    meta: 'Photowalk · Sassoon Docks, Mumbai',
+    meta: 'Photos · Sassoon Docks, Mumbai',
     description: 'Early mornings at the docks — colour, motion, and the rhythm of a working harbour.',
     imageCount: 12
   },
@@ -59,7 +59,7 @@ const PROJECTS = [
     title: 'Nawab Shit',
     type: 'photo',
     typeLabel: 'Photos',
-    meta: 'Photowalk · Curated Series',
+    meta: 'Photos · Curated Series',
     description: 'A curated walk through old streets and quieter corners — frame after frame of found moments.',
     imageCount: 15
   },
@@ -68,7 +68,7 @@ const PROJECTS = [
     title: 'Nomad Shit',
     type: 'photo',
     typeLabel: 'Photos',
-    meta: 'Photowalk · On the Move',
+    meta: 'Photos · On the Move',
     description: 'Loose, in-between frames from the road — the small scenes that pass before you can plan for them.',
     imageCount: 9
   },
@@ -77,7 +77,7 @@ const PROJECTS = [
     title: 'Nandi Hills',
     type: 'photo',
     typeLabel: 'Photos',
-    meta: 'Photowalk · Nandi Hills',
+    meta: 'Photos · Nandi Hills',
     description: 'A last good morning before the week starts again — quiet hills, soft light, and no rush to be anywhere.',
     imageCount: 8
   },
@@ -86,7 +86,7 @@ const PROJECTS = [
     title: 'Water that was still',
     type: 'film',
     typeLabel: 'Video/s',
-    meta: 'Film · Banganga',
+    meta: 'Video/s · Banganga',
     description: 'A short poem.',
     imageCount: 0,
     videoCount: 9
@@ -96,7 +96,7 @@ const PROJECTS = [
     title: 'Supreme 2',
     type: 'photo',
     typeLabel: 'Photos',
-    meta: 'Photowalk · Mumbai',
+    meta: 'Photos · Mumbai',
     description: 'Back on the streets — Mumbai unscripted, again.',
     imageCount: 14
   },
@@ -105,7 +105,7 @@ const PROJECTS = [
     title: 'Lights and Shadows',
     type: 'photo',
     typeLabel: 'Photos',
-    meta: 'Photowalk · Dadar',
+    meta: 'Photos · Dadar',
     description: 'Dadar in contrast — where the light cuts hard and the shadows hold still.',
     imageCount: 13
   },
@@ -114,7 +114,7 @@ const PROJECTS = [
     title: 'Before Christmas',
     type: 'photo',
     typeLabel: 'Photos',
-    meta: 'Photowalk · Bandra',
+    meta: 'Photos · Bandra',
     description: 'Bandra just before the lights come down — the calm before the celebration.',
     imageCount: 10
   },
@@ -123,7 +123,7 @@ const PROJECTS = [
     title: 'Chor Bazaar',
     type: 'photo',
     typeLabel: 'Photos',
-    meta: 'Photowalk · Mumbai',
+    meta: 'Photos · Mumbai',
     description: 'A wander through Mumbai\'s oldest flea market — layered, loud, and full of forgotten things.',
     imageCount: 15
   },
@@ -132,7 +132,7 @@ const PROJECTS = [
     title: 'Anatomy of a flip',
     type: 'photo',
     typeLabel: 'Photos',
-    meta: 'Photowalk · Bangangaa',
+    meta: 'Photos · Bangangaa',
     description: 'Anatomy of a flip',
     imageCount: 10
   }
