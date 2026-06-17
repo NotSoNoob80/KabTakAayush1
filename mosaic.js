@@ -95,11 +95,21 @@
   var MosaicPreview = (function () {
     var overlay = null;
     var closeBtn = null;
+    var prevBtn = null;
+    var nextBtn = null;
     var stage = null;
+    var hint = null;
     var lastTrigger = null;
     var pausedTiles = [];
+    var currentIndex = -1;
+    var hintTimer = 0;
+    var touchStartX = 0, touchStartY = 0, touchActive = false;
     var reducedMotion = window.matchMedia &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    /* No fine pointer → treat as touch: nav buttons give way to swipe, and
+       the after-10s cue points at the gesture rather than the arrow keys. */
+    var isTouch = !(window.matchMedia &&
+      window.matchMedia('(hover: hover) and (pointer: fine)').matches);
 
     var build = function () {
       overlay = document.createElement('div');
@@ -116,30 +126,70 @@
             '<path d="M18 6 L6 18"/>' +
           '</svg>' +
         '</button>' +
-        '<div class="mosaic-preview__stage"></div>';
+        '<button class="mosaic-preview__nav mosaic-preview__nav--prev" type="button" aria-label="Previous">' +
+          '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 L8 12 L15 19"/></svg>' +
+        '</button>' +
+        '<button class="mosaic-preview__nav mosaic-preview__nav--next" type="button" aria-label="Next">' +
+          '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5 L16 12 L9 19"/></svg>' +
+        '</button>' +
+        '<div class="mosaic-preview__stage"></div>' +
+        '<div class="mosaic-preview__hint" aria-hidden="true"></div>';
       document.body.appendChild(overlay);
       closeBtn = overlay.querySelector('.mosaic-preview__close');
+      prevBtn  = overlay.querySelector('.mosaic-preview__nav--prev');
+      nextBtn  = overlay.querySelector('.mosaic-preview__nav--next');
       stage    = overlay.querySelector('.mosaic-preview__stage');
+      hint     = overlay.querySelector('.mosaic-preview__hint');
+      hint.textContent = isTouch ? 'Swipe to browse' : 'Use ← → to browse';
 
       overlay.addEventListener('click', function (e) {
         if (e.target && e.target.hasAttribute('data-close')) close();
       });
       closeBtn.addEventListener('click', close);
+      prevBtn.addEventListener('click', function () { go(-1); });
+      nextBtn.addEventListener('click', function () { go(1); });
       document.addEventListener('keydown', function (e) {
         if (!overlay || overlay.hasAttribute('hidden')) return;
-        if (e.key === 'Escape' || e.key === 'Esc') close();
+        if (e.key === 'Escape' || e.key === 'Esc') {
+          close();
+        } else if (e.key === 'ArrowLeft') {
+          e.preventDefault(); go(-1);
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault(); go(1);
+        }
       });
+
+      /* Swipe — a horizontal drag across the overlay flips frames on touch
+         devices. The vertical guard keeps a scroll-ish drag from triggering
+         navigation, and the distance threshold ignores incidental taps. */
+      overlay.addEventListener('touchstart', function (e) {
+        if (e.touches.length !== 1) { touchActive = false; return; }
+        touchActive = true;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }, { passive: true });
+      overlay.addEventListener('touchend', function (e) {
+        if (!touchActive) return;
+        touchActive = false;
+        var t = e.changedTouches[0];
+        var dx = t.clientX - touchStartX;
+        var dy = t.clientY - touchStartY;
+        if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.6) {
+          go(dx < 0 ? 1 : -1);
+        }
+      }, { passive: true });
     };
 
-    var open = function (kind, src, trigger) {
-      if (!overlay) build();
-      lastTrigger = trigger || null;
+    /* Render media[index] onto the stage, replacing whatever's there. */
+    var render = function (index) {
+      currentIndex = index;
+      var item = media[index];
       stage.innerHTML = '';
 
       var node;
-      if (kind === 'video') {
+      if (item.kind === 'video') {
         node = document.createElement('video');
-        node.src = src;
+        node.src = item.src;
         node.controls = true;
         node.autoplay = true;
         node.loop = true;
@@ -150,11 +200,49 @@
         node.setAttribute('preload', 'metadata');
       } else {
         node = document.createElement('img');
-        node.src = src;
+        node.src = item.src;
         node.alt = '';
         node.decoding = 'async';
       }
       stage.appendChild(node);
+    };
+
+    /* Step the preview by ±1 with wraparound. Any deliberate navigation
+       means the visitor already knows how to move — retire the cue. */
+    var go = function (delta) {
+      if (media.length <= 1) return;
+      cancelHint();
+      var n = media.length;
+      render(((currentIndex + delta) % n + n) % n);
+    };
+
+    /* The after-10s cue: if the visitor hasn't navigated within 10s of
+       opening, surface the hint (swipe on touch, arrows on desktop) for a
+       few seconds, then let it fade. Cancelled the moment they navigate or
+       close. Single-item previews never schedule it — there's nowhere to go. */
+    var cancelHint = function () {
+      if (hintTimer) { window.clearTimeout(hintTimer); hintTimer = 0; }
+      if (overlay) overlay.classList.remove('is-hinting');
+    };
+    var scheduleHint = function () {
+      cancelHint();
+      if (media.length <= 1) return;
+      hintTimer = window.setTimeout(function () {
+        overlay.classList.add('is-hinting');
+        hintTimer = window.setTimeout(function () {
+          overlay.classList.remove('is-hinting');
+          hintTimer = 0;
+        }, 4000);
+      }, 10000);
+    };
+
+    var open = function (index, trigger) {
+      if (!overlay) build();
+      lastTrigger = trigger || null;
+      /* Only expose the arrows (desktop) / cue when there's more than one
+         frame to move between. */
+      overlay.classList.toggle('has-nav', media.length > 1);
+      render(index);
 
       /* Pause every inline tile video so two copies don't play. */
       pausedTiles = [];
@@ -175,10 +263,13 @@
       /* Move focus to the close button so ESC/Enter work immediately
          and screen readers announce the dialog. */
       try { closeBtn.focus(); } catch (err) { /* ignore */ }
+
+      scheduleHint();
     };
 
     var close = function () {
       if (!overlay || overlay.hasAttribute('hidden')) return;
+      cancelHint();
       overlay.classList.remove('is-open');
 
       var finalize = function () {
@@ -242,19 +333,19 @@
       }, { threshold: [0, 0.25] })
     : null;
 
-  var buildImageTile = function (src) {
+  var buildImageTile = function (src, index) {
     var fig = document.createElement('figure');
     fig.className = 'mosaic__item';
     fig.setAttribute('role', 'button');
     fig.setAttribute('tabindex', '0');
     fig.setAttribute('aria-label', 'Open preview');
     fig.addEventListener('click', function () {
-      MosaicPreview.open('image', src, fig);
+      MosaicPreview.open(index, fig);
     });
     fig.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
         e.preventDefault();
-        MosaicPreview.open('image', src, fig);
+        MosaicPreview.open(index, fig);
       }
     });
 
@@ -298,7 +389,7 @@
     grid.appendChild(fig);
   };
 
-  var buildVideoTile = function (src) {
+  var buildVideoTile = function (src, index) {
     var fig = document.createElement('figure');
     fig.className = 'mosaic__item mosaic__item--video';
     fig.setAttribute('role', 'button');
@@ -374,12 +465,12 @@
        toggling sound does not also open the preview. */
     fig.addEventListener('click', function (e) {
       if (e && e.target && (e.target === badge || badge.contains(e.target))) return;
-      MosaicPreview.open('video', src, fig);
+      MosaicPreview.open(index, fig);
     });
     fig.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
         e.preventDefault();
-        MosaicPreview.open('video', src, fig);
+        MosaicPreview.open(index, fig);
       }
     });
     badge.addEventListener('click', toggleSound);
@@ -411,11 +502,11 @@
     if (io) io.observe(video);
   };
 
-  media.forEach(function (item) {
+  media.forEach(function (item, index) {
     if (item.kind === 'video') {
-      buildVideoTile(item.src);
+      buildVideoTile(item.src, index);
     } else {
-      buildImageTile(item.src);
+      buildImageTile(item.src, index);
     }
   });
 

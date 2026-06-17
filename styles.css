@@ -2530,13 +2530,120 @@ html.intro-armed {
   stroke-linecap: round;
 }
 
+/* Prev/next navigation — desktop only (touch devices use swipe instead).
+   Mirrors the close button's quiet line-art pill, parked at the vertical
+   centre of each edge. Hidden unless the preview holds more than one frame. */
+.mosaic-preview__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(10, 10, 10, 0.66);
+  color: var(--cream);
+  cursor: pointer;
+  z-index: 2;
+  transition:
+    border-color 220ms var(--ease-out),
+    background-color 220ms var(--ease-out);
+}
+
+.mosaic-preview__nav--prev { left: max(20px, env(safe-area-inset-left)); }
+.mosaic-preview__nav--next { right: max(20px, env(safe-area-inset-right)); }
+
+.mosaic-preview.has-nav .mosaic-preview__nav {
+  display: inline-flex;
+}
+
+.mosaic-preview__nav:hover,
+.mosaic-preview__nav:focus-visible {
+  border-color: rgba(243, 237, 225, 0.36);
+  background: rgba(10, 10, 10, 0.82);
+  outline: none;
+}
+
+.mosaic-preview__nav svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* On touch devices the arrows give way to swipe. */
+@media (hover: none), (pointer: coarse) {
+  .mosaic-preview.has-nav .mosaic-preview__nav {
+    display: none;
+  }
+}
+
+/* The after-10s navigation cue — a quiet pill that fades up from the bottom
+   edge. The text itself is set per device in JS (swipe vs. arrow keys). */
+.mosaic-preview__hint {
+  position: absolute;
+  left: 50%;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  transform: translate(-50%, 8px);
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(10, 10, 10, 0.74);
+  color: var(--cream);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 3;
+  transition:
+    opacity 320ms var(--ease-out),
+    transform 320ms var(--ease-out);
+}
+
+.mosaic-preview.is-hinting .mosaic-preview__hint {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* When the cue fires on desktop, give the arrows a couple of soft pulses so
+   the eye is drawn to them alongside the pill. */
+@media (hover: hover) and (pointer: fine) {
+  .mosaic-preview.is-hinting .mosaic-preview__nav {
+    animation: mosaicNavPulse 1.2s var(--ease-out) 2;
+  }
+}
+
+@keyframes mosaicNavPulse {
+  0%, 100% {
+    transform: translateY(-50%) scale(1);
+    border-color: var(--line);
+  }
+  50% {
+    transform: translateY(-50%) scale(1.12);
+    border-color: rgba(243, 237, 225, 0.5);
+  }
+}
+
 body.has-preview {
   overflow: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .mosaic-preview,
-  .mosaic-preview__stage {
+  .mosaic-preview__stage,
+  .mosaic-preview__nav,
+  .mosaic-preview__hint {
     transition: none;
+  }
+  .mosaic-preview.is-hinting .mosaic-preview__nav {
+    animation: none;
   }
 }
