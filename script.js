@@ -357,56 +357,70 @@
   }
 
   /* ---------- Project page: "Back to Projects" button ----------
-     A plain `href="projects.html"` always *works*, but it always loads
-     the index fresh at the top — so a visitor who scrolled down the
-     list, opened a project, then hit "back" lands somewhere that
-     doesn't match where they were. That's the "doesn't work right"
-     feeling. The fix: when we can tell the visitor actually came from
-     the projects page in this tab (same-origin `document.referrer`),
-     reuse the browser's own history entry via `history.back()` —
-     which restores scroll position from the bfcache — instead of
-     pushing a brand-new navigation. Anyone who lands on a project page
-     directly (shared link, refresh, new tab — no usable back-entry)
-     just falls through to the normal href and gets a fresh index. */
+     The button always navigates to the Projects index via its plain
+     `href="projects.html"`. We deliberately do NOT shortcut to
+     `history.back()`: that reuses the previous history entry, which is
+     only the index when the visitor arrived straight from it — anyone
+     who reached the project from the home page (or any other route)
+     would be sent there instead. Predictable "go to the project list"
+     beats clever-but-wrong, so we leave the href to do its job. */
   var projectBackBtn = document.getElementById('project-back-btn');
   if (projectBackBtn) {
-    var cameFromIndex = false;
-    try {
-      var ref = document.referrer ? new URL(document.referrer) : null;
-      cameFromIndex = !!ref &&
-        ref.origin === window.location.origin &&
-        /(^|\/)projects\.html$/.test(ref.pathname) &&
-        window.history.length > 1;
-    } catch (e) {
-      cameFromIndex = false;
-    }
-
-    if (cameFromIndex) {
-      projectBackBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        window.history.back();
-      });
-    }
-
     /* Keep the back control reachable after the visitor scrolls into the
-       mosaic. Once the header has scrolled away, `is-floating` detaches
-       the button to a fixed, dimmed corner (see styles.css) so it stays
-       out of the way of the photos; near the top it sits back in flow. */
-    var floatThreshold = 200;
-    var computeThreshold = function () {
-      var head = document.querySelector('.page-head');
-      floatThreshold = head ? Math.max(140, head.offsetTop + head.offsetHeight * 0.5) : 200;
+       mosaic. Once the button has scrolled up under the nav, `is-floating`
+       detaches it to a fixed, dimmed corner (see styles.css) so it stays
+       out of the way of the photos; near the top it sits back in flow.
+
+       A same-size placeholder takes the button's place in the header
+       while it floats, so detaching never shifts the heading/sound-toggle
+       below it. That stable layout is what stops the threshold from
+       oscillating — the earlier version jittered because removing the
+       button from flow moved everything up, nudging the scroll position
+       back across the threshold, over and over. */
+    var floatOn = false;
+    var placeholder = null;
+    var enterAt = 200;
+
+    var measure = function () {
+      if (floatOn) return;   /* natural position is only knowable in flow */
+      var y = window.scrollY || document.documentElement.scrollTop || 0;
+      var rect = projectBackBtn.getBoundingClientRect();
+      /* Float once the button's own bottom edge has scrolled off the top. */
+      enterAt = Math.max(120, rect.top + y + rect.height);
     };
+
+    var setFloating = function (on) {
+      if (on === floatOn) return;
+      floatOn = on;
+      if (on) {
+        placeholder = document.createElement('div');
+        placeholder.className = 'back-btn-placeholder';
+        placeholder.setAttribute('aria-hidden', 'true');
+        placeholder.style.height = projectBackBtn.offsetHeight + 'px';
+        placeholder.style.marginBottom =
+          window.getComputedStyle(projectBackBtn).marginBottom;
+        projectBackBtn.parentNode.insertBefore(placeholder, projectBackBtn);
+        projectBackBtn.classList.add('is-floating');
+      } else {
+        projectBackBtn.classList.remove('is-floating');
+        if (placeholder && placeholder.parentNode) {
+          placeholder.parentNode.removeChild(placeholder);
+        }
+        placeholder = null;
+      }
+    };
+
     var onBackScroll = function () {
-      var y = window.pageYOffset || document.documentElement.scrollTop || 0;
-      projectBackBtn.classList.toggle('is-floating', y > floatThreshold);
+      var y = window.scrollY || document.documentElement.scrollTop || 0;
+      setFloating(y > enterAt);
     };
-    computeThreshold();
+
+    measure();
     onBackScroll();
-    window.addEventListener('resize', function () {
-      computeThreshold();
-      onBackScroll();
-    }, { passive: true });
+    /* Re-measure once everything (fonts, the reveal) has settled. */
+    window.addEventListener('load', function () { measure(); onBackScroll(); });
+    window.addEventListener('resize', function () { measure(); onBackScroll(); },
+      { passive: true });
     window.addEventListener('scroll', onBackScroll, { passive: true });
   }
 
