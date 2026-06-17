@@ -741,8 +741,9 @@
     //               speeds up, so fast moves shed lag; too high lets jitter back
     //               in mid-move.
     //   DCUTOFF:    cutoff for the internal speed estimate; 1.0 is standard.
-    var REACH_EURO_MIN_CUTOFF = 1.0;
-    var REACH_EURO_BETA       = 1.5;
+    var REACH_EURO_MIN_CUTOFF = 0.8;    // ↓ from 1.0: steadier at rest (more jitter removed)
+    var REACH_EURO_BETA       = 2.0;    // ↑ from 1.5: opens the cutoff sooner so fast moves keep
+                                        //   their snap despite the lower baseline — net smoother
     var REACH_EURO_DCUTOFF    = 1.0;
     var REACH_LOSS_HINT_MS = 2000;
     var REACH_CURL_OPEN_RATIO = 0.85;   // curl > this * calib.curl ⇒ clutched→open
