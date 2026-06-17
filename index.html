@@ -745,14 +745,18 @@
     var REACH_EURO_BETA       = 2.0;    // ↑ from 1.5: opens the cutoff sooner so fast moves keep
                                         //   their snap despite the lower baseline — net smoother
     var REACH_EURO_DCUTOFF    = 1.0;
-    // Depth (push/pull) smoothing time constant, in seconds. The size signal
-    // that drives fly-forward/back is eased toward each new sample with an alpha
-    // derived from real frame dt, so — unlike the old per-frame read — its feel
-    // does not ride the frame rate. Lower = snappier depth; higher = smoother
-    // but laggier. One Euro's speed-adaptive smoothing is overkill here: depth
-    // needs lag-reduction and framerate-independence, not jitter rejection, so a
-    // plain framerate-independent glide is the right-sized version of it.
-    var REACH_DEPTH_GLIDE_TAU = 0.04;
+    // Depth (push/pull) smoothing — a One Euro filter on the size signal (see
+    // makeOneEuro). This was a plain dt-glide when the goal was purely lag /
+    // framerate-independence; now that the goal is LESS JITTER, the speed-
+    // adaptive filter earns its keep: heavy smoothing while depth is held steady
+    // (kills resting jitter), opening up during an active push (so no lag is
+    // re-added). Size's velocity scale is ~10x smaller than a hand sweep, so
+    // BETA is far larger than the x/y filter's to open the cutoff on a push.
+    //   MIN_CUTOFF: baseline cutoff (Hz). Lower = steadier / less jitter at rest.
+    //   BETA:       speed coupling. Higher = snappier push, but lets jitter back.
+    var REACH_EURO_SIZE_MIN_CUTOFF = 0.6;
+    var REACH_EURO_SIZE_BETA       = 15.0;
+    var REACH_EURO_SIZE_DCUTOFF    = 1.0;
     var REACH_LOSS_HINT_MS = 2000;
     var REACH_CURL_OPEN_RATIO = 0.85;   // curl > this * calib.curl ⇒ clutched→open
     var REACH_CURL_FIST_RATIO = 0.55;   // curl < this * calib.curl ⇒ open→clutched
@@ -1315,6 +1319,7 @@
     }
     var _reachEuroX = makeOneEuro(REACH_EURO_MIN_CUTOFF, REACH_EURO_BETA, REACH_EURO_DCUTOFF);
     var _reachEuroY = makeOneEuro(REACH_EURO_MIN_CUTOFF, REACH_EURO_BETA, REACH_EURO_DCUTOFF);
+    var _reachEuroSize = makeOneEuro(REACH_EURO_SIZE_MIN_CUTOFF, REACH_EURO_SIZE_BETA, REACH_EURO_SIZE_DCUTOFF);
 
     function reachInitDom() {
       reach.ctaEl       = document.getElementById('reach-cta');
@@ -1502,6 +1507,7 @@
       reach.lastApplyTs = 0;
       _reachEuroX.reset();
       _reachEuroY.reset();
+      _reachEuroSize.reset();
       reach.clutched = false;
       reach.clutchSince = 0;
       reach.openSince   = 0;
@@ -1676,10 +1682,11 @@
       if (!reach.hand || !reach.calib) {
         reach.handRender = null;   // re-acquire snaps to the fresh position, no glide-from-stale
         reach.handRaw    = null;
-        reach.sizeRender = null;   // depth glide snaps on re-acquire too
+        reach.sizeRender = null;   // depth filter snaps on re-acquire too
         reach.lastApplyTs = 0;
         _reachEuroX.reset();       // so the next acquire snaps instead of gliding from a stale sample
         _reachEuroY.reset();
+        _reachEuroSize.reset();
         var lostFor = reach.lastSeenAt ? (performance.now() - reach.lastSeenAt) : 0;
         var withinGrace = (lostFor <= REACH_LOSS_HINT_MS);
         if (reach.reticleEl) {
@@ -1734,27 +1741,27 @@
       hr.x = _reachEuroX.filter(src.x, now);
       hr.y = _reachEuroY.filter(src.y, now);
 
-      // Real frame dt (clamped against a stall) — drives the framerate-
-      // independent depth glide below and the dt-scaled push so depth no longer
-      // rides the frame rate the heavier detection now costs.
+      // Real frame dt (clamped against a stall) drives the dt-scaled push so
+      // depth's fly RATE no longer rides the frame rate the heavier detection
+      // costs. (The size filter below tracks its own dt internally.)
       var dtMs = reach.lastApplyTs ? (now - reach.lastApplyTs) : (1000 / 60);
       reach.lastApplyTs = now;
       if (!(dtMs > 0)) dtMs = 1000 / 60;
-      else if (dtMs > 1000 / 15) dtMs = 1000 / 15;   // clamp a long gap so we glide, not leap
-      var dtSec   = dtMs / 1000;
-      var dtScale = dtSec * 60;                       // 1.0 at 60fps; >1 compensates a low frame rate
+      else if (dtMs > 1000 / 15) dtMs = 1000 / 15;   // clamp a long gap so we scale, not leap
+      var dtScale = (dtMs / 1000) * 60;               // 1.0 at 60fps; >1 compensates a low frame rate
 
-      // Depth glide: ease the stepped detection-rate size toward each sample
-      // with a dt-derived alpha (framerate-independent). Raw reach.hand.size
-      // still drives the clutch re-anchor (ADR 0011); we snap this copy to it on
-      // acquire / re-anchor so the push still starts from ~0 and never jerks.
-      if (reach.sizeRender == null || reach.snapSizeOnNext) {
-        reach.sizeRender     = reach.hand.size;
+      // Depth smoothing: a One Euro filter on the size signal. The goal here is
+      // jitter (not lag), so the speed-adaptive filter is the right tool — it
+      // smooths hard while depth is held steady (killing resting jitter) and
+      // opens up during an active push (so no lag is re-added). It's framerate-
+      // independent (tracks its own dt). Raw reach.hand.size still drives the
+      // clutch re-anchor (ADR 0011); we reset the filter on acquire / re-anchor
+      // so its next output snaps to the raw size → ds≈0, no z jerk.
+      if (reach.sizeRender === null || reach.snapSizeOnNext) {
+        _reachEuroSize.reset();
         reach.snapSizeOnNext = false;
-      } else {
-        var aSize = 1 - Math.exp(-dtSec / REACH_DEPTH_GLIDE_TAU);
-        reach.sizeRender += (reach.hand.size - reach.sizeRender) * aSize;
       }
+      reach.sizeRender = _reachEuroSize.filter(reach.hand.size, now);
 
       var ox = hr.x - reach.calib.x;
       var oy = hr.y - reach.calib.y;
