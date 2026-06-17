@@ -796,20 +796,27 @@
     /* ════════════════════════════════════════════
        VIDEO COMPRESSOR (ffmpeg.wasm, single-thread)
        ------------------------------------------------------------
-       Oversized gallery videos are transcoded to H.264 MP4 under
-       100 MB before they go into the project ZIP, with the least
-       quality loss for that ceiling: capped at 1080p and given a
-       bitrate computed from the clip's own duration so it lands just
-       under the limit. Runs entirely in the browser — the single-
-       threaded core needs no COOP/COEP cross-origin-isolation
-       headers, so it works on plain static hosting (Netlify/Vercel).
-       The ~30 MB engine is fetched from a CDN lazily — only the first
-       time a video actually needs compressing, so adding a photo-only
-       project never pays for it. See also the LFS discussion: this is
-       what keeps videos small enough to live in the repo at all.
+       Every gallery video is normalized to the Web-delivery encode
+       — a 720p H.264 MP4 tuned for fast playback on Indian mobile,
+       the motion counterpart to the WebP convention for photos.
+       The encoder targets a fixed visual quality (CRF 23) rather
+       than chasing GitHub's 100 MB ceiling, so file size falls out
+       of the clip's own complexity. GitHub's 100 MB limit is demoted
+       to a 3-rung safety net that only fires on overshoot: rung 1
+       (CRF 23, 720p) → rung 2 (CRF 28, 720p) → rung 3 (bitrate-capped,
+       last-resort, guaranteed under 100 MB). Runs entirely in the
+       browser — the single-threaded core needs no COOP/COEP cross-
+       origin-isolation headers, so it works on plain static hosting
+       (Netlify/Vercel). The ~30 MB engine is fetched from a CDN
+       lazily on first use, so a photo-only project never pays for it.
        ════════════════════════════════════════════ */
-    var VIDEO_CAP_BYTES  = 95 * 1024 * 1024;   /* target ceiling — margin under 100 */
-    var VIDEO_HARD_BYTES = 100 * 1024 * 1024;  /* GitHub's hard per-file limit */
+    /* GitHub's hard per-file limit. The safety-net trigger — only an
+       overshoot past this size escalates from rung 1 to rung 2/3. */
+    var VIDEO_HARD_BYTES = 100 * 1024 * 1024;
+    /* Margin under VIDEO_HARD_BYTES, used ONLY by rung 3's bitrate
+       math (the duration-derived last-resort encode). No longer a
+       passthrough threshold — every video goes through compressVideo. */
+    var VIDEO_CAP_BYTES  = 95 * 1024 * 1024;
     var FF_VER    = '0.12.10';
     var FF_UTIL   = '0.12.1';
     var FF_CORE   = '0.12.6';
@@ -874,72 +881,98 @@
       });
     }
 
-    /* Transcode `file` to an H.264 MP4 under 100 MB, capped at 1080p, with
-       faststart for instant web playback. onProgress(ratio 0..1) fires while
-       encoding. The bitrate is derived from the clip's duration so the result
-       lands just under the ceiling; on the rare overshoot it re-encodes at a
-       tighter target so the output is *guaranteed* below 100 MB. */
+    /* Run the Web-delivery encode on `file`: a 720p H.264 MP4 with faststart
+       and AAC 96k, tuned for fast playback on Indian mobile. onProgress(ratio
+       0..1) fires while encoding. Normal path is rung 1 (CRF 23, preset
+       faster); on the rare overshoot past VIDEO_HARD_BYTES the encoder
+       escalates to rung 2 (CRF 28) and, if still over, rung 3 (bitrate-capped
+       from the clip's duration) — guaranteed under 100 MB. */
     function compressVideo(file, onProgress) {
       return loadFFmpeg().then(function (ff) {
         var fetchFile = window.FFmpegUtil.fetchFile;
-        return videoDuration(file).then(function (duration) {
-          var stamp   = Date.now();
-          var inName  = 'in_' + stamp + '.mp4';
-          var outName = 'out_' + stamp + '.mp4';
-          var AUDIO_K = 128;                  /* kbps */
-          var FACTORS = [0.92, 0.80, 0.66];   /* shrink the target if a pass overshoots */
+        var stamp   = Date.now();
+        var inName  = 'in_' + stamp + '.mp4';
+        var outName = 'out_' + stamp + '.mp4';
+        var AUDIO_K = 96;
 
-          var progHandler = function (e) {
-            if (onProgress && e && typeof e.progress === 'number') {
-              onProgress(e.progress < 0 ? 0 : (e.progress > 1 ? 1 : e.progress));
-            }
-          };
-          var cleanup = function () {
-            ff.off('progress', progHandler);
-            try { ff.deleteFile(inName); } catch (e) { /* ignore */ }
-            try { ff.deleteFile(outName); } catch (e) { /* ignore */ }
-          };
+        /* Fit within 1280×720 keeping aspect (never upscales), then round both
+           dimensions to even numbers for yuv420p/H.264. Shared by all rungs. */
+        var SCALE_720 = "scale='min(1280,iw)':'min(720,ih)':force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2";
 
-          return fetchFile(file)
-            .then(function (data) { return ff.writeFile(inName, data); })
-            .then(function () {
-              ff.on('progress', progHandler);
+        var progHandler = function (e) {
+          if (onProgress && e && typeof e.progress === 'number') {
+            onProgress(e.progress < 0 ? 0 : (e.progress > 1 ? 1 : e.progress));
+          }
+        };
+        var cleanup = function () {
+          ff.off('progress', progHandler);
+          try { ff.deleteFile(inName); } catch (e) { /* ignore */ }
+          try { ff.deleteFile(outName); } catch (e) { /* ignore */ }
+        };
 
-              var attempt = function (idx) {
-                var capBytes = VIDEO_CAP_BYTES * FACTORS[idx];
-                var totalK = duration > 0 ? Math.floor((capBytes * 8 / 1000) / duration) : 4000;
-                var videoK = Math.max(300, totalK - AUDIO_K);
-                var maxK   = Math.floor(videoK * 1.45);
-                var bufK   = maxK * 2;
+        var readOut = function () {
+          return ff.readFile(outName).then(function (out) {
+            return new Blob([out.buffer], { type: 'video/mp4' });
+          });
+        };
 
-                return ff.exec([
-                  '-i', inName,
-                  /* Fit within 1920×1080 keeping aspect (never upscales), then
-                     round both dimensions to even numbers for yuv420p/H.264. */
-                  '-vf', "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2",
-                  '-c:v', 'libx264',
-                  '-preset', 'medium',
-                  '-b:v', videoK + 'k',
-                  '-maxrate', maxK + 'k',
-                  '-bufsize', bufK + 'k',
-                  '-pix_fmt', 'yuv420p',
-                  '-movflags', '+faststart',
-                  '-c:a', 'aac', '-b:a', AUDIO_K + 'k',
-                  '-y', outName
-                ]).then(function () {
-                  return ff.readFile(outName);
-                }).then(function (out) {
-                  var blob = new Blob([out.buffer], { type: 'video/mp4' });
-                  if (blob.size <= VIDEO_HARD_BYTES || idx >= FACTORS.length - 1) return blob;
-                  return attempt(idx + 1);   /* still too big — tighten and retry */
-                });
-              };
+        var encodeCRF = function (crf) {
+          return ff.exec([
+            '-i', inName,
+            '-vf', SCALE_720,
+            '-c:v', 'libx264',
+            '-preset', 'faster',
+            '-crf', String(crf),
+            '-pix_fmt', 'yuv420p',
+            '-movflags', '+faststart',
+            '-c:a', 'aac', '-b:a', AUDIO_K + 'k',
+            '-y', outName
+          ]).then(readOut);
+        };
 
-              return attempt(0);
-            })
-            .then(function (blob) { cleanup(); return blob; })
-            .catch(function (err) { cleanup(); throw err; });
-        });
+        /* Rung 3: derive a video bitrate from the clip's duration so the
+           result is guaranteed under VIDEO_HARD_BYTES. Last-resort path —
+           VIDEO_CAP_BYTES exists solely to feed this math. */
+        var encodeBitrateCapped = function () {
+          return videoDuration(file).then(function (duration) {
+            var totalK = duration > 0 ? Math.floor((VIDEO_CAP_BYTES * 8 / 1000) / duration) : 4000;
+            var videoK = Math.max(300, totalK - AUDIO_K);
+            var maxK   = Math.floor(videoK * 1.45);
+            var bufK   = maxK * 2;
+            return ff.exec([
+              '-i', inName,
+              '-vf', SCALE_720,
+              '-c:v', 'libx264',
+              '-preset', 'faster',
+              '-b:v', videoK + 'k',
+              '-maxrate', maxK + 'k',
+              '-bufsize', bufK + 'k',
+              '-pix_fmt', 'yuv420p',
+              '-movflags', '+faststart',
+              '-c:a', 'aac', '-b:a', AUDIO_K + 'k',
+              '-y', outName
+            ]).then(readOut);
+          });
+        };
+
+        return fetchFile(file)
+          .then(function (data) { return ff.writeFile(inName, data); })
+          .then(function () {
+            ff.on('progress', progHandler);
+
+            /* Rung 1: the normal Web-delivery encode. Virtually always wins. */
+            return encodeCRF(23).then(function (blob) {
+              if (blob.size <= VIDEO_HARD_BYTES) return blob;
+              /* Rung 2: tighten CRF to 28 — overshoot only. */
+              return encodeCRF(28).then(function (blob2) {
+                if (blob2.size <= VIDEO_HARD_BYTES) return blob2;
+                /* Rung 3: bitrate-capped last resort. */
+                return encodeBitrateCapped();
+              });
+            });
+          })
+          .then(function (blob) { cleanup(); return blob; })
+          .catch(function (err) { cleanup(); throw err; });
       });
     }
 
@@ -1414,27 +1447,21 @@
         });
       });
 
-      // Videos → videos/NN.mp4 (grid order). Anything over the size cap is
-      // transcoded under 100 MB first (see VIDEO COMPRESSOR above); files
-      // already small enough ship byte-for-byte so they lose no quality.
-      var compressedCount = 0;
+      // Videos → videos/NN.mp4 (grid order). Every video is run through the
+      // Web-delivery encode (720p H.264, CRF 23, faststart) — no passthrough.
+      // A clip already smaller than the CRF target passes through near-
+      // untouched; the point is one predictable path. See VIDEO COMPRESSOR.
       okVideos.forEach(function (g, i) {
         chain = chain.then(function () {
           var name = pad(i + 1) + '.mp4';
-          if (g.file.size <= VIDEO_CAP_BYTES) {
-            zip.file(base + 'videos/' + name, g.file);
-            step('Adding videos… (' + (i + 1) + '/' + okVideos.length + ')');
-            return;
-          }
           var basePct = (done / total) * 85;
-          var label = 'Compressing video ' + (i + 1) + '/' + okVideos.length;
+          var label = 'Optimizing video ' + (i + 1) + '/' + okVideos.length;
           showProgress('proj-progress-bar', 'proj-progress-label', 'proj-progress', basePct, label + '… loading encoder');
           return compressVideo(g.file, function (ratio) {
             showProgress('proj-progress-bar', 'proj-progress-label', 'proj-progress', basePct, label + '… ' + Math.round(ratio * 100) + '%');
           }).then(function (blob) {
-            compressedCount++;
             zip.file(base + 'videos/' + name, blob);
-            step('Compressed video (' + (i + 1) + '/' + okVideos.length + ')');
+            step('Optimized video (' + (i + 1) + '/' + okVideos.length + ')');
           });
         });
       });
@@ -1443,9 +1470,9 @@
       // in the ZIP — so extracting at the repo root updates the Manifest too,
       // no copy-paste. (See ADR 0004.)
       chain = chain.then(function () {
-        lastCompressionNote = compressedCount > 0
-          ? ('<strong>' + compressedCount + ' video' + (compressedCount > 1 ? 's' : '') +
-             '</strong> compressed to fit under 100 MB.')
+        lastCompressionNote = okVideos.length > 0
+          ? ('<strong>' + okVideos.length + ' video' + (okVideos.length > 1 ? 's' : '') +
+             '</strong> optimized for fast web playback at 720p.')
           : '';
         showProgress('proj-progress-bar', 'proj-progress-label', 'proj-progress', 88, 'Updating manifest…');
         return fetchText('projects-data.js').then(function (text) {

@@ -182,5 +182,11 @@ implementation; this file is the source of truth for what we call things.
   bundles them into a **ZIP**, and updates the Manifest (and the reel count)
   for you — there is no copy-paste-into-files step.
 - **WebP convention** — every project and reel *photo* is stored as WebP
-  (`thumbnail.webp`, `01.webp`, …). Only **videos** keep their original MP4
-  files. The Admin enforces this on the way in.
+  (`thumbnail.webp`, `01.webp`, …). The Admin enforces this on the way in.
+- **Web-delivery encode** — videos are not kept as their original files; the
+  Admin normalizes every video to a **720p H.264 MP4** tuned for fast playback
+  on Indian mobile (the motion counterpart to the **WebP convention** for
+  photos). GitHub's 100 MB per-file limit is a safety net, not a quality
+  target — see
+  [ADR 0012](docs/adr/0012-video-web-delivery-encode.md) and
+  `plan-video-web-delivery.md`.
