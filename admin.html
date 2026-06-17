@@ -794,6 +794,156 @@
     }
 
     /* ════════════════════════════════════════════
+       VIDEO COMPRESSOR (ffmpeg.wasm, single-thread)
+       ------------------------------------------------------------
+       Oversized gallery videos are transcoded to H.264 MP4 under
+       100 MB before they go into the project ZIP, with the least
+       quality loss for that ceiling: capped at 1080p and given a
+       bitrate computed from the clip's own duration so it lands just
+       under the limit. Runs entirely in the browser — the single-
+       threaded core needs no COOP/COEP cross-origin-isolation
+       headers, so it works on plain static hosting (Netlify/Vercel).
+       The ~30 MB engine is fetched from a CDN lazily — only the first
+       time a video actually needs compressing, so adding a photo-only
+       project never pays for it. See also the LFS discussion: this is
+       what keeps videos small enough to live in the repo at all.
+       ════════════════════════════════════════════ */
+    var VIDEO_CAP_BYTES  = 95 * 1024 * 1024;   /* target ceiling — margin under 100 */
+    var VIDEO_HARD_BYTES = 100 * 1024 * 1024;  /* GitHub's hard per-file limit */
+    var FF_VER    = '0.12.10';
+    var FF_UTIL   = '0.12.1';
+    var FF_CORE   = '0.12.6';
+    var FF_CDN    = 'https://cdn.jsdelivr.net/npm';
+    /* The UMD worker is emitted as a numbered chunk alongside ffmpeg.js;
+       this name is fixed for the pinned @ffmpeg/ffmpeg version above. */
+    var FF_WORKER = '814.ffmpeg.js';
+
+    var _ffmpeg = null, _ffmpegLoading = null;
+
+    function ensureScript(src) {
+      return new Promise(function (resolve, reject) {
+        if (document.querySelector('script[data-ff="' + src + '"]')) return resolve();
+        var s = document.createElement('script');
+        s.src = src; s.setAttribute('data-ff', src);
+        s.onload = function () { resolve(); };
+        s.onerror = function () { reject(new Error('Could not load ' + src + ' — offline or blocked?')); };
+        document.head.appendChild(s);
+      });
+    }
+
+    /* Lazily fetch + initialise the single-threaded ffmpeg core. The core
+       .js/.wasm are pulled through toBlobURL so the internal worker loads
+       them as same-origin blobs (avoids cross-origin worker restrictions). */
+    function loadFFmpeg() {
+      if (_ffmpeg) return Promise.resolve(_ffmpeg);
+      if (_ffmpegLoading) return _ffmpegLoading;
+      _ffmpegLoading = ensureScript(FF_CDN + '/@ffmpeg/ffmpeg@' + FF_VER + '/dist/umd/ffmpeg.js')
+        .then(function () { return ensureScript(FF_CDN + '/@ffmpeg/util@' + FF_UTIL + '/dist/umd/index.js'); })
+        .then(function () {
+          var FFmpeg = window.FFmpegWASM.FFmpeg;
+          var toBlobURL = window.FFmpegUtil.toBlobURL;
+          /* Core comes from the ESM dist: ffmpeg's class worker is a module
+             worker, so it pulls the core via dynamic import() (which needs the
+             ESM build's default export), not importScripts. */
+          var coreBase = FF_CDN + '/@ffmpeg/core@' + FF_CORE + '/dist/esm';
+          var ffBase   = FF_CDN + '/@ffmpeg/ffmpeg@' + FF_VER + '/dist/umd';
+          var ff = new FFmpeg();
+          /* The UMD build loads its worker from a separate chunk on the CDN;
+             a cross-origin Worker is blocked, so we hand it (and the core)
+             over as same-origin blob URLs via toBlobURL. */
+          return Promise.all([
+            toBlobURL(ffBase + '/' + FF_WORKER, 'text/javascript'),
+            toBlobURL(coreBase + '/ffmpeg-core.js', 'text/javascript'),
+            toBlobURL(coreBase + '/ffmpeg-core.wasm', 'application/wasm')
+          ]).then(function (urls) {
+            return ff.load({ classWorkerURL: urls[0], coreURL: urls[1], wasmURL: urls[2] });
+          }).then(function () { _ffmpeg = ff; return ff; });
+        });
+      return _ffmpegLoading;
+    }
+
+    /* A clip's duration (seconds), read from a throwaway <video>. */
+    function videoDuration(file) {
+      return new Promise(function (resolve) {
+        var v = document.createElement('video');
+        v.preload = 'metadata';
+        var url = URL.createObjectURL(file);
+        v.onloadedmetadata = function () { URL.revokeObjectURL(url); resolve(v.duration || 0); };
+        v.onerror = function () { URL.revokeObjectURL(url); resolve(0); };
+        v.src = url;
+      });
+    }
+
+    /* Transcode `file` to an H.264 MP4 under 100 MB, capped at 1080p, with
+       faststart for instant web playback. onProgress(ratio 0..1) fires while
+       encoding. The bitrate is derived from the clip's duration so the result
+       lands just under the ceiling; on the rare overshoot it re-encodes at a
+       tighter target so the output is *guaranteed* below 100 MB. */
+    function compressVideo(file, onProgress) {
+      return loadFFmpeg().then(function (ff) {
+        var fetchFile = window.FFmpegUtil.fetchFile;
+        return videoDuration(file).then(function (duration) {
+          var stamp   = Date.now();
+          var inName  = 'in_' + stamp + '.mp4';
+          var outName = 'out_' + stamp + '.mp4';
+          var AUDIO_K = 128;                  /* kbps */
+          var FACTORS = [0.92, 0.80, 0.66];   /* shrink the target if a pass overshoots */
+
+          var progHandler = function (e) {
+            if (onProgress && e && typeof e.progress === 'number') {
+              onProgress(e.progress < 0 ? 0 : (e.progress > 1 ? 1 : e.progress));
+            }
+          };
+          var cleanup = function () {
+            ff.off('progress', progHandler);
+            try { ff.deleteFile(inName); } catch (e) { /* ignore */ }
+            try { ff.deleteFile(outName); } catch (e) { /* ignore */ }
+          };
+
+          return fetchFile(file)
+            .then(function (data) { return ff.writeFile(inName, data); })
+            .then(function () {
+              ff.on('progress', progHandler);
+
+              var attempt = function (idx) {
+                var capBytes = VIDEO_CAP_BYTES * FACTORS[idx];
+                var totalK = duration > 0 ? Math.floor((capBytes * 8 / 1000) / duration) : 4000;
+                var videoK = Math.max(300, totalK - AUDIO_K);
+                var maxK   = Math.floor(videoK * 1.45);
+                var bufK   = maxK * 2;
+
+                return ff.exec([
+                  '-i', inName,
+                  /* Fit within 1920×1080 keeping aspect (never upscales), then
+                     round both dimensions to even numbers for yuv420p/H.264. */
+                  '-vf', "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2",
+                  '-c:v', 'libx264',
+                  '-preset', 'medium',
+                  '-b:v', videoK + 'k',
+                  '-maxrate', maxK + 'k',
+                  '-bufsize', bufK + 'k',
+                  '-pix_fmt', 'yuv420p',
+                  '-movflags', '+faststart',
+                  '-c:a', 'aac', '-b:a', AUDIO_K + 'k',
+                  '-y', outName
+                ]).then(function () {
+                  return ff.readFile(outName);
+                }).then(function (out) {
+                  var blob = new Blob([out.buffer], { type: 'video/mp4' });
+                  if (blob.size <= VIDEO_HARD_BYTES || idx >= FACTORS.length - 1) return blob;
+                  return attempt(idx + 1);   /* still too big — tighten and retry */
+                });
+              };
+
+              return attempt(0);
+            })
+            .then(function (blob) { cleanup(); return blob; })
+            .catch(function (err) { cleanup(); throw err; });
+        });
+      });
+    }
+
+    /* ════════════════════════════════════════════
        TABS
     ════════════════════════════════════════════ */
     var TAB_KEY = 'kta_admin_tab';
@@ -946,6 +1096,34 @@
       fileGrid.innerHTML = '';
       galleryDrop.classList.remove('has-files');
     });
+
+    /* Wipe the form back to a blank slate after a successful Generate — title,
+       location, description, type, thumbnail and the whole gallery — so the
+       next project can be added WITHOUT refreshing the page.
+
+       This is deliberate: refreshing the Admin reloads projects-data.js, which
+       resets the in-memory PROJECTS list to what's on disk. Any projects added
+       earlier in the same session would then be missing from the next zip's
+       cumulative manifest (that's exactly how 13–17 got dropped). Resetting in
+       place clears the inputs but keeps PROJECTS and the next-number intact. */
+    function resetProjectForm() {
+      document.getElementById('proj-title').value = '';
+      document.getElementById('proj-location').value = '';
+      document.getElementById('proj-desc').value = '';
+      setRadioType('photo');
+
+      // Thumbnail
+      thumbPrev.src = '';
+      thumbZone.classList.remove('loaded');
+      thumbInput.value = '';
+      thumbFile = null;
+
+      // Gallery
+      galleryFiles = [];
+      fileGrid.innerHTML = '';
+      galleryDrop.classList.remove('has-files');
+      galleryInput.value = '';
+    }
 
     function addGalleryFiles(files) {
       files.forEach(function (file) {
@@ -1100,6 +1278,7 @@
        PROJECT — GENERATE
     ════════════════════════════════════════════ */
     var projGenBtn = document.getElementById('proj-generate');
+    var lastCompressionNote = '';  /* set by buildProjectZip, shown in the done notice */
 
     document.getElementById('project-form').addEventListener('submit', function (e) {
       e.preventDefault();
@@ -1176,6 +1355,7 @@
           renderProjectOutput(id, entry);
 
           var combined = notes.join(' ');
+          if (lastCompressionNote) combined += (combined ? ' ' : '') + lastCompressionNote;
           if (excludedHtml) combined += (combined ? '<br>' : '') + excludedHtml;
           setNotice('proj-notice', combined || '<strong>Done.</strong> ZIP downloaded as project-' + id + '.zip — it already contains the updated manifest.', !!excludedHtml);
 
@@ -1183,6 +1363,10 @@
           nextNum = Math.min(nextNum + 1, 99);
           localStorage.setItem(NUM_KEY, nextNum);
           renderBadge();
+
+          // Clear the inputs/media so the next project can be added without a
+          // page refresh (which would wipe the in-memory manifest — see above).
+          resetProjectForm();
 
           var out = document.getElementById('proj-output');
           out.classList.add('visible');
@@ -1230,11 +1414,28 @@
         });
       });
 
-      // Videos → videos/NN.mp4 (byte-for-byte, grid order)
+      // Videos → videos/NN.mp4 (grid order). Anything over the size cap is
+      // transcoded under 100 MB first (see VIDEO COMPRESSOR above); files
+      // already small enough ship byte-for-byte so they lose no quality.
+      var compressedCount = 0;
       okVideos.forEach(function (g, i) {
         chain = chain.then(function () {
-          zip.file(base + 'videos/' + pad(i + 1) + '.mp4', g.file);
-          step('Adding videos… (' + (i + 1) + '/' + okVideos.length + ')');
+          var name = pad(i + 1) + '.mp4';
+          if (g.file.size <= VIDEO_CAP_BYTES) {
+            zip.file(base + 'videos/' + name, g.file);
+            step('Adding videos… (' + (i + 1) + '/' + okVideos.length + ')');
+            return;
+          }
+          var basePct = (done / total) * 85;
+          var label = 'Compressing video ' + (i + 1) + '/' + okVideos.length;
+          showProgress('proj-progress-bar', 'proj-progress-label', 'proj-progress', basePct, label + '… loading encoder');
+          return compressVideo(g.file, function (ratio) {
+            showProgress('proj-progress-bar', 'proj-progress-label', 'proj-progress', basePct, label + '… ' + Math.round(ratio * 100) + '%');
+          }).then(function (blob) {
+            compressedCount++;
+            zip.file(base + 'videos/' + name, blob);
+            step('Compressed video (' + (i + 1) + '/' + okVideos.length + ')');
+          });
         });
       });
 
@@ -1242,6 +1443,10 @@
       // in the ZIP — so extracting at the repo root updates the Manifest too,
       // no copy-paste. (See ADR 0004.)
       chain = chain.then(function () {
+        lastCompressionNote = compressedCount > 0
+          ? ('<strong>' + compressedCount + ' video' + (compressedCount > 1 ? 's' : '') +
+             '</strong> compressed to fit under 100 MB.')
+          : '';
         showProgress('proj-progress-bar', 'proj-progress-label', 'proj-progress', 88, 'Updating manifest…');
         return fetchText('projects-data.js').then(function (text) {
           var existing = (typeof PROJECTS !== 'undefined') ? PROJECTS : [];
