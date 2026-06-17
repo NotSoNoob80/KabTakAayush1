@@ -29,7 +29,7 @@
 
   if (titleEl) titleEl.textContent = project.title;
   if (subEl) subEl.textContent = project.meta || '';
-  if (eyebrowEl) eyebrowEl.textContent = 'Project ' + project.id + ' — ' + (project.typeLabel || 'Photo Series');
+  if (eyebrowEl) eyebrowEl.textContent = 'Project ' + project.id + ' — ' + projectTypeLabel(project);
   if (docTitleEl) docTitleEl.textContent = project.title + ' — KabTakAayush';
 
   /* The Manifest's description isn't shown in the page's visible copy
@@ -83,6 +83,128 @@
     if (pendingTiles <= 0) announceReady();
   };
 
+  /* ============================================================
+     Mosaic preview — click-to-open full-screen view
+     ------------------------------------------------------------
+     Opens the clicked tile (image or video) on a dark backdrop.
+     The overlay markup is built lazily on first open; closing it
+     restores focus to the tile that opened it. Inline tile videos
+     are paused while the preview is open so two copies don't play
+     in parallel, and resumed on close.
+     ============================================================ */
+  var MosaicPreview = (function () {
+    var overlay = null;
+    var closeBtn = null;
+    var stage = null;
+    var lastTrigger = null;
+    var pausedTiles = [];
+    var reducedMotion = window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    var build = function () {
+      overlay = document.createElement('div');
+      overlay.className = 'mosaic-preview';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+      overlay.setAttribute('aria-label', 'Preview');
+      overlay.setAttribute('hidden', '');
+      overlay.innerHTML =
+        '<div class="mosaic-preview__backdrop" data-close></div>' +
+        '<button class="mosaic-preview__close" type="button" aria-label="Close preview">' +
+          '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+            '<path d="M6 6 L18 18"/>' +
+            '<path d="M18 6 L6 18"/>' +
+          '</svg>' +
+        '</button>' +
+        '<div class="mosaic-preview__stage"></div>';
+      document.body.appendChild(overlay);
+      closeBtn = overlay.querySelector('.mosaic-preview__close');
+      stage    = overlay.querySelector('.mosaic-preview__stage');
+
+      overlay.addEventListener('click', function (e) {
+        if (e.target && e.target.hasAttribute('data-close')) close();
+      });
+      closeBtn.addEventListener('click', close);
+      document.addEventListener('keydown', function (e) {
+        if (!overlay || overlay.hasAttribute('hidden')) return;
+        if (e.key === 'Escape' || e.key === 'Esc') close();
+      });
+    };
+
+    var open = function (kind, src, trigger) {
+      if (!overlay) build();
+      lastTrigger = trigger || null;
+      stage.innerHTML = '';
+
+      var node;
+      if (kind === 'video') {
+        node = document.createElement('video');
+        node.src = src;
+        node.controls = true;
+        node.autoplay = true;
+        node.loop = true;
+        /* Start muted to satisfy autoplay policies; native controls
+           let the visitor unmute. */
+        node.muted = true;
+        node.setAttribute('playsinline', '');
+        node.setAttribute('preload', 'metadata');
+      } else {
+        node = document.createElement('img');
+        node.src = src;
+        node.alt = '';
+        node.decoding = 'async';
+      }
+      stage.appendChild(node);
+
+      /* Pause every inline tile video so two copies don't play. */
+      pausedTiles = [];
+      for (var i = 0; i < videoTiles.length; i++) {
+        var v = videoTiles[i];
+        if (!v.paused) {
+          pausedTiles.push(v);
+          try { v.pause(); } catch (err) { /* ignore */ }
+        }
+      }
+
+      overlay.removeAttribute('hidden');
+      document.body.classList.add('has-preview');
+      /* Force a paint of the hidden→shown state before flipping
+         is-open, so the opacity/scale transition actually plays. */
+      void overlay.offsetWidth;
+      overlay.classList.add('is-open');
+      /* Move focus to the close button so ESC/Enter work immediately
+         and screen readers announce the dialog. */
+      try { closeBtn.focus(); } catch (err) { /* ignore */ }
+    };
+
+    var close = function () {
+      if (!overlay || overlay.hasAttribute('hidden')) return;
+      overlay.classList.remove('is-open');
+
+      var finalize = function () {
+        overlay.setAttribute('hidden', '');
+        stage.innerHTML = '';
+        document.body.classList.remove('has-preview');
+        /* Resume the inline tile videos we paused on open. play() can
+           reject; swallow it the same way the IO observer does. */
+        for (var i = 0; i < pausedTiles.length; i++) {
+          var p = pausedTiles[i].play();
+          if (p && typeof p.catch === 'function') p.catch(function () {});
+        }
+        pausedTiles = [];
+        if (lastTrigger && typeof lastTrigger.focus === 'function') {
+          try { lastTrigger.focus(); } catch (err) { /* ignore */ }
+        }
+        lastTrigger = null;
+      };
+
+      if (reducedMotion) finalize();
+      else window.setTimeout(finalize, 240);
+    };
+
+    return { open: open };
+  })();
+
   /* Apply the same wide/tall span classification from a tile's natural
      dimensions — shared by image (naturalWidth/Height) and video
      (videoWidth/Height) tiles so both weave into the mosaic identically. */
@@ -123,6 +245,18 @@
   var buildImageTile = function (src) {
     var fig = document.createElement('figure');
     fig.className = 'mosaic__item';
+    fig.setAttribute('role', 'button');
+    fig.setAttribute('tabindex', '0');
+    fig.setAttribute('aria-label', 'Open preview');
+    fig.addEventListener('click', function () {
+      MosaicPreview.open('image', src, fig);
+    });
+    fig.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+        MosaicPreview.open('image', src, fig);
+      }
+    });
 
     var img = document.createElement('img');
     img.src = src;
@@ -167,6 +301,9 @@
   var buildVideoTile = function (src) {
     var fig = document.createElement('figure');
     fig.className = 'mosaic__item mosaic__item--video';
+    fig.setAttribute('role', 'button');
+    fig.setAttribute('tabindex', '0');
+    fig.setAttribute('aria-label', 'Open preview');
 
     var video = document.createElement('video');
     video.src = src;
@@ -232,7 +369,19 @@
 
     video.__syncBadge = syncBadge;
 
-    fig.addEventListener('click', toggleSound);
+    /* Tile click → open preview (image + video tiles share this behaviour).
+       Sound stays under the badge: the badge handler stops propagation so
+       toggling sound does not also open the preview. */
+    fig.addEventListener('click', function (e) {
+      if (e && e.target && (e.target === badge || badge.contains(e.target))) return;
+      MosaicPreview.open('video', src, fig);
+    });
+    fig.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+        MosaicPreview.open('video', src, fig);
+      }
+    });
     badge.addEventListener('click', toggleSound);
 
     /* Size the tile once metadata is in — do NOT wait for the full

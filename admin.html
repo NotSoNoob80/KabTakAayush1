@@ -1147,8 +1147,10 @@
       var metaPrefix = type === 'video' ? 'Film' :
                        type === 'photo+video' ? 'Photo + Film' : 'Photowalk';
       var meta = metaPrefix + (location ? ' · ' + location : '');
-      var typeLabel = type === 'video' ? 'Film' :
-                      type === 'photo+video' ? 'Photo + Film' : 'Photo Series';
+      /* Derive the type label from what the project actually contains, using
+         the same rule the site does (projectTypeLabel in projects-data.js):
+         photos only → 'Photos', videos only → 'Video/s', a mix → 'Collection'. */
+      var typeLabel = projectTypeLabel({ imageCount: images.length, videoCount: okVideos.length });
 
       var entry = {
         id: id, title: title, type: type, typeLabel: typeLabel,

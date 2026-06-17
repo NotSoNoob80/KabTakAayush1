@@ -2423,3 +2423,120 @@ html.intro-armed {
   grid-column: span 1;
   grid-row: span 1;
 }
+
+/* ============================================================
+   Mosaic preview — click-to-open full-screen view
+   ------------------------------------------------------------
+   Click any tile (photo or video) to open it centered on a dark
+   backdrop. Native video controls in the preview let the visitor
+   play with sound (the inline tile stays muted by design). Close
+   via the corner button, ESC, or a tap on the backdrop. Body
+   scroll is locked while the preview is open.
+   ============================================================ */
+.mosaic__item {
+  cursor: zoom-in;
+}
+
+.mosaic-preview {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms var(--ease-out);
+}
+
+.mosaic-preview[hidden] {
+  display: none;
+}
+
+.mosaic-preview.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.mosaic-preview__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 8, 8, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.mosaic-preview__stage {
+  position: relative;
+  max-width: 92vw;
+  max-height: 92vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: scale(0.985);
+  transition: transform 260ms var(--ease-out);
+}
+
+.mosaic-preview.is-open .mosaic-preview__stage {
+  transform: scale(1);
+}
+
+.mosaic-preview__stage img,
+.mosaic-preview__stage video {
+  display: block;
+  max-width: 92vw;
+  max-height: 92vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 2px;
+  background: var(--black-soft);
+}
+
+.mosaic-preview__close {
+  position: absolute;
+  top: max(20px, env(safe-area-inset-top));
+  right: max(20px, env(safe-area-inset-right));
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(10, 10, 10, 0.66);
+  color: var(--cream);
+  cursor: pointer;
+  z-index: 2;
+  transition:
+    border-color 220ms var(--ease-out),
+    background-color 220ms var(--ease-out);
+}
+
+.mosaic-preview__close:hover,
+.mosaic-preview__close:focus-visible {
+  border-color: rgba(243, 237, 225, 0.36);
+  background: rgba(10, 10, 10, 0.82);
+  outline: none;
+}
+
+.mosaic-preview__close svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+body.has-preview {
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mosaic-preview,
+  .mosaic-preview__stage {
+    transition: none;
+  }
+}

@@ -31,7 +31,7 @@ const PROJECTS = [
     id: '01',
     title: 'Supreme',
     type: 'photo',
-    typeLabel: 'Photo Series',
+    typeLabel: 'Photos',
     meta: 'Photowalk · Mumbai',
     description: 'Frames from a Mumbai photowalk — chasing light, texture, and the city’s unscripted moments.',
     imageCount: 14
@@ -40,7 +40,7 @@ const PROJECTS = [
     id: '02',
     title: 'Tricking Fishes',
     type: 'photo',
-    typeLabel: 'Photo Series',
+    typeLabel: 'Photos',
     meta: 'Photowalk · India',
     description: 'A wander through reflections, water, and the quiet choreography of everyday street life.',
     imageCount: 13
@@ -49,7 +49,7 @@ const PROJECTS = [
     id: '03',
     title: 'Sassooooon',
     type: 'photo',
-    typeLabel: 'Photo Series',
+    typeLabel: 'Photos',
     meta: 'Photowalk · Sassoon Docks, Mumbai',
     description: 'Early mornings at the docks — colour, motion, and the rhythm of a working harbour.',
     imageCount: 12
@@ -58,7 +58,7 @@ const PROJECTS = [
     id: '04',
     title: 'Nawab Shit',
     type: 'photo',
-    typeLabel: 'Photo Series',
+    typeLabel: 'Photos',
     meta: 'Photowalk · Curated Series',
     description: 'A curated walk through old streets and quieter corners — frame after frame of found moments.',
     imageCount: 15
@@ -67,7 +67,7 @@ const PROJECTS = [
     id: '05',
     title: 'Nomad Shit',
     type: 'photo',
-    typeLabel: 'Photo Series',
+    typeLabel: 'Photos',
     meta: 'Photowalk · On the Move',
     description: 'Loose, in-between frames from the road — the small scenes that pass before you can plan for them.',
     imageCount: 9
@@ -76,7 +76,7 @@ const PROJECTS = [
     id: '06',
     title: 'Nandi Hills',
     type: 'photo',
-    typeLabel: 'Photo Series',
+    typeLabel: 'Photos',
     meta: 'Photowalk · Nandi Hills',
     description: 'A last good morning before the week starts again — quiet hills, soft light, and no rush to be anywhere.',
     imageCount: 8
@@ -85,7 +85,7 @@ const PROJECTS = [
     id: '07',
     title: 'Water that was still',
     type: 'film',
-    typeLabel: 'Film',
+    typeLabel: 'Video/s',
     meta: 'Film · Banganga',
     description: 'A short poem.',
     imageCount: 0,
@@ -95,7 +95,7 @@ const PROJECTS = [
     id: '08',
     title: 'Supreme 2',
     type: 'photo',
-    typeLabel: 'Photo Series',
+    typeLabel: 'Photos',
     meta: 'Photowalk · Mumbai',
     description: 'Back on the streets — Mumbai unscripted, again.',
     imageCount: 14
@@ -104,7 +104,7 @@ const PROJECTS = [
     id: '09',
     title: 'Lights and Shadows',
     type: 'photo',
-    typeLabel: 'Photo Series',
+    typeLabel: 'Photos',
     meta: 'Photowalk · Dadar',
     description: 'Dadar in contrast — where the light cuts hard and the shadows hold still.',
     imageCount: 13
@@ -113,7 +113,7 @@ const PROJECTS = [
     id: '10',
     title: 'Before Christmas',
     type: 'photo',
-    typeLabel: 'Photo Series',
+    typeLabel: 'Photos',
     meta: 'Photowalk · Bandra',
     description: 'Bandra just before the lights come down — the calm before the celebration.',
     imageCount: 10
@@ -122,7 +122,7 @@ const PROJECTS = [
     id: '11',
     title: 'Chor Bazaar',
     type: 'photo',
-    typeLabel: 'Photo Series',
+    typeLabel: 'Photos',
     meta: 'Photowalk · Mumbai',
     description: 'A wander through Mumbai\'s oldest flea market — layered, loud, and full of forgotten things.',
     imageCount: 15
@@ -131,7 +131,7 @@ const PROJECTS = [
     id: '12',
     title: 'Anatomy of a flip',
     type: 'photo',
-    typeLabel: 'Photo Series',
+    typeLabel: 'Photos',
     meta: 'Photowalk · Bangangaa',
     description: 'Anatomy of a flip',
     imageCount: 10
@@ -219,6 +219,22 @@ function projectMedia(p) {
     pos++;
   }
   return result;
+}
+
+/* The project's "type" label, shown as metadata, derived from what the
+   project actually holds:
+     • photos only       → 'Photos'
+     • videos only       → 'Video/s'
+     • a mix of both     → 'Collection'
+   This is the single source of truth for that rule — the Admin stamps the
+   same value onto `typeLabel` when it writes an entry, so the stored field
+   and what the site shows always agree. */
+function projectTypeLabel(p) {
+  var hasImages = (p.imageCount || 0) > 0;
+  var hasVideos = (p.videoCount || 0) > 0;
+  if (hasImages && hasVideos) return 'Collection';
+  if (hasVideos) return 'Video/s';
+  return 'Photos';
 }
 
 /* Look up a single project by its zero-padded string id ('01'–'99'). */
