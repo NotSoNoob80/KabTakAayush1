@@ -136,6 +136,24 @@ implementation; this file is the source of truth for what we call things.
   by [ADR 0010](docs/adr/0010-the-reach-additive-camtarget-writer.md) is
   preserved — the clutch only changes *when* The Reach writes to
   `camTarget.z`, not where.
+- **The living Mosaic** — the umbrella for the Mosaic's three "alive-on-scroll"
+  reactions: **Frame drift**, **Tile settle**, and **Gate shear**. They make the
+  Mosaic feel like a place you move through rather than a static page. All three
+  are transform/opacity-only, share one rAF writer that sleeps when nothing is
+  moving, and are off under `prefers-reduced-motion`.
+- **Frame drift** (Mosaic) — the depth reaction: each photo drifts *inside* its
+  fixed **frame** (the frame never moves, so the grid never opens seams). The
+  image is slightly overscanned and shifts toward the cursor on desktop, or with
+  scroll position on mobile, by a small deterministic per-tile amount — so the
+  collage reads as varied depth, like photos behind glass you lean to look
+  around.
+- **Tile settle** (Mosaic) — the arrival reaction: a tile scales 1.04→1 as it
+  scrolls into view. Once-per-tile (it never re-animates on reverse scroll),
+  reusing the from-index intro's exact easing. The from-index intro now animates
+  only the first screen and hands every below-fold tile to this settle.
+- **Gate shear** (Mosaic) — the momentum reaction: the whole grid shears
+  sub-degree with scroll velocity (a film *gate* nod) and decays back to flat at
+  rest. The quietest of the three, kept almost subliminal.
 - **Beat** (Listing) — a resting point in the scrub the page can snap to.
 - **Listing on a small screen** — the Listing *keeps* the scrub on phones; it
   is not swapped for the stacked reduced-motion fallback. To make a card fit a

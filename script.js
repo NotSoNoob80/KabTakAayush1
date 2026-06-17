@@ -403,144 +403,220 @@
   var introGrid = document.getElementById('mosaic-grid');
   var introHtml = document.documentElement;
 
-  if (introGrid && introHtml.classList.contains('intro-armed')) {
+  if (introGrid) {
 
-    var introDone = false;
+    var isIntroPath = introHtml.classList.contains('intro-armed');
+    var introDone   = false;
+    var introFallback = null;
 
-    if (prefersReducedMotion) {
+    if (isIntroPath && prefersReducedMotion) {
       /* No reveal animation for users who prefer reduced motion —
          show everything immediately and skip all animation.        */
       introDone = true;
       introHtml.classList.remove('intro-armed');
 
-    } else {
-
+    } else if (isIntroPath) {
       /* Safety fallback: if mosaic:ready never fires (e.g. network
          failure), disarm after 9 s so the page is not stuck blank. */
-      var introFallback = window.setTimeout(function () {
+      introFallback = window.setTimeout(function () {
         if (introDone) return;
         introDone = true;
         introHtml.classList.remove('intro-armed');
       }, 9000);
+    }
 
-      introGrid.addEventListener('mosaic:ready', function onReady() {
-        introGrid.removeEventListener('mosaic:ready', onReady);
-        if (introDone) return;
-        introDone = true;
-        window.clearTimeout(introFallback);
+    introGrid.addEventListener('mosaic:ready', function onReady() {
+      introGrid.removeEventListener('mosaic:ready', onReady);
+      if (isIntroPath && introDone) return;     /* reduced-motion already exited */
+      if (introFallback) window.clearTimeout(introFallback);
+      introDone = true;
 
-        var items = Array.prototype.slice.call(introGrid.querySelectorAll('.mosaic__item'));
-        if (!items.length) {
-          introHtml.classList.remove('intro-armed');
+      var items = Array.prototype.slice.call(introGrid.querySelectorAll('.mosaic__item'));
+      if (!items.length) {
+        if (isIntroPath) introHtml.classList.remove('intro-armed');
+        return;
+      }
+
+      /* Tile settle — adding `.is-loaded` runs the CSS transitions
+         (760ms opacity on figure, 900ms transform on `.mosaic__settle`)
+         so the existing craft is reused, not re-invented. */
+      var settleTile = function (item) { item.classList.add('is-loaded'); };
+
+      /* Scroll-into-view observer: settle each tile the first time it
+         crosses (from either edge), then unobserve. `rootMargin`'s
+         positive bottom margin pre-fires the settle so it's mostly
+         resolved by the time the tile is comfortably in view. */
+      var observe = function (subset) {
+        if (!subset.length) return;
+        if (!('IntersectionObserver' in window)) {
+          subset.forEach(settleTile);
           return;
         }
+        var io = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              settleTile(entry.target);
+              io.unobserve(entry.target);
+            }
+          });
+        }, { rootMargin: '0px 0px 12% 0px', threshold: 0 });
+        subset.forEach(function (it) { io.observe(it); });
+      };
 
-        var EASE = 'cubic-bezier(0.23, 1, 0.32, 1)';
-        var vw   = window.innerWidth;
-        var vh   = window.innerHeight;
+      if (prefersReducedMotion) {
+        /* No transitions, no observer — every tile is shown at once. */
+        items.forEach(settleTile);
+        if (isIntroPath) introHtml.classList.remove('intro-armed');
+        return;
+      }
 
-        var STAGGER_SPREAD = 320;  /* ms from centre tile to furthest */
-        var FADE_MS        = 620;  /* per-tile opacity duration */
-        var ZOOM_MS        = 760;  /* per-tile scale-settle duration */
+      if (!isIntroPath) {
+        /* Direct load / reload: observer drives every tile. On-screen
+           tiles settle on the first observation callback; below-fold
+           tiles wait until reached. */
+        observe(items);
+        return;
+      }
 
-        /* Hide every tile synchronously, before the browser paints —
-           this overrides the `is-loaded` state mosaic.js has already
-           applied (the `.intro-armed .mosaic__item { transition:none }`
-           rule makes that a snap, so there is no flash to undo). Each
-           tile starts a hair zoomed-in; the reveal settles it to 1. */
-        items.forEach(function (item) {
-          item.style.transition = 'none';
-          item.style.opacity    = '0';
-          item.style.transform  = 'scale(1.04)';
-        });
+      /* ---- Intro-armed path: split tiles, animate first-screen only ----
+         The radial assembly is the same as it was — just bounded to
+         the tiles a visitor can see on arrival. Below-fold tiles stay
+         in the CSS pre-state (opacity 0, scale 1.045) and are handed
+         to the observer to settle as the visitor scrolls. Side benefit:
+         the intro stops animating dozens of invisible tiles, so the
+         chrome reveals sooner (the "furthest tile" timing keys off the
+         first screen only). */
 
-        /* Measure each tile's centre so the stagger can radiate from
-           the middle of the viewport outward. */
-        var rects = items.map(function (item) { return item.getBoundingClientRect(); });
-        var dists = rects.map(function (rect) {
-          return Math.hypot(
-            rect.left + rect.width  * 0.5 - vw * 0.5,
-            rect.top  + rect.height * 0.5 - vh * 0.5
-          );
-        });
-        var maxDist = Math.max.apply(null, dists) || 1;
-        var lastDelay = STAGGER_SPREAD;
+      var EASE = 'cubic-bezier(0.23, 1, 0.32, 1)';
+      var vw   = window.innerWidth;
+      var vh   = window.innerHeight;
 
-        /* Two rAFs let the browser commit the hidden state before the
-           staggered settle begins. */
+      var STAGGER_SPREAD = 320;  /* ms from centre tile to furthest */
+      var FADE_MS        = 620;  /* per-tile opacity duration */
+      var ZOOM_MS        = 760;  /* per-tile scale-settle duration */
+
+      var firstScreen = items.filter(function (it) {
+        return it.getBoundingClientRect().top < vh;
+      });
+      var belowFold = items.filter(function (it) {
+        return it.getBoundingClientRect().top >= vh;
+      });
+
+      /* Below-fold tiles: scroll-into-view from here on. */
+      observe(belowFold);
+
+      if (!firstScreen.length) {
+        /* Pathological case — nothing visible on arrival. Lift the
+           gate so the page chrome still appears. */
+        introHtml.classList.remove('intro-armed');
+        return;
+      }
+
+      /* Hide first-screen tiles synchronously, before the browser
+         paints — the `.intro-armed` rule makes this a snap so there is
+         no flash to undo. The frame (figure) carries opacity; the
+         inner `.mosaic__settle` wrapper carries the scale, so settle
+         and Frame drift never share a transform node. */
+      firstScreen.forEach(function (item) {
+        var settle = item.querySelector('.mosaic__settle') || item;
+        item.style.transition   = 'none';
+        item.style.opacity      = '0';
+        settle.style.transition = 'none';
+        settle.style.transform  = 'scale(1.04)';
+      });
+
+      /* Measure each first-screen tile's centre so the stagger can
+         radiate from the middle of the viewport outward. */
+      var rects = firstScreen.map(function (item) { return item.getBoundingClientRect(); });
+      var dists = rects.map(function (rect) {
+        return Math.hypot(
+          rect.left + rect.width  * 0.5 - vw * 0.5,
+          rect.top  + rect.height * 0.5 - vh * 0.5
+        );
+      });
+      var maxDist = Math.max.apply(null, dists) || 1;
+      var lastDelay = STAGGER_SPREAD;
+
+      /* Two rAFs let the browser commit the hidden state before the
+         staggered settle begins. */
+      requestAnimationFrame(function () {
         requestAnimationFrame(function () {
-          requestAnimationFrame(function () {
-            items.forEach(function (item, i) {
-              /* Centre tiles (small dist) lead; outer tiles trail. */
-              var delay = Math.round((dists[i] / maxDist) * STAGGER_SPREAD);
-              item.style.transition =
-                'opacity ' + FADE_MS + 'ms ' + EASE + ' ' + delay + 'ms, ' +
-                'transform ' + ZOOM_MS + 'ms ' + EASE + ' ' + delay + 'ms';
-              item.style.opacity   = '1';
-              item.style.transform = 'scale(1)';
-            });
-
-            /* Chrome reveals once the furthest tile has settled. */
-            window.setTimeout(revealChrome, lastDelay + ZOOM_MS + 120);
+          firstScreen.forEach(function (item, i) {
+            /* Centre tiles (small dist) lead; outer tiles trail. */
+            var settle = item.querySelector('.mosaic__settle') || item;
+            var delay = Math.round((dists[i] / maxDist) * STAGGER_SPREAD);
+            item.style.transition   = 'opacity ' + FADE_MS + 'ms ' + EASE + ' ' + delay + 'ms';
+            item.style.opacity      = '1';
+            settle.style.transition = 'transform ' + ZOOM_MS + 'ms ' + EASE + ' ' + delay + 'ms';
+            settle.style.transform  = 'scale(1)';
           });
+
+          /* Chrome reveals once the furthest first-screen tile has
+             settled. */
+          window.setTimeout(revealChrome, lastDelay + ZOOM_MS + 120);
         });
+      });
 
-        /* ── Chrome reveal ── */
-        var revealChrome = function () {
-          var fadeIn = function (el, delay, ty) {
-            if (!el) return;
-            /* Inline-lock to hidden BEFORE removing intro-armed so
-               there is no flash as the CSS override lifts.          */
-            el.style.transition = 'none';
-            el.style.opacity    = '0';
-            if (ty) el.style.transform = 'translateY(' + ty + 'px)';
+      /* ── Chrome reveal ── */
+      var revealChrome = function () {
+        var fadeIn = function (el, delay, ty) {
+          if (!el) return;
+          /* Inline-lock to hidden BEFORE removing intro-armed so
+             there is no flash as the CSS override lifts.          */
+          el.style.transition = 'none';
+          el.style.opacity    = '0';
+          if (ty) el.style.transform = 'translateY(' + ty + 'px)';
 
-            window.setTimeout(function () {
-              el.style.transition = 'opacity 450ms ' + EASE +
-                (ty ? ', transform 550ms ' + EASE : '');
-              el.style.opacity    = '1';
-              if (ty) el.style.transform = 'translateY(0)';
-            }, delay + 16);
-          };
-
-          var navEl  = document.querySelector('.nav');
-          var back   = document.getElementById('project-back-btn');
-          var eye    = document.querySelector('.eyebrow');
-          var ttl    = document.getElementById('project-title');
-          var dsc    = document.getElementById('project-description');
-
-          /* Pre-hide inline before lifting the CSS lock. */
-          [navEl, back, eye, ttl, dsc].forEach(function (el) {
-            if (el) { el.style.opacity = '0'; el.style.transition = 'none'; }
-          });
-
-          introHtml.classList.remove('intro-armed');
-
-          fadeIn(navEl,  0,    0);
-          fadeIn(back,   100, 14);
-          fadeIn(eye,    220, 14);
-          fadeIn(ttl,    370,  0);
-          fadeIn(dsc,    530, 14);
-
-          /* Tidy up all inline styles once settled. */
           window.setTimeout(function () {
-            [navEl, back, eye, ttl, dsc].forEach(function (el) {
-              if (!el) return;
-              el.style.opacity    = '';
-              el.style.transform  = '';
-              el.style.transition = '';
-            });
-            items.forEach(function (item) {
-              item.style.transform  = '';
-              item.style.transition = '';
-              item.style.opacity    = '';
-            });
-          }, 1100);
+            el.style.transition = 'opacity 450ms ' + EASE +
+              (ty ? ', transform 550ms ' + EASE : '');
+            el.style.opacity    = '1';
+            if (ty) el.style.transform = 'translateY(0)';
+          }, delay + 16);
         };
 
-      }); /* end mosaic:ready */
+        var navEl  = document.querySelector('.nav');
+        var back   = document.getElementById('project-back-btn');
+        var eye    = document.querySelector('.eyebrow');
+        var ttl    = document.getElementById('project-title');
+        var dsc    = document.getElementById('project-description');
 
-    } /* end !prefersReducedMotion */
+        /* Pre-hide inline before lifting the CSS lock. */
+        [navEl, back, eye, ttl, dsc].forEach(function (el) {
+          if (el) { el.style.opacity = '0'; el.style.transition = 'none'; }
+        });
+
+        introHtml.classList.remove('intro-armed');
+
+        fadeIn(navEl,  0,    0);
+        fadeIn(back,   100, 14);
+        fadeIn(eye,    220, 14);
+        fadeIn(ttl,    370,  0);
+        fadeIn(dsc,    530, 14);
+
+        /* Tidy up all inline styles once settled. Add `.is-loaded` to
+           first-screen tiles BEFORE clearing inline styles so the CSS
+           pre-state doesn't reclaim them mid-frame. */
+        window.setTimeout(function () {
+          [navEl, back, eye, ttl, dsc].forEach(function (el) {
+            if (!el) return;
+            el.style.opacity    = '';
+            el.style.transform  = '';
+            el.style.transition = '';
+          });
+          firstScreen.forEach(function (item) {
+            var settle = item.querySelector('.mosaic__settle') || item;
+            item.classList.add('is-loaded');
+            item.style.transform    = '';
+            item.style.transition   = '';
+            item.style.opacity      = '';
+            settle.style.transform  = '';
+            settle.style.transition = '';
+          });
+        }, 1100);
+      };
+
+    }); /* end mosaic:ready */
 
   } /* end if introGrid */
 

@@ -134,23 +134,33 @@
     img.loading = 'eager';
     img.decoding = 'async';
 
-    var reveal = function () {
+    /* Per the living Mosaic: tiles are NOT settled (no `.is-loaded`) on
+       image-load anymore. The scroll-into-view observer in script.js
+       owns first-crossing settle so off-screen tiles don't finish their
+       entrance before the visitor reaches them. We still classify
+       (so the grid span is final before mosaic:ready) and tick the
+       handshake so the intro can start. */
+    var sized = function () {
       classify(fig, img.naturalWidth, img.naturalHeight);
-      fig.classList.add('is-loaded');
       tileSettled();
     };
 
     if (img.complete && img.naturalWidth) {
-      reveal();
+      sized();
     } else {
-      img.addEventListener('load', reveal, { once: true });
+      img.addEventListener('load', sized, { once: true });
       img.addEventListener('error', function () {
-        fig.classList.add('is-loaded');
         tileSettled();
       }, { once: true });
     }
 
-    fig.appendChild(img);
+    /* The .mosaic__settle wrapper owns Tile settle (scale). The frame
+       (figure) carries no transform so the grid can never seam; the
+       img will own Frame drift (translate). See the living Mosaic plan. */
+    var settle = document.createElement('div');
+    settle.className = 'mosaic__settle';
+    settle.appendChild(img);
+    fig.appendChild(settle);
     grid.appendChild(fig);
   };
 
@@ -225,21 +235,26 @@
     fig.addEventListener('click', toggleSound);
     badge.addEventListener('click', toggleSound);
 
-    /* Settle the tile (and size it) once metadata is in — do NOT wait
-       for the full video to load. An error settles it too, so a missing
-       file never stalls the mosaic:ready handshake. */
+    /* Size the tile once metadata is in — do NOT wait for the full
+       video to load. An error ticks the handshake too, so a missing
+       file never stalls mosaic:ready. The scroll-into-view observer
+       in script.js owns the actual settle (`.is-loaded`). */
     var sized = function () {
       classify(fig, video.videoWidth, video.videoHeight);
-      fig.classList.add('is-loaded');
       tileSettled();
     };
     video.addEventListener('loadedmetadata', sized, { once: true });
     video.addEventListener('error', function () {
-      fig.classList.add('is-loaded');
       tileSettled();
     }, { once: true });
 
-    fig.appendChild(video);
+    /* Same .mosaic__settle wrapper as image tiles. The sound badge stays
+       a direct child of the figure so its absolute placement and z-index
+       are not pulled along by Tile settle's transform. */
+    var settle = document.createElement('div');
+    settle.className = 'mosaic__settle';
+    settle.appendChild(video);
+    fig.appendChild(settle);
     fig.appendChild(badge);
     grid.appendChild(fig);
 
@@ -254,4 +269,283 @@
       buildImageTile(item.src);
     }
   });
+
+  /* ============================================================
+     The living Mosaic — shared rAF writer (scaffold)
+     ------------------------------------------------------------
+     A single requestAnimationFrame loop owns transform writes for
+     all three "alive" layers (Frame drift, Tile settle, Gate shear).
+     The loop self-stops when everything is at rest and is re-armed
+     by input listeners. Under prefers-reduced-motion the engine is
+     disabled and never installs listeners — the page behaves
+     byte-for-byte as it does today.
+
+     This slice (Slice 1) only stands up the scaffold; layers are
+     registered by later slices via MosaicMotion.register(layer).
+     ============================================================ */
+  var reducedMotion = window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var MosaicMotion = (function () {
+    var layers = [];
+    var state = {
+      grid: grid,
+      pointerX: 0,
+      pointerY: 0,
+      pointerInside: false,
+      scrollY: window.pageYOffset || 0,
+      scrollV: 0
+    };
+    var rafId = 0;
+
+    /* The engine is a pure layer coordinator: it asks each registered
+       layer whether it is at rest and sleeps when ALL agree. Layers
+       own their own input/state checks (pointer for Frame drift desktop,
+       position for Frame drift mobile, velocity for Gate shear). */
+    var tick = function () {
+      rafId = 0;
+      var i;
+      for (i = 0; i < layers.length; i++) layers[i].tick(state);
+      var idle = true;
+      for (i = 0; i < layers.length; i++) {
+        if (!layers[i].atRest(state)) { idle = false; break; }
+      }
+      if (!idle) rafId = requestAnimationFrame(tick);
+    };
+
+    var request = function () {
+      if (reducedMotion) return;
+      if (rafId) return;
+      rafId = requestAnimationFrame(tick);
+    };
+
+    var register = function (layer) {
+      if (reducedMotion) return;
+      layers.push(layer);
+    };
+
+    return {
+      enabled: !reducedMotion,
+      request: request,
+      register: register,
+      state: state
+    };
+  })();
+
+  window.MosaicMotion = MosaicMotion;
+
+  /* ============================================================
+     Frame drift — desktop cursor (the living Mosaic, layer 1)
+     ------------------------------------------------------------
+     Photos drift toward the cursor inside their fixed frames. The
+     grid layout never moves; only the img/video inside each frame
+     translates, by a few pixels, eased toward the cursor's offset
+     from the grid centre. Each tile has a deterministic depth
+     factor (seeded from its index) so the collage reads as varied
+     depth rather than one flat sheet. Pointer leaves the grid →
+     drift decays to centre → the shared rAF sleeps.
+
+     Mobile (no fine pointer) is handled in a separate layer.
+     ============================================================ */
+  (function frameDriftDesktop() {
+    if (!MosaicMotion.enabled) return;
+    if (!window.matchMedia ||
+        !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+    var MAX_DRIFT = 7;       /* px — felt, not seen */
+    var OVERSCAN  = 1.08;    /* matches CSS baseline; > max drift / half-frame */
+    var EASE      = 0.12;    /* per-frame lerp toward target */
+    var REST      = 0.0025;  /* normalized rest threshold */
+
+    /* Collect each tile's media element + a deterministic per-tile
+       depth factor in [0.45, 1.0). Golden-ratio fractions give a
+       well-distributed sequence that's stable across renders. */
+    var entries = [];
+    Array.prototype.forEach.call(grid.querySelectorAll('.mosaic__item'), function (fig, i) {
+      var node = fig.querySelector('img, video');
+      if (!node) return;
+      var frac = (i * 0.6180339887) % 1;
+      entries.push({ node: node, depth: 0.45 + 0.55 * frac });
+    });
+    if (!entries.length) return;
+
+    var actualX = 0, actualY = 0;
+    var targetX = 0, targetY = 0;
+
+    MosaicMotion.register({
+      tick: function (state) {
+        if (state.pointerInside) {
+          var rect = grid.getBoundingClientRect();
+          var halfW = rect.width  * 0.5 || 1;
+          var halfH = rect.height * 0.5 || 1;
+          var nx = (state.pointerX - (rect.left + halfW)) / halfW;
+          var ny = (state.pointerY - (rect.top  + halfH)) / halfH;
+          targetX = nx < -1 ? -1 : (nx > 1 ? 1 : nx);
+          targetY = ny < -1 ? -1 : (ny > 1 ? 1 : ny);
+        } else {
+          targetX = 0;
+          targetY = 0;
+        }
+        actualX += (targetX - actualX) * EASE;
+        actualY += (targetY - actualY) * EASE;
+        for (var i = 0; i < entries.length; i++) {
+          var e = entries[i];
+          var dx = (actualX * MAX_DRIFT * e.depth).toFixed(2);
+          var dy = (actualY * MAX_DRIFT * e.depth).toFixed(2);
+          e.node.style.transform =
+            'translate3d(' + dx + 'px,' + dy + 'px,0) scale(' + OVERSCAN + ')';
+        }
+      },
+      atRest: function (state) {
+        /* While pointer is over the grid, never sleep — the target can
+           change at any moment. Once it leaves, sleep when drift has
+           decayed back to centre. */
+        if (state.pointerInside) return false;
+        return Math.abs(actualX) < REST && Math.abs(actualY) < REST;
+      }
+    });
+
+    grid.addEventListener('pointermove', function (e) {
+      MosaicMotion.state.pointerX = e.clientX;
+      MosaicMotion.state.pointerY = e.clientY;
+      MosaicMotion.state.pointerInside = true;
+      MosaicMotion.request();
+    });
+    grid.addEventListener('pointerleave', function () {
+      MosaicMotion.state.pointerInside = false;
+      MosaicMotion.request();
+    });
+  })();
+
+  /* ============================================================
+     Frame drift — mobile scroll parallax (the living Mosaic, layer 1)
+     ------------------------------------------------------------
+     Touch devices don't have a pointer to chase, so the img drifts
+     vertically with scroll position instead — anchored to the tile's
+     own viewport-relative position so tiles at the bottom of a long
+     page don't accumulate huge offsets. Same overscan baseline as
+     desktop; same deterministic per-tile depth seed; no gyroscope
+     and so no second permission prompt.
+     ============================================================ */
+  (function frameDriftMobile() {
+    if (!MosaicMotion.enabled) return;
+    if (window.matchMedia &&
+        window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+    var MAX_DRIFT = 6;       /* px — slightly less than desktop drift */
+    var OVERSCAN  = 1.08;    /* matches CSS baseline */
+    var EASE      = 0.18;    /* per-frame lerp; scroll feels brisker */
+    var REST      = 0.02;    /* px per-tile rest threshold */
+
+    var entries = [];
+    Array.prototype.forEach.call(grid.querySelectorAll('.mosaic__item'), function (fig, i) {
+      var node = fig.querySelector('img, video');
+      if (!node) return;
+      var frac = (i * 0.6180339887) % 1;
+      entries.push({
+        fig: fig,
+        node: node,
+        depth: 0.45 + 0.55 * frac,
+        actualY: 0,
+        seeded: false
+      });
+    });
+    if (!entries.length) return;
+
+    var allClose = false;
+
+    MosaicMotion.register({
+      tick: function () {
+        var vh = window.innerHeight || 1;
+        var vcy = vh * 0.5;
+        var nearAll = true;
+        for (var i = 0; i < entries.length; i++) {
+          var e = entries[i];
+          var rect = e.fig.getBoundingClientRect();
+          var tcy = rect.top + rect.height * 0.5;
+          var raw = (vcy - tcy) / vh;
+          if (raw < -1) raw = -1; else if (raw > 1) raw = 1;
+          var target = raw * MAX_DRIFT * e.depth;
+          if (!e.seeded) {
+            /* Snap on first tick so the initial parallax pose doesn't
+               visibly wobble into place when the page first paints. */
+            e.actualY = target;
+            e.seeded = true;
+          } else {
+            e.actualY += (target - e.actualY) * EASE;
+          }
+          if (Math.abs(target - e.actualY) > REST) nearAll = false;
+          e.node.style.transform =
+            'translate3d(0px,' + e.actualY.toFixed(2) + 'px,0) scale(' + OVERSCAN + ')';
+        }
+        allClose = nearAll;
+      },
+      atRest: function () { return allClose; }
+    });
+
+    window.addEventListener('scroll', function () {
+      MosaicMotion.request();
+    }, { passive: true });
+
+    /* Initial arm so on-screen tiles get their parallax target
+       immediately (the snap above means no wobble). */
+    MosaicMotion.request();
+  })();
+
+  /* ============================================================
+     Gate shear — momentum, kept subliminal (the living Mosaic, layer 3)
+     ------------------------------------------------------------
+     The whole grid shears as a single block in response to scroll
+     velocity, like film running through a gate. Smoothed + clamped
+     so a hard touch-flick eases in instead of snapping; decays back
+     to 0° at rest within a few frames. Reverse scroll mirrors the
+     shear naturally, no special-casing.
+     ============================================================ */
+  (function gateShear() {
+    if (!MosaicMotion.enabled) return;
+
+    var FACTOR   = 0.2;    /* deg per (px/ms) of smoothed velocity */
+    var MAX_DEG  = 1.2;    /* hard ceiling even on violent flick */
+    var SMOOTH   = 0.55;   /* low-pass on input velocity */
+    var DECAY    = 0.70;   /* per-frame velocity decay */
+    var LERP     = 0.35;   /* per-frame skew lerp */
+    var REST_DEG = 0.01;
+    var REST_V   = 0.002;
+
+    var lastY = window.pageYOffset || 0;
+    var lastT = performance.now();
+    var smoothedV  = 0;    /* px/ms */
+    var currentDeg = 0;
+
+    MosaicMotion.register({
+      tick: function () {
+        /* Decay smoothed velocity so the grid eases back to 0° without
+           requiring scroll events to stop it. */
+        smoothedV *= DECAY;
+        var targetDeg = smoothedV * FACTOR;
+        if (targetDeg >  MAX_DEG) targetDeg =  MAX_DEG;
+        if (targetDeg < -MAX_DEG) targetDeg = -MAX_DEG;
+        currentDeg += (targetDeg - currentDeg) * LERP;
+        if (Math.abs(currentDeg) < REST_DEG) currentDeg = 0;
+        grid.style.transform = currentDeg
+          ? 'skewY(' + currentDeg.toFixed(3) + 'deg)'
+          : '';
+      },
+      atRest: function () {
+        return Math.abs(smoothedV)  < REST_V &&
+               Math.abs(currentDeg) < REST_DEG;
+      }
+    });
+
+    window.addEventListener('scroll', function () {
+      var now = performance.now();
+      var y = window.pageYOffset || 0;
+      var dt = Math.max(1, now - lastT);
+      var instantV = (y - lastY) / dt;
+      smoothedV = smoothedV * SMOOTH + instantV * (1 - SMOOTH);
+      lastY = y;
+      lastT = now;
+      MosaicMotion.request();
+    }, { passive: true });
+  })();
 })();
