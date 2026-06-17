@@ -268,6 +268,36 @@ a {
   }
 }
 
+/* Scrolled state — once the header has scrolled away, script.js adds
+   `is-floating` so the back control detaches to a fixed top-left corner
+   and stays reachable. Held at low opacity so it never competes with the
+   mosaic, rising to full opacity on hover/focus. The `[data-reveal]`
+   qualifier is here only to out-specify `[data-reveal].is-visible`
+   (which also sets opacity and sits later in this file); the back button
+   always carries that attribute, so the low-opacity dim actually wins. */
+.back-btn[data-reveal].is-floating {
+  position: fixed;
+  top: calc(var(--nav-h) + 14px);
+  left: 24px;
+  z-index: 40;
+  margin: 0;
+  opacity: 0.32;
+  background: rgba(10, 10, 10, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.back-btn[data-reveal].is-floating:hover,
+.back-btn[data-reveal].is-floating:focus-visible {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .back-btn.is-floating {
+    transition: opacity 240ms var(--ease-out);
+  }
+}
+
 .sprocket {
   display: flex;
   gap: 10px;
@@ -819,6 +849,14 @@ a {
     padding: 15px 22px 15px 18px;
     font-size: 12px;
     margin-bottom: 24px;
+  }
+
+  /* Tuck the floating control nearer the edge below the shorter nav.
+     Matches the desktop selector's specificity so these win. */
+  .back-btn[data-reveal].is-floating {
+    top: calc(var(--nav-h) + 10px);
+    left: 16px;
+    padding: 11px 16px;
   }
 }
 
@@ -2398,6 +2436,46 @@ html.intro-armed {
 .mosaic__sound-icon--on { display: none; }
 .mosaic__sound.is-on .mosaic__sound-icon--off { display: none; }
 .mosaic__sound.is-on .mosaic__sound-icon--on { display: block; }
+
+/* Universal project sound toggle — injected by mosaic.js into the page
+   header on projects that hold more than one video. Mirrors the per-tile
+   badge iconography (line-art speaker, gold when on) but reads as a
+   labelled control rather than a hover affordance. In-memory only:
+   leaving the page resets it to off. */
+.mosaic-sound-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 28px;
+  padding: 10px 18px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(10, 10, 10, 0.4);
+  color: var(--cream);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 200ms var(--ease-out),
+              border-color 200ms var(--ease-out),
+              background-color 200ms var(--ease-out);
+}
+
+.mosaic-sound-toggle:hover,
+.mosaic-sound-toggle:focus-visible {
+  border-color: rgba(243, 237, 225, 0.36);
+  background: rgba(10, 10, 10, 0.62);
+  outline: none;
+}
+
+.mosaic-sound-toggle.is-on {
+  border-color: rgba(227, 178, 60, 0.55);
+  color: var(--gold);
+}
+
+.mosaic-sound-toggle .mosaic__sound-icon--on { display: none; }
+.mosaic-sound-toggle.is-on .mosaic__sound-icon--off { display: none; }
+.mosaic-sound-toggle.is-on .mosaic__sound-icon--on { display: block; }
 
 /* === Film-only project layout ===
    When a project has no photos — only videos — the regular 3-column

@@ -387,6 +387,27 @@
         window.history.back();
       });
     }
+
+    /* Keep the back control reachable after the visitor scrolls into the
+       mosaic. Once the header has scrolled away, `is-floating` detaches
+       the button to a fixed, dimmed corner (see styles.css) so it stays
+       out of the way of the photos; near the top it sits back in flow. */
+    var floatThreshold = 200;
+    var computeThreshold = function () {
+      var head = document.querySelector('.page-head');
+      floatThreshold = head ? Math.max(140, head.offsetTop + head.offsetHeight * 0.5) : 200;
+    };
+    var onBackScroll = function () {
+      var y = window.pageYOffset || document.documentElement.scrollTop || 0;
+      projectBackBtn.classList.toggle('is-floating', y > floatThreshold);
+    };
+    computeThreshold();
+    onBackScroll();
+    window.addEventListener('resize', function () {
+      computeThreshold();
+      onBackScroll();
+    }, { passive: true });
+    window.addEventListener('scroll', onBackScroll, { passive: true });
   }
 
   /* ---------- Project page — staggered mosaic reveal ----------

@@ -314,6 +314,91 @@
      unmuted at a time": unmuting one mutes all the others. */
   var videoTiles = [];
 
+  /* ============================================================
+     Project-wide sound state
+     ------------------------------------------------------------
+     The Mosaic keeps its long-standing invariant: at most ONE video
+     carries sound at a time. `projectSoundOn` is simply "is any video
+     currently unmuted". The universal toggle (built only when a project
+     has more than one video) mirrors it and acts as a bulk control; the
+     per-tile badges feed the same state; and while it is on the audible
+     video follows the scroll — the tile coming into view takes the
+     sound. It lives only in memory, so leaving the page (or a reload)
+     resets it to its default off — the toggle is never persisted.
+     ============================================================ */
+  var projectSoundOn = false;
+  var universalToggle = null;   /* built lazily only when videoTiles.length > 1 */
+
+  /* The two line-art speaker glyphs, shared by the per-tile badge and
+     the universal toggle so both read as the same control. CSS shows
+     one or the other based on the `is-on` class on the button. */
+  var SOUND_ICONS_HTML =
+    '<svg class="mosaic__sound-icon mosaic__sound-icon--off" viewBox="0 0 24 24" aria-hidden="true">' +
+      '<path d="M4 9.5 L8 9.5 L13 5.5 L13 18.5 L8 14.5 L4 14.5 Z"/>' +
+      '<path d="M17 9 L21 15"/>' +
+      '<path d="M21 9 L17 15"/>' +
+    '</svg>' +
+    '<svg class="mosaic__sound-icon mosaic__sound-icon--on" viewBox="0 0 24 24" aria-hidden="true">' +
+      '<path d="M4 9.5 L8 9.5 L13 5.5 L13 18.5 L8 14.5 L4 14.5 Z"/>' +
+      '<path d="M16.5 9 a4 4 0 0 1 0 6"/>' +
+      '<path d="M19 6.5 a7.5 7.5 0 0 1 0 11"/>' +
+    '</svg>';
+
+  var syncUniversalToggle = function () {
+    if (!universalToggle) return;
+    universalToggle.classList.toggle('is-on', projectSoundOn);
+    universalToggle.setAttribute('aria-pressed', projectSoundOn ? 'true' : 'false');
+    universalToggle.setAttribute('aria-label',
+      projectSoundOn ? 'Turn project sound off' : 'Turn project sound on');
+    var label = universalToggle.querySelector('.mosaic-sound-toggle__label');
+    if (label) label.textContent = projectSoundOn ? 'Sound on' : 'Sound off';
+  };
+
+  /* Push the current mute state out to every per-tile badge and the
+     universal toggle so the whole page agrees. */
+  var syncAllBadges = function () {
+    for (var i = 0; i < videoTiles.length; i++) {
+      if (videoTiles[i].__syncBadge) videoTiles[i].__syncBadge();
+    }
+    syncUniversalToggle();
+  };
+
+  /* Unmute exactly `video`, silence every other tile (the one-at-a-time
+     invariant), and mark the project as sounding. */
+  var setUnmuted = function (video) {
+    for (var i = 0; i < videoTiles.length; i++) {
+      videoTiles[i].muted = (videoTiles[i] !== video);
+    }
+    projectSoundOn = true;
+    syncAllBadges();
+  };
+
+  /* Silence everything and drop out of sound mode. */
+  var muteAll = function () {
+    for (var i = 0; i < videoTiles.length; i++) videoTiles[i].muted = true;
+    projectSoundOn = false;
+    syncAllBadges();
+  };
+
+  /* When the universal toggle is switched on, hand sound to whichever
+     video is most worth hearing right now: the playing tile with the
+     largest area on screen, falling back to the first playing tile, then
+     to the first tile of all. */
+  var pickAudibleCandidate = function () {
+    var best = null, bestArea = -1;
+    var vh = window.innerHeight || 0, vw = window.innerWidth || 0;
+    for (var i = 0; i < videoTiles.length; i++) {
+      var v = videoTiles[i];
+      if (v.paused) continue;
+      var r = v.getBoundingClientRect();
+      var visW = Math.max(0, Math.min(r.right, vw) - Math.max(r.left, 0));
+      var visH = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0));
+      var area = visW * visH;
+      if (area > bestArea) { bestArea = area; best = v; }
+    }
+    return best || videoTiles[0] || null;
+  };
+
   /* One shared observer: a video plays while ≥25% of it is on screen
      and pauses otherwise, so off-screen frames cost nothing. play()
      can reject under autoplay policies — swallow that, never throw. */
@@ -326,6 +411,9 @@
             if (playing && typeof playing.catch === 'function') {
               playing.catch(function () {});
             }
+            /* While the project is sounding, the audible video follows
+               the scroll: the tile coming into view takes the sound. */
+            if (projectSoundOn && vid.muted) setUnmuted(vid);
           } else {
             vid.pause();
           }
@@ -416,17 +504,7 @@
     badge.className = 'mosaic__sound';
     badge.type = 'button';
     badge.setAttribute('aria-label', 'Unmute');
-    badge.innerHTML =
-      '<svg class="mosaic__sound-icon mosaic__sound-icon--off" viewBox="0 0 24 24" aria-hidden="true">' +
-        '<path d="M4 9.5 L8 9.5 L13 5.5 L13 18.5 L8 14.5 L4 14.5 Z"/>' +
-        '<path d="M17 9 L21 15"/>' +
-        '<path d="M21 9 L17 15"/>' +
-      '</svg>' +
-      '<svg class="mosaic__sound-icon mosaic__sound-icon--on" viewBox="0 0 24 24" aria-hidden="true">' +
-        '<path d="M4 9.5 L8 9.5 L13 5.5 L13 18.5 L8 14.5 L4 14.5 Z"/>' +
-        '<path d="M16.5 9 a4 4 0 0 1 0 6"/>' +
-        '<path d="M19 6.5 a7.5 7.5 0 0 1 0 11"/>' +
-      '</svg>';
+    badge.innerHTML = SOUND_ICONS_HTML;
 
     var syncBadge = function () {
       var on = !video.muted;
@@ -443,19 +521,15 @@
            itself out, leaving the video muted. */
         e.stopPropagation();
       }
-      var willUnmute = video.muted;
-      if (willUnmute) {
-        /* Only one video may carry sound at a time — silence the rest. */
-        videoTiles.forEach(function (other) {
-          if (other !== video) {
-            other.muted = true;
-          }
-        });
+      /* Manual per-tile control still works regardless of the universal
+         toggle. Unmuting this tile silences the rest and turns project
+         sound on; muting the (only) audible tile turns it off. Both feed
+         the same shared state, so the universal toggle stays truthful. */
+      if (video.muted) {
+        setUnmuted(video);
+      } else {
+        muteAll();
       }
-      video.muted = !video.muted;
-      videoTiles.forEach(function (other) {
-        if (other.__syncBadge) other.__syncBadge();
-      });
     };
 
     video.__syncBadge = syncBadge;
@@ -509,6 +583,46 @@
       buildImageTile(item.src, index);
     }
   });
+
+  /* ============================================================
+     Universal (project-wide) sound toggle
+     ------------------------------------------------------------
+     Only meaningful when there is more than one video to switch
+     between, so it is built only then. Injected into the page header
+     so it sits "on top of" the project. Turning it on hands sound to
+     the most-visible playing video and puts the page into follow-the-
+     scroll sound mode; turning it off silences everything. The per-tile
+     badges remain fully usable either way.
+     ============================================================ */
+  (function buildUniversalSoundToggle() {
+    if (videoTiles.length <= 1) return;
+    var head = document.querySelector('.page-head');
+    if (!head) return;
+
+    universalToggle = document.createElement('button');
+    universalToggle.type = 'button';
+    universalToggle.className = 'mosaic-sound-toggle';
+    universalToggle.innerHTML =
+      SOUND_ICONS_HTML +
+      '<span class="mosaic-sound-toggle__label">Sound off</span>';
+
+    universalToggle.addEventListener('click', function () {
+      if (projectSoundOn) {
+        muteAll();
+      } else {
+        var pick = pickAudibleCandidate();
+        if (pick) {
+          setUnmuted(pick);
+        } else {
+          projectSoundOn = true;
+          syncAllBadges();
+        }
+      }
+    });
+
+    head.appendChild(universalToggle);
+    syncUniversalToggle();
+  })();
 
   /* ============================================================
      The living Mosaic — shared rAF writer (scaffold)
