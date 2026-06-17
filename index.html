@@ -729,9 +729,21 @@
                                         // more responsive, at the cost of main-thread time the 3D
                                         // render would otherwise use (a small smoothness trade).
     var REACH_SMOOTH       = 0.35;
-    var REACH_RENDER_EASE  = 0.45;      // per-frame (60fps) catch-up that glides the cursor/void
-                                        // between 30Hz detections so motion doesn't step. Lower =
-                                        // smoother but laggier; higher = snappier but steppier.
+    // One Euro Filter (Casiez, Roussel & Vogel, CHI 2012) — adaptive smoothing
+    // for the render-rate cursor/void glide, replacing the old fixed lerp. It
+    // smooths hard when the hand is slow (kills resting jitter) and opens up
+    // when it moves fast (kills lag on a flick) — something no single lerp
+    // factor can do at once. Detection is untouched; this only shapes the x/y
+    // glide, so the clutch/depth path (which reads raw reach.hand) is unaffected.
+    //   MIN_CUTOFF: baseline cutoff (Hz). Lower = steadier at rest but laggier;
+    //               higher = snappier but lets more jitter through.
+    //   BETA:       speed coupling. Higher = cutoff opens sooner as the hand
+    //               speeds up, so fast moves shed lag; too high lets jitter back
+    //               in mid-move.
+    //   DCUTOFF:    cutoff for the internal speed estimate; 1.0 is standard.
+    var REACH_EURO_MIN_CUTOFF = 1.0;
+    var REACH_EURO_BETA       = 1.5;
+    var REACH_EURO_DCUTOFF    = 1.0;
     var REACH_LOSS_HINT_MS = 2000;
     var REACH_CURL_OPEN_RATIO = 0.85;   // curl > this * calib.curl ⇒ clutched→open
     var REACH_CURL_FIST_RATIO = 0.55;   // curl < this * calib.curl ⇒ open→clutched
@@ -1234,7 +1246,8 @@
       landmarker:  null,
       loopTimer:   null,
       hand:        null,    // smoothed { x, y, size, curl, curl345 } in normalised frame coords
-      handRender:  null,    // per-frame eased { x, y } so cursor/void glide between detections
+      handRaw:     null,    // unsmoothed { x, y } palm position — One Euro owns x/y smoothing
+      handRender:  null,    // per-frame One-Euro-filtered { x, y } so cursor/void glide smoothly
       calib:       null,    // { x, y, size, curl } captured neutral
       calibSamples: null,
       clutched:    false,   // The clutch: fist pins depth (camTarget.z) while pan stays live
@@ -1252,6 +1265,44 @@
       identifyTimer: null
     };
     var _reachLandmarkerPromise = null;
+
+    // ── One Euro Filter ──────────────────────────────────────────────────
+    // Adaptive low-pass (see the REACH_EURO_* constants for tuning): the cutoff
+    // rises with the signal's speed, so a still hand is smoothed heavily and a
+    // fast hand is barely smoothed. One instance per axis. Both reset on hand
+    // loss so a re-acquire snaps to the fresh position instead of gliding in
+    // from a stale one. Pure post-processing — it never touches detection.
+    function makeOneEuro(minCutoff, beta, dCutoff) {
+      var xPrev = 0, dxPrev = 0, tPrev = 0, primed = false;
+      function alpha(cutoff, dt) {
+        var tau = 1 / (2 * Math.PI * cutoff);
+        return 1 / (1 + tau / dt);
+      }
+      return {
+        reset: function () { primed = false; dxPrev = 0; },
+        // x is the new sample, tMs a performance.now() timestamp. Returns the
+        // filtered value; framerate-independent because dt is measured, not
+        // assumed, so the feel holds on a 60Hz or a 144Hz display alike.
+        filter: function (x, tMs) {
+          if (!primed) { primed = true; xPrev = x; dxPrev = 0; tPrev = tMs; return x; }
+          var dt = (tMs - tPrev) / 1000;
+          if (!(dt > 0)) dt = 1 / 60;           // guard a zero/negative interval
+          else if (dt > 1 / 30) dt = 1 / 30;    // clamp after a stall so we glide, not jump
+          tPrev = tMs;
+          var dx  = (x - xPrev) / dt;
+          var aD  = alpha(dCutoff, dt);
+          var edx = aD * dx + (1 - aD) * dxPrev;   // low-passed speed estimate
+          dxPrev  = edx;
+          var cutoff = minCutoff + beta * Math.abs(edx);
+          var aX  = alpha(cutoff, dt);
+          var hatx = aX * x + (1 - aX) * xPrev;
+          xPrev = hatx;
+          return hatx;
+        }
+      };
+    }
+    var _reachEuroX = makeOneEuro(REACH_EURO_MIN_CUTOFF, REACH_EURO_BETA, REACH_EURO_DCUTOFF);
+    var _reachEuroY = makeOneEuro(REACH_EURO_MIN_CUTOFF, REACH_EURO_BETA, REACH_EURO_DCUTOFF);
 
     function reachInitDom() {
       reach.ctaEl       = document.getElementById('reach-cta');
@@ -1432,6 +1483,10 @@
       reachClearOnboard();
       reachClearIdentify();
       reach.hand     = null;
+      reach.handRaw  = null;
+      reach.handRender = null;
+      _reachEuroX.reset();
+      _reachEuroY.reset();
       reach.clutched = false;
       reach.clutchSince = 0;
       reach.openSince   = 0;
@@ -1530,6 +1585,10 @@
         next.curl345 = prev.curl345 + (curl345   - prev.curl345) * REACH_SMOOTH;
       }
       reach.hand = next;
+      // Stash the unsmoothed palm for the glide: One Euro filters this at render
+      // rate, so x/y smoothing is owned entirely by the adaptive filter while
+      // size/curl keep their REACH_SMOOTH treatment for the clutch/depth path.
+      reach.handRaw = { x: palmX, y: palmY };
 
       // ADR 0011: on the first sample after a clutched→open transition, the
       // open-palm size anchor has drifted (visitor may have shifted distance,
@@ -1600,6 +1659,9 @@
       }
       if (!reach.hand || !reach.calib) {
         reach.handRender = null;   // re-acquire snaps to the fresh position, no glide-from-stale
+        reach.handRaw    = null;
+        _reachEuroX.reset();       // so the next acquire snaps instead of gliding from a stale sample
+        _reachEuroY.reset();
         var lostFor = reach.lastSeenAt ? (performance.now() - reach.lastSeenAt) : 0;
         var withinGrace = (lostFor <= REACH_LOSS_HINT_MS);
         if (reach.reticleEl) {
@@ -1640,19 +1702,19 @@
         reach.recalibSizeOnNext = true;
       }
 
-      // Per-frame catch-up: the render loop runs at ~60fps but detection only
-      // refreshes reach.hand at 30Hz, so reading reach.hand straight would step
-      // the cursor/void. Glide a render-rate copy of the position toward the
-      // latest sample instead (size/depth still read reach.hand directly, so
-      // the clutch and ADR 0011 re-anchoring are untouched). Snap on first
-      // acquire so the cursor appears where the hand is, then ease.
-      var hr = reach.handRender;
-      if (!hr) {
-        hr = reach.handRender = { x: reach.hand.x, y: reach.hand.y };
-      } else {
-        hr.x += (reach.hand.x - hr.x) * REACH_RENDER_EASE;
-        hr.y += (reach.hand.y - hr.y) * REACH_RENDER_EASE;
-      }
+      // Per-frame glide via One Euro: the render loop runs at ~60fps but
+      // detection only refreshes the hand at the detection Hz, so reading the
+      // sample straight would step the cursor/void. Re-filtering the latest raw
+      // position every frame resamples it to render rate with adaptive
+      // smoothing — steady when the hand rests, lag-free when it moves — and is
+      // framerate-independent. Size/depth still read reach.hand directly, so the
+      // clutch and ADR 0011 re-anchoring are untouched. The filter returns the
+      // raw value on its first call after a reset, so a fresh acquire snaps.
+      var src = reach.handRaw || reach.hand;
+      var now = performance.now();
+      var hr  = reach.handRender || (reach.handRender = { x: src.x, y: src.y });
+      hr.x = _reachEuroX.filter(src.x, now);
+      hr.y = _reachEuroY.filter(src.y, now);
 
       var ox = hr.x - reach.calib.x;
       var oy = hr.y - reach.calib.y;
