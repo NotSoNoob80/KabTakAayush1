@@ -135,6 +135,28 @@ const PROJECTS = [
     meta: 'Photos · Banganga, Mumbai',
     description: 'Anatomy of a flip',
     imageCount: 10
+  },
+  {
+    id: '13',
+    title: 'Kondeshwar',
+    type: 'video',
+    typeLabel: 'Video/s',
+    meta: 'Video/s · Kondeshwar, Badlapur',
+    description: 'Kondeshwar',
+    imageCount: 0,
+    videoCount: 14,
+    media: 'vvvvvvvvvvvvvv'
+  },
+  {
+    id: '14',
+    title: 'Through Fragments',
+    type: 'video',
+    typeLabel: 'Video/s',
+    meta: 'Video/s · Juhu Beach, Mumbai',
+    description: 'Through Fragments',
+    imageCount: 0,
+    videoCount: 1,
+    media: 'v'
   }
 ];
 /* @PROJECTS-END */
