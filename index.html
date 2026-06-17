@@ -745,6 +745,14 @@
     var REACH_EURO_BETA       = 2.0;    // ↑ from 1.5: opens the cutoff sooner so fast moves keep
                                         //   their snap despite the lower baseline — net smoother
     var REACH_EURO_DCUTOFF    = 1.0;
+    // Depth (push/pull) smoothing time constant, in seconds. The size signal
+    // that drives fly-forward/back is eased toward each new sample with an alpha
+    // derived from real frame dt, so — unlike the old per-frame read — its feel
+    // does not ride the frame rate. Lower = snappier depth; higher = smoother
+    // but laggier. One Euro's speed-adaptive smoothing is overkill here: depth
+    // needs lag-reduction and framerate-independence, not jitter rejection, so a
+    // plain framerate-independent glide is the right-sized version of it.
+    var REACH_DEPTH_GLIDE_TAU = 0.04;
     var REACH_LOSS_HINT_MS = 2000;
     var REACH_CURL_OPEN_RATIO = 0.85;   // curl > this * calib.curl ⇒ clutched→open
     var REACH_CURL_FIST_RATIO = 0.55;   // curl < this * calib.curl ⇒ open→clutched
@@ -1249,6 +1257,9 @@
       hand:        null,    // smoothed { x, y, size, curl, curl345 } in normalised frame coords
       handRaw:     null,    // unsmoothed { x, y } palm position — One Euro owns x/y smoothing
       handRender:  null,    // per-frame One-Euro-filtered { x, y } so cursor/void glide smoothly
+      sizeRender:  null,    // framerate-independent eased size for the depth push (render-only)
+      snapSizeOnNext: false,// on a calib.size re-anchor, snap sizeRender too so ADR 0011 holds
+      lastApplyTs: 0,       // perf ts of the last active reachApplyToTarget, for real-dt depth glide
       calib:       null,    // { x, y, size, curl } captured neutral
       calibSamples: null,
       clutched:    false,   // The clutch: fist pins depth (camTarget.z) while pan stays live
@@ -1486,6 +1497,9 @@
       reach.hand     = null;
       reach.handRaw  = null;
       reach.handRender = null;
+      reach.sizeRender = null;
+      reach.snapSizeOnNext = false;
+      reach.lastApplyTs = 0;
       _reachEuroX.reset();
       _reachEuroY.reset();
       reach.clutched = false;
@@ -1599,6 +1613,7 @@
       if (reach.recalibSizeOnNext) {
         reach.calib.size = next.size;
         reach.recalibSizeOnNext = false;
+        reach.snapSizeOnNext = true;   // snap the depth glide to the new anchor → ds≈0, no z jerk
       }
 
       // Clutch state machine.
@@ -1661,6 +1676,8 @@
       if (!reach.hand || !reach.calib) {
         reach.handRender = null;   // re-acquire snaps to the fresh position, no glide-from-stale
         reach.handRaw    = null;
+        reach.sizeRender = null;   // depth glide snaps on re-acquire too
+        reach.lastApplyTs = 0;
         _reachEuroX.reset();       // so the next acquire snaps instead of gliding from a stale sample
         _reachEuroY.reset();
         var lostFor = reach.lastSeenAt ? (performance.now() - reach.lastSeenAt) : 0;
@@ -1717,6 +1734,28 @@
       hr.x = _reachEuroX.filter(src.x, now);
       hr.y = _reachEuroY.filter(src.y, now);
 
+      // Real frame dt (clamped against a stall) — drives the framerate-
+      // independent depth glide below and the dt-scaled push so depth no longer
+      // rides the frame rate the heavier detection now costs.
+      var dtMs = reach.lastApplyTs ? (now - reach.lastApplyTs) : (1000 / 60);
+      reach.lastApplyTs = now;
+      if (!(dtMs > 0)) dtMs = 1000 / 60;
+      else if (dtMs > 1000 / 15) dtMs = 1000 / 15;   // clamp a long gap so we glide, not leap
+      var dtSec   = dtMs / 1000;
+      var dtScale = dtSec * 60;                       // 1.0 at 60fps; >1 compensates a low frame rate
+
+      // Depth glide: ease the stepped detection-rate size toward each sample
+      // with a dt-derived alpha (framerate-independent). Raw reach.hand.size
+      // still drives the clutch re-anchor (ADR 0011); we snap this copy to it on
+      // acquire / re-anchor so the push still starts from ~0 and never jerks.
+      if (reach.sizeRender == null || reach.snapSizeOnNext) {
+        reach.sizeRender     = reach.hand.size;
+        reach.snapSizeOnNext = false;
+      } else {
+        var aSize = 1 - Math.exp(-dtSec / REACH_DEPTH_GLIDE_TAU);
+        reach.sizeRender += (reach.hand.size - reach.sizeRender) * aSize;
+      }
+
       var ox = hr.x - reach.calib.x;
       var oy = hr.y - reach.calib.y;
       var r  = Math.sqrt(ox * ox + oy * oy);
@@ -1757,9 +1796,9 @@
       //     exit) — hold z for the frame or two until calib.size catches up.
       // Pan keeps writing in all of these; any prior zVel coasts on FLY_FRICTION.
       if (!reach.clutched && !reach.recalibSizeOnNext) {
-        var ds = reach.hand.size - reach.calib.size;
+        var ds = reach.sizeRender - reach.calib.size;
         if (Math.abs(ds) > 0.008) {
-          camTarget.z -= ds * REACH_FLY;
+          camTarget.z -= ds * REACH_FLY * dtScale;
         }
       }
     }
