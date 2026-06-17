@@ -757,6 +757,11 @@
     var REACH_EURO_SIZE_MIN_CUTOFF = 0.6;
     var REACH_EURO_SIZE_BETA       = 15.0;
     var REACH_EURO_SIZE_DCUTOFF    = 1.0;
+    // Robust size metric: average the four wrist→knuckle spans instead of the
+    // single middle-finger one, to cut depth jitter AT THE SOURCE (cleaner input
+    // beats more output smoothing — no lag cost). Set false to restore the exact
+    // prior single-span behavior, byte-for-byte (the one-flag revert).
+    var REACH_ROBUST_SIZE = true;
     var REACH_LOSS_HINT_MS = 2000;
     var REACH_CURL_OPEN_RATIO = 0.85;   // curl > this * calib.curl ⇒ clutched→open
     var REACH_CURL_FIST_RATIO = 0.55;   // curl < this * calib.curl ⇒ open→clutched
@@ -1548,9 +1553,30 @@
       var palmX = 1 - palm.x;
       var palmY = palm.y;
 
-      var dx = (1 - palm.x) - (1 - wrist.x);
-      var dy = palm.y - wrist.y;
-      var size = Math.sqrt(dx * dx + dy * dy);
+      // Hand "size" = apparent wrist→knuckle scale; bigger ⇒ hand nearer ⇒ depth.
+      var size;
+      if (REACH_ROBUST_SIZE) {
+        // Average the wrist→MCP span of all four fingers (index 5, middle 9,
+        // ring 13, pinky 17). They're the same KIND of measure, so they scale
+        // together with distance and combine cleanly; averaging cancels the
+        // independent per-landmark jitter (~half the noise) at zero lag cost.
+        // MCPs barely move as fingers curl, so size stays steady through
+        // fist/open too. Calibration uses this same metric, so the small
+        // absolute-scale shift vs the single span cancels in ds = size - calib.
+        var MCP = [5, 9, 13, 17];
+        var sSum = 0;
+        for (var si = 0; si < MCP.length; si++) {
+          var mc  = lms[MCP[si]];
+          var mdx = (1 - mc.x) - (1 - wrist.x);
+          var mdy = mc.y - wrist.y;
+          sSum += Math.sqrt(mdx * mdx + mdy * mdy);
+        }
+        size = sSum / MCP.length;
+      } else {
+        var dx = (1 - palm.x) - (1 - wrist.x);
+        var dy = palm.y - wrist.y;
+        size = Math.sqrt(dx * dx + dy * dy);
+      }
 
       // Openness signals: mean tip→MCP distance, normalised by hand size.
       //   curl    — fingers 2-5 (index..pinky), used to set the calibrated
