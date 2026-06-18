@@ -102,6 +102,10 @@
     var lastTrigger = null;
     var pausedTiles = [];
     var currentIndex = -1;
+    /* The <video> currently mounted on the stage (null for image frames).
+       Kept so close() can hand its playback position back to the matching
+       inline tile — exiting full screen resumes where it left off. */
+    var previewVideo = null;
     var hintTimer = 0;
     var touchStartX = 0, touchStartY = 0, touchActive = false;
     var reducedMotion = window.matchMedia &&
@@ -198,11 +202,13 @@
         node.muted = true;
         node.setAttribute('playsinline', '');
         node.setAttribute('preload', 'metadata');
+        previewVideo = node;
       } else {
         node = document.createElement('img');
         node.src = item.src;
         node.alt = '';
         node.decoding = 'async';
+        previewVideo = null;
       }
       stage.appendChild(node);
     };
@@ -272,10 +278,30 @@
       cancelHint();
       overlay.classList.remove('is-open');
 
+      /* Hand the full-screen video's playback position back to its inline
+         tile so the normal preview resumes exactly where it left off.
+         Captured now, while the preview <video> is still mounted; matched
+         by resolved URL since the DOM .src property is always absolute. */
+      var resumeSrc = null, resumeTime = 0;
+      if (previewVideo) {
+        resumeSrc = previewVideo.src;
+        resumeTime = previewVideo.currentTime || 0;
+      }
+
       var finalize = function () {
         overlay.setAttribute('hidden', '');
         stage.innerHTML = '';
+        previewVideo = null;
         document.body.classList.remove('has-preview');
+        /* Sync the matching inline tile to the position the full-screen
+           view reached before resuming it below. */
+        if (resumeSrc) {
+          for (var t = 0; t < videoTiles.length; t++) {
+            if (videoTiles[t].src === resumeSrc) {
+              try { videoTiles[t].currentTime = resumeTime; } catch (e2) { /* ignore */ }
+            }
+          }
+        }
         /* Resume the inline tile videos we paused on open. play() can
            reject; swallow it the same way the IO observer does. */
         for (var i = 0; i < pausedTiles.length; i++) {
