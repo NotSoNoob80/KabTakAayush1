@@ -184,6 +184,16 @@
       }, { passive: true });
     };
 
+    /* Find the inline grid tile that plays the same file as a preview
+       <video>. The DOM .src property is always absolute, so both sides
+       compare apples to apples regardless of how the source was authored. */
+    var findTileFor = function (videoNode) {
+      for (var i = 0; i < videoTiles.length; i++) {
+        if (videoTiles[i].src === videoNode.src) return videoTiles[i];
+      }
+      return null;
+    };
+
     /* Render media[index] onto the stage, replacing whatever's there. */
     var render = function (index) {
       currentIndex = index;
@@ -197,12 +207,27 @@
         node.controls = true;
         node.autoplay = true;
         node.loop = true;
-        /* Start muted to satisfy autoplay policies; native controls
-           let the visitor unmute. */
-        node.muted = true;
         node.setAttribute('playsinline', '');
         node.setAttribute('preload', 'metadata');
         previewVideo = node;
+
+        /* Inherit the inline tile's state so full screen is seamless:
+           the same sound on/off, and resume from the same playback
+           position. The opening click is a user gesture, so unmuted
+           autoplay is permitted. Default to muted when there's no inline
+           counterpart (satisfies autoplay; native controls let them unmute). */
+        var sourceTile = findTileFor(node);
+        node.muted = sourceTile ? sourceTile.muted : true;
+        if (sourceTile) {
+          var startAt = sourceTile.currentTime || 0;
+          var seekToStart = function () {
+            try { node.currentTime = startAt; } catch (e) { /* ignore */ }
+          };
+          /* Metadata may already be cached (the tile has been playing);
+             otherwise wait for it so the seek actually takes. */
+          if (node.readyState >= 1) seekToStart();
+          else node.addEventListener('loadedmetadata', seekToStart, { once: true });
+        }
       } else {
         node = document.createElement('img');
         node.src = item.src;

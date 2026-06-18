@@ -2697,6 +2697,41 @@ html.intro-armed {
   background: var(--black-soft);
 }
 
+/* Brand the full-screen player's native controls toward the site's
+   gold/cream palette. `accent-color` carries the scrubber and volume
+   on Firefox/Chromium; the WebKit media pseudo-elements below push the
+   panel, timeline, and time text the rest of the way so the controls
+   read as ours rather than the browser default. */
+.mosaic-preview__stage video {
+  accent-color: var(--gold);
+  color-scheme: dark;
+}
+
+.mosaic-preview__stage video::-webkit-media-controls-panel {
+  background: linear-gradient(
+    to top,
+    rgba(10, 10, 10, 0.82),
+    rgba(10, 10, 10, 0)
+  );
+}
+
+.mosaic-preview__stage video::-webkit-media-controls-current-time-display,
+.mosaic-preview__stage video::-webkit-media-controls-time-remaining-display {
+  color: var(--cream);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.mosaic-preview__stage video::-webkit-media-controls-timeline {
+  accent-color: var(--gold);
+}
+
+.mosaic-preview__stage video::-webkit-media-controls-play-button,
+.mosaic-preview__stage video::-webkit-media-controls-mute-button,
+.mosaic-preview__stage video::-webkit-media-controls-fullscreen-button,
+.mosaic-preview__stage video::-webkit-media-controls-volume-slider {
+  filter: sepia(1) saturate(2.2) hue-rotate(2deg) brightness(1.05);
+}
+
 .mosaic-preview__close {
   position: absolute;
   top: max(20px, env(safe-area-inset-top));
