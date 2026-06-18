@@ -176,10 +176,11 @@ implementation; this file is the source of truth for what we call things.
 - **The sightline** (Spotlight) — the invisible line across the viewport's
   vertical centre that decides which video is **the lit film**: whichever video's
   centre sits nearest it. It has no visible form of its own — the visitor sees
-  only its effect. A film-only Spotlight has **no project-wide sound toggle**
-  (with one video ever playing there is nothing to arbitrate); the lit film's own
-  speaker badge is the sole sound control. Sound is off by default and follows
-  the lit film on handoff.
+  only its effect. On a Spotlight the project-wide **universal sound toggle**
+  stays (same as any multi-video project) and acts as the master on/off; the lit
+  film's own speaker badge is the per-film control. Both flip the same project
+  sound state, so they stay in sync, and on handoff sound follows the lit film.
+  Sound is off by default.
 - **Beat** (Listing) — a resting point in the scrub the page can snap to.
 - **Listing on a small screen** — the Listing *keeps* the scrub on phones; it
   is not swapped for the stacked reduced-motion fallback. To make a card fit a

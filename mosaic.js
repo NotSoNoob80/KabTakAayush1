@@ -599,12 +599,12 @@
      ============================================================ */
   (function buildUniversalSoundToggle() {
     if (videoTiles.length <= 1) return;
-    /* On a Spotlight (film-only Mosaic) there is only ever one playing
-       film at a time, so there is nothing to arbitrate — the lit film's
-       own speaker badge is the sole sound control. The universal toggle
-       does not build, and no toggle button mounts in the DOM. Mixed
-       photo+video Mosaics still get the toggle as today. */
-    if (isFilmOnly) return;
+    /* The universal toggle returns on a Spotlight too: it is the
+       project-level on/off master, while the lit film's speaker badge
+       remains the per-film control. Both flip the same projectSoundOn
+       state, so they stay in sync — turning the universal toggle on
+       hands sound to the most-visible playing video (which, on a
+       Spotlight, is always the lit film), and handoff carries it. */
     var head = document.querySelector('.page-head');
     if (!head) return;
 
