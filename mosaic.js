@@ -1032,6 +1032,25 @@
 
     var litIdx = -1;
 
+    /* Lift a film from metadata-only buffering to its full body. Every film
+       starts at preload="metadata" so a 14-film project doesn't fire 14
+       full downloads at once on load. But that leaves a freshly-lit film
+       with only its first frame: play() then has to cold-fetch the body
+       mid-scroll, and on a slow/variable mobile connection that fetch is
+       exactly what stalls — the larger the file, the likelier it never
+       starts (the inconsistent "didn't autoplay" bug). Warming the lit film
+       and its immediate neighbours means play() has data ready and the next
+       handoff is already buffering. A hint only — no load() — so nothing
+       currently playing is reset or interrupted. */
+    var warm = function (idx) {
+      if (idx < 0 || idx >= films.length) return;
+      var v = films[idx].video;
+      if (v.preload !== 'auto') {
+        v.preload = 'auto';
+        v.setAttribute('preload', 'auto');
+      }
+    };
+
     var setLit = function (idx) {
       if (idx === litIdx) return;
       if (litIdx >= 0) {
@@ -1041,6 +1060,11 @@
       litIdx = idx;
       if (litIdx >= 0) {
         films[litIdx].fig.classList.add('is-lit');
+        /* Buffer the lit film and the films on either side, so this play()
+           and the next handoff start from data instead of a cold fetch. */
+        warm(litIdx);
+        warm(litIdx - 1);
+        warm(litIdx + 1);
         var p = films[litIdx].video.play();
         if (p && typeof p.catch === 'function') p.catch(function () {});
         /* Audio follows the lit film. If the project is sounding,
@@ -1054,22 +1078,41 @@
       }
     };
 
-    /* The video tags carry `autoplay`, which fires the moment metadata
-       loads — sometimes before our first tick, often staggered across
-       all 14 films. Without this guard, every film starts playing and
-       only the lit one ever gets explicitly paused. Listening for the
-       `play` event on each video catches BOTH initial autoplay AND
-       MosaicPreview's on-close resume (which re-plays every paused
-       inline tile) and pauses anything that isn't the current lit film.
-       When setLit calls play() on the lit film, litIdx === i at the
-       moment the event fires, so the guard correctly lets it through.
-       Runs in both modes — autoplay isn't motion. */
+    /* One reconciler per film, enforcing the Spotlight's single invariant:
+       exactly the lit film plays, every other film is paused. The browser
+       changes play state on its own in several ways and we re-assert the
+       invariant after each:
+         - the `autoplay` attribute firing as each film's metadata loads,
+           staggered across all 14 films (pause if not lit);
+         - MosaicPreview re-playing every paused inline tile on close
+           (pause everything that isn't the lit film);
+         - buffering finishing (`canplay`/`loadeddata`) — THIS is the fix.
+
+       The old guard listened only for `play`, so it could pause a stray
+       film but never re-start a lit one. setLit's single play() is
+       best-effort: on a slow connection its promise can reject (data not
+       ready) or be aborted by the handoff pause race, and nothing retried —
+       the lit film then sat frozen on its first frame. Reconciling on
+       `canplay`/`loadeddata` too means the instant a lit film has enough
+       data it plays, no matter how that earlier play/pause settled.
+       play() here is idempotent (no-op while already playing) and gated on
+       paused/lit, so there's no tug-of-war. Runs in both modes — this is
+       autoplay correctness, not motion. */
     films.forEach(function (f, i) {
-      f.video.addEventListener('play', function () {
-        if (i !== litIdx) {
-          try { f.video.pause(); } catch (e) { /* ignore */ }
+      var v = f.video;
+      var reconcile = function () {
+        if (i === litIdx) {
+          if (v.paused) {
+            var p = v.play();
+            if (p && typeof p.catch === 'function') p.catch(function () {});
+          }
+        } else if (!v.paused) {
+          try { v.pause(); } catch (e) { /* ignore */ }
         }
-      });
+      };
+      v.addEventListener('play', reconcile);
+      v.addEventListener('canplay', reconcile);
+      v.addEventListener('loadeddata', reconcile);
     });
 
     var sightlineY = function () { return (window.innerHeight || 1) * 0.5; };
