@@ -863,9 +863,20 @@
      so a hard touch-flick eases in instead of snapping; decays back
      to 0° at rest within a few frames. Reverse scroll mirrors the
      shear naturally, no special-casing.
+
+     Skipped entirely on any mosaic that contains video: gate shear
+     writes a per-frame transform to the WHOLE grid, which forces the
+     browser to re-composite the entire subtree each scroll frame —
+     and that subtree's decoding <video> surfaces make it the heaviest
+     scroll-time cost on the page. The effect is subliminal (±1.2°), so
+     dropping it on video pages trades nothing visible for noticeably
+     smoother scrolling (especially on weaker mobile GPUs). videoTiles
+     is fully populated by the media loop above before this runs, so the
+     count is accurate. One-line revert: delete this guard.
      ============================================================ */
   (function gateShear() {
     if (!MosaicMotion.enabled) return;
+    if (videoTiles.length > 0) return;
 
     var FACTOR   = 0.2;    /* deg per (px/ms) of smoothed velocity */
     var MAX_DEG  = 1.2;    /* hard ceiling even on violent flick */
