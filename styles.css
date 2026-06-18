@@ -2497,11 +2497,22 @@ html.intro-armed {
 .mosaic__grid--film .mosaic__item {
   aspect-ratio: 16 / 9;
   height: auto;
-  /* Scaled to 70% of the column width (30% smaller) and centred, so a
+  /* Scaled to 80% of the column width on desktop and centred, so a
      single film no longer dominates the viewport. aspect-ratio 16/9
-     means the height follows the width down proportionally. */
-  width: 70%;
+     means the height follows the width down proportionally. Mobile
+     reverts to full width — see the 640px breakpoint below. */
+  width: 80%;
   justify-self: center;
+}
+
+/* Mobile: revert film tiles to full width (the original layout). The
+   80% scale-down is a desktop-only refinement; on a narrow phone the
+   film should still fill the column. */
+@media (max-width: 640px) {
+  .mosaic__grid--film .mosaic__item {
+    width: 100%;
+    justify-self: stretch;
+  }
 }
 
 /* Reset wide/tall spans — irrelevant in a single-column stack */
