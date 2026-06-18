@@ -2508,6 +2508,111 @@ html.intro-armed {
 }
 
 /* ============================================================
+   The Spotlight — film-only Mosaic, one lit film at a time
+   ------------------------------------------------------------
+   See docs/prd/the-spotlight.md, plan-the-spotlight.md, ADR 0013.
+   This block is the visual contract only: the mount (two pseudo
+   rings) on every film-only figure, and the lit pose (rise + full
+   opacity + thick warm ring) under .is-lit. Selection logic —
+   which figure carries .is-lit — lives in JS (a later slice).
+   ============================================================ */
+
+/* The rise lives on the figure. Safe in a single-column stack:
+   the multi-column "figure carries no transform" rule does not
+   apply here (no horizontal neighbours to open seams against). */
+.mosaic__grid--film .mosaic__item--video {
+  transform: translateY(0);
+  transition: transform 160ms var(--ease-out);
+  will-change: transform;
+}
+
+.mosaic__grid--film .mosaic__item--video.is-lit {
+  transform: translateY(-8px);
+  transition: transform 220ms var(--ease-out);
+}
+
+/* The mount, ring 1: resting hairline. Always visible, dim gold,
+   1px inset. Clip-safe under .mosaic__item's overflow: hidden. */
+.mosaic__grid--film .mosaic__item--video::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border: 1px solid var(--gold-dim);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* The mount, ring 2: lit ring. Thicker, full gold, 3px inset.
+   Opacity 0 at rest → 1 under .is-lit; the hairline shows
+   through under it so the edge reads as "thickened and warmed"
+   in one move. Opacity crossfade only — no border-width
+   animation, no layout thrash. */
+.mosaic__grid--film .mosaic__item--video::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 2px solid var(--gold);
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms var(--ease-out);
+  z-index: 3;
+}
+
+.mosaic__grid--film .mosaic__item--video.is-lit::after {
+  opacity: 1;
+  transition: opacity 200ms var(--ease-out);
+}
+
+/* Tile dim sits on .mosaic__settle, not the figure: the figure's
+   own opacity is owned by the .is-loaded reveal. The settle is
+   already the Tile-settle transform host; we layer the opacity
+   transition alongside, with its own duration. */
+.mosaic__grid--film .mosaic__item--video .mosaic__settle {
+  opacity: 0.55;
+  transition: transform 900ms var(--ease-out), opacity 200ms ease;
+}
+
+.mosaic__grid--film .mosaic__item--video.is-lit .mosaic__settle {
+  opacity: 1;
+}
+
+/* The speaker badge in a Spotlight lives only on the lit film, since
+   the universal sound toggle is suppressed and the lit-film badge is
+   the sole sound control. Hidden entirely on resting films (not just
+   transparent — display:none so it can't be tab-focused either). On
+   the lit film it is permanently visible, not hover-gated, because on
+   touch devices there is no hover to reveal it. */
+.mosaic__grid--film .mosaic__item--video:not(.is-lit) .mosaic__sound {
+  display: none;
+}
+
+.mosaic__grid--film .mosaic__item--video.is-lit .mosaic__sound {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Reduced motion: the Spotlight's LOGIC stays — one film at a time,
+   sightline-driven handoff, sound following the lit film — only the
+   motion drops. The resting vs lit values (raised vs flat, dim vs
+   full, hairline vs full ring) still apply; what changes is that
+   .is-lit and its absence become instant swaps. The selection layer
+   has its own scroll-listener fallback in this mode because the
+   shared MosaicMotion rAF engine no-ops under reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .mosaic__grid--film .mosaic__item--video,
+  .mosaic__grid--film .mosaic__item--video.is-lit,
+  .mosaic__grid--film .mosaic__item--video::after,
+  .mosaic__grid--film .mosaic__item--video.is-lit::after,
+  .mosaic__grid--film .mosaic__item--video .mosaic__settle,
+  .mosaic__grid--film .mosaic__item--video .mosaic__sound,
+  .mosaic__grid--film .mosaic__item--video.is-lit .mosaic__sound {
+    transition: none;
+  }
+}
+
+/* ============================================================
    Mosaic preview — click-to-open full-screen view
    ------------------------------------------------------------
    Click any tile (photo or video) to open it centered on a dark

@@ -573,7 +573,10 @@
     grid.appendChild(fig);
 
     videoTiles.push(video);
-    if (io) io.observe(video);
+    /* Film-only Mosaics use the Spotlight selection layer to drive play/
+       pause directly; the shared "≥25 % visible" IO rule does not govern
+       these tiles. Mixed and photo-only paths keep the IO behaviour. */
+    if (io && !isFilmOnly) io.observe(video);
   };
 
   media.forEach(function (item, index) {
@@ -596,6 +599,12 @@
      ============================================================ */
   (function buildUniversalSoundToggle() {
     if (videoTiles.length <= 1) return;
+    /* On a Spotlight (film-only Mosaic) there is only ever one playing
+       film at a time, so there is nothing to arbitrate — the lit film's
+       own speaker badge is the sole sound control. The universal toggle
+       does not build, and no toggle button mounts in the DOM. Mixed
+       photo+video Mosaics still get the toggle as today. */
+    if (isFilmOnly) return;
     var head = document.querySelector('.page-head');
     if (!head) return;
 
@@ -901,5 +910,187 @@
       lastT = now;
       MosaicMotion.request();
     }, { passive: true });
+  })();
+
+  /* ============================================================
+     The Spotlight — film-only selection layer
+     ------------------------------------------------------------
+     For film-only Mosaics, pick the lit film from the sightline
+     (viewport vertical centre) with a hysteresis dead-band, toggle
+     `.is-lit` on exactly one figure, and drive playback directly
+     (replacing the IO ≥25 %-visible rule for this path). CSS owns
+     every visual transition — this layer writes one class and
+     nothing else per frame.
+
+     Two schedulers, one decision function. With the rAF engine
+     enabled (default), the layer registers on MosaicMotion and rides
+     the shared loop. Under `prefers-reduced-motion: reduce` the
+     engine no-ops, so a small rAF-coalesced scroll/resize listener
+     runs the same `decide` directly — the LOGIC (one film at a time,
+     handoff, sound following) is preserved, only the MOTION drops.
+
+     See docs/prd/the-spotlight.md, plan-the-spotlight.md, ADR 0013.
+     ============================================================ */
+  (function spotlight() {
+    if (!isFilmOnly) return;
+
+    /* px — a candidate must beat the current lit film's distance by
+       this much before it takes over. Large enough to silence midpoint
+       jitter; small enough to be invisible during deliberate scroll. */
+    var HYSTERESIS_PX = 60;
+
+    var films = [];
+    Array.prototype.forEach.call(
+      grid.querySelectorAll('.mosaic__item--video'),
+      function (fig) {
+        var video = fig.querySelector('video');
+        if (video) films.push({ fig: fig, video: video });
+      }
+    );
+    if (!films.length) return;
+
+    var litIdx = -1;
+
+    var setLit = function (idx) {
+      if (idx === litIdx) return;
+      if (litIdx >= 0) {
+        films[litIdx].fig.classList.remove('is-lit');
+        try { films[litIdx].video.pause(); } catch (e) { /* ignore */ }
+      }
+      litIdx = idx;
+      if (litIdx >= 0) {
+        films[litIdx].fig.classList.add('is-lit');
+        var p = films[litIdx].video.play();
+        if (p && typeof p.catch === 'function') p.catch(function () {});
+        /* Audio follows the lit film. If the project is sounding,
+           hand sound to the new lit film — setUnmuted mutes every
+           other video and unmutes this one, syncing badges. We only
+           call it when projectSoundOn is ALREADY true; otherwise it
+           would flip the state on every handoff. projectSoundOn is
+           the single source of truth and only the per-tile badge or
+           the (suppressed) universal toggle ever flips it. */
+        if (projectSoundOn) setUnmuted(films[litIdx].video);
+      }
+    };
+
+    /* The video tags carry `autoplay`, which fires the moment metadata
+       loads — sometimes before our first tick, often staggered across
+       all 14 films. Without this guard, every film starts playing and
+       only the lit one ever gets explicitly paused. Listening for the
+       `play` event on each video catches BOTH initial autoplay AND
+       MosaicPreview's on-close resume (which re-plays every paused
+       inline tile) and pauses anything that isn't the current lit film.
+       When setLit calls play() on the lit film, litIdx === i at the
+       moment the event fires, so the guard correctly lets it through.
+       Runs in both modes — autoplay isn't motion. */
+    films.forEach(function (f, i) {
+      f.video.addEventListener('play', function () {
+        if (i !== litIdx) {
+          try { f.video.pause(); } catch (e) { /* ignore */ }
+        }
+      });
+    });
+
+    var sightlineY = function () { return (window.innerHeight || 1) * 0.5; };
+
+    var distanceTo = function (fig, vcy) {
+      var r = fig.getBoundingClientRect();
+      return Math.abs(r.top + r.height * 0.5 - vcy);
+    };
+
+    var pickNearest = function (vcy) {
+      var bestIdx = -1, bestDist = Infinity;
+      for (var i = 0; i < films.length; i++) {
+        var d = distanceTo(films[i].fig, vcy);
+        if (d < bestDist) { bestDist = d; bestIdx = i; }
+      }
+      return { idx: bestIdx, dist: bestDist };
+    };
+
+    /* Shared decision step — used by both the rAF engine tick and the
+       reduced-motion scroll listener. Hysteresis: candidate must be
+       HYSTERESIS_PX closer to the sightline than the current lit film
+       to take over. Stops the lit state from swapping on every pixel
+       of micro-jitter when two films are near-equidistant. */
+    var decide = function () {
+      var vcy = sightlineY();
+      var p = pickNearest(vcy);
+      if (p.idx < 0) return;
+      if (litIdx < 0) { setLit(p.idx); return; }
+      if (p.idx === litIdx) return;
+      var litDist = distanceTo(films[litIdx].fig, vcy);
+      if (litDist - p.dist > HYSTERESIS_PX) setLit(p.idx);
+    };
+
+    /* Single-film projects: nothing to hand off, so just light the one
+       film on ready and skip both schedulers. The class still drives
+       the CSS pose (or the instant pose under reduced motion); play()
+       is best-effort under autoplay policies. */
+    if (films.length === 1) {
+      grid.addEventListener('mosaic:ready', function () {
+        setLit(0);
+      }, { once: true });
+      return;
+    }
+
+    if (MosaicMotion.enabled) {
+      /* Engine path — register a layer on the shared rAF. Transition
+         tracking keeps the engine awake mid-handoff so atRest only
+         goes true once every rise/dim/ring transition settles. */
+      var transitionPending = 0;
+      films.forEach(function (f) {
+        f.fig.addEventListener('transitionrun', function () {
+          transitionPending++;
+        });
+        var release = function () {
+          if (transitionPending > 0) transitionPending--;
+          MosaicMotion.request();
+        };
+        f.fig.addEventListener('transitionend', release);
+        f.fig.addEventListener('transitioncancel', release);
+      });
+
+      MosaicMotion.register({
+        tick: function () { decide(); },
+        atRest: function () { return transitionPending === 0; }
+      });
+
+      /* Arm after mosaic:ready (like the other living-Mosaic layers)
+         so the from-index scattered-to-structured intro is unaffected.
+         On arm, the rAF runs once and pickNearest lights the topmost
+         film (nearest the sightline at scroll y=0). */
+      grid.addEventListener('mosaic:ready', function () {
+        MosaicMotion.request();
+      }, { once: true });
+
+      window.addEventListener('scroll', function () {
+        MosaicMotion.request();
+      }, { passive: true });
+
+      window.addEventListener('resize', function () {
+        MosaicMotion.request();
+      });
+    } else {
+      /* Reduced-motion fallback — the rAF engine is disabled in this
+         mode, so we coalesce scroll/resize into a single rAF callback
+         and call decide() directly. No transition tracking is needed
+         because the @media block zeros every Spotlight transition;
+         class swaps land instantly. This branch is gated on
+         !MosaicMotion.enabled so there is never a second writer when
+         the engine is on. */
+      var scheduled = false;
+      var schedule = function () {
+        if (scheduled) return;
+        scheduled = true;
+        window.requestAnimationFrame(function () {
+          scheduled = false;
+          decide();
+        });
+      };
+
+      grid.addEventListener('mosaic:ready', schedule, { once: true });
+      window.addEventListener('scroll', schedule, { passive: true });
+      window.addEventListener('resize', schedule);
+    }
   })();
 })();

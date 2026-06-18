@@ -154,6 +154,32 @@ implementation; this file is the source of truth for what we call things.
 - **Gate shear** (Mosaic) — the momentum reaction: the whole grid shears
   sub-degree with scroll velocity (a film *gate* nod) and decays back to flat at
   rest. The quietest of the three, kept almost subliminal.
+- **The Spotlight** (Mosaic, *film-only*) — how a **film-only** project's Mosaic
+  behaves: the single vertical column of videos becomes a curated reel in which
+  exactly one video — **the lit film** — is "on" at a time. As the visitor
+  scrolls, the lit film hands off down the column. Applies *only* to film-only
+  projects (all video, no photos — the `mosaic__grid--film` stack); a *mixed*
+  photo+video Mosaic is unchanged and still plays every visible video. The same
+  on every device. See
+  [ADR 0013](docs/adr/0013-film-only-mosaic-is-a-spotlight.md).
+- **The lit film** (Spotlight) — the one video currently "on": its **mount**
+  thickens and warms to full gold, it rises a few pixels, and it is the only
+  video playing — and the only one that can carry sound. Every other video rests
+  dimmed and paused. Chosen by **the sightline**. On a fresh load the topmost
+  video (nearest the sightline) is the lit film.
+- **The mount** (Spotlight) — the gold edge around each video in a Spotlight: a
+  faint dim-gold hairline at rest, thickening and brightening to full `--gold` on
+  **the lit film**. The brand's "now playing" mark for film. *Not* a thick mat —
+  the video stays full-bleed; only the edge changes (an earlier "shrink the video
+  25 % to reveal a mat" idea was dropped, see
+  [ADR 0013](docs/adr/0013-film-only-mosaic-is-a-spotlight.md)).
+- **The sightline** (Spotlight) — the invisible line across the viewport's
+  vertical centre that decides which video is **the lit film**: whichever video's
+  centre sits nearest it. It has no visible form of its own — the visitor sees
+  only its effect. A film-only Spotlight has **no project-wide sound toggle**
+  (with one video ever playing there is nothing to arbitrate); the lit film's own
+  speaker badge is the sole sound control. Sound is off by default and follows
+  the lit film on handoff.
 - **Beat** (Listing) — a resting point in the scrub the page can snap to.
 - **Listing on a small screen** — the Listing *keeps* the scrub on phones; it
   is not swapped for the stacked reduced-motion fallback. To make a card fit a
