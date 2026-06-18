@@ -209,6 +209,9 @@
         node.loop = true;
         node.setAttribute('playsinline', '');
         node.setAttribute('preload', 'metadata');
+        /* Drop the download entry from the controls' overflow menu — the
+           work is for viewing here, not saving. */
+        node.setAttribute('controlsList', 'nodownload');
         previewVideo = node;
 
         /* Inherit the inline tile's state so full screen is seamless:
@@ -236,6 +239,22 @@
         previewVideo = null;
       }
       stage.appendChild(node);
+
+      /* Kick playback off inside the tap/click gesture. Mobile browsers
+         won't honour the `autoplay` attribute for an *unmuted* video, so
+         without an explicit play() here the full-screen view loads paused.
+         If the unmuted play is still refused, fall back to muted so it
+         never sits frozen — the native controls let them unmute. */
+      if (item.kind === 'video') {
+        var playing = node.play();
+        if (playing && typeof playing.catch === 'function') {
+          playing.catch(function () {
+            node.muted = true;
+            var retry = node.play();
+            if (retry && typeof retry.catch === 'function') retry.catch(function () {});
+          });
+        }
+      }
     };
 
     /* Step the preview by ±1 with wraparound. Any deliberate navigation

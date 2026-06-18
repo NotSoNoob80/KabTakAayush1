@@ -2700,19 +2700,17 @@ html.intro-armed {
 /* Brand the full-screen player's native controls toward the site's
    gold/cream palette. `accent-color` carries the scrubber and volume
    on Firefox/Chromium; the WebKit media pseudo-elements below push the
-   panel, timeline, and time text the rest of the way so the controls
-   read as ours rather than the browser default. */
+   timeline, buttons, and time text the rest of the way so the controls
+   read as ours rather than the browser default.
+
+   Note: we deliberately do NOT set a background on
+   `::-webkit-media-controls-panel`. That pseudo-element spans the whole
+   video, so any fill there tints the entire frame the moment the cursor
+   brings the controls in — reads as the video "dimming" on hover. The
+   browser's own control backing is enough; we only recolour the parts. */
 .mosaic-preview__stage video {
   accent-color: var(--gold);
   color-scheme: dark;
-}
-
-.mosaic-preview__stage video::-webkit-media-controls-panel {
-  background: linear-gradient(
-    to top,
-    rgba(10, 10, 10, 0.82),
-    rgba(10, 10, 10, 0)
-  );
 }
 
 .mosaic-preview__stage video::-webkit-media-controls-current-time-display,
