@@ -2497,6 +2497,11 @@ html.intro-armed {
 .mosaic__grid--film .mosaic__item {
   aspect-ratio: 16 / 9;
   height: auto;
+  /* Scaled to 70% of the column width (30% smaller) and centred, so a
+     single film no longer dominates the viewport. aspect-ratio 16/9
+     means the height follows the width down proportionally. */
+  width: 70%;
+  justify-self: center;
 }
 
 /* Reset wide/tall spans — irrelevant in a single-column stack */
