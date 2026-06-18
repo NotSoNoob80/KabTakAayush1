@@ -157,6 +157,50 @@ const PROJECTS = [
     imageCount: 0,
     videoCount: 1,
     media: 'v'
+  },
+  {
+    id: '15',
+    title: 'I Pray',
+    type: 'video',
+    typeLabel: 'Video/s',
+    meta: 'Video/s · Dharavi, Mumbai',
+    description: 'I Pray',
+    imageCount: 0,
+    videoCount: 1,
+    media: 'v'
+  },
+  {
+    id: '16',
+    title: 'Dhobhighat',
+    type: 'video',
+    typeLabel: 'Video/s',
+    meta: 'Video/s · Mahalaxmi, Mumbai',
+    description: '',
+    imageCount: 0,
+    videoCount: 1,
+    media: 'v'
+  },
+  {
+    id: '17',
+    title: 'The Mountain',
+    type: 'video',
+    typeLabel: 'Video/s',
+    meta: 'Video/s · Kokan Kada, Maharashtra',
+    description: '',
+    imageCount: 0,
+    videoCount: 1,
+    media: 'v'
+  },
+  {
+    id: '18',
+    title: 'The Mountain (Part2)',
+    type: 'video',
+    typeLabel: 'Video/s',
+    meta: 'Video/s · Kokan Kada, Maharashtra',
+    description: '',
+    imageCount: 0,
+    videoCount: 1,
+    media: 'v'
   }
 ];
 /* @PROJECTS-END */
