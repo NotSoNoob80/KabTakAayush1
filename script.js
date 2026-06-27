@@ -673,6 +673,11 @@
     var target = 0;
     var current = 0;
     var rafId = null;
+    // Previous rAF timestamp, used to compute per-frame `dt` so the lerp
+    // glides at the same speed on 60Hz and 120Hz displays. Reset to 0
+    // whenever the loop settles, so a resume after a long idle gap (or a
+    // backgrounded tab) doesn't compute `dt` across the gap.
+    var prevTs = 0;
 
     /* ---- Live grow-as-it-travels frame scaling ----
        Each frame's visual size is no longer a fixed xs/sm/md/lg/xl
@@ -757,12 +762,22 @@
       }
     };
 
-    var renderReel = function () {
+    var renderReel = function (ts) {
       // `target` only moves in response to wheel/touch input (see the
       // listeners below) — this loop's whole job is to glide `current`
       // smoothly toward wherever `target` currently sits, so a flick
       // of the wheel reads as fluid motion rather than a snap.
-      current += (target - current) * 0.12;
+      //
+      // Frame-rate normalize: anchor the smoothing factor to 60Hz so the
+      // same gesture reads as the same motion on a 60Hz vs 120Hz display
+      // (without this, the reel glides ~2x faster on 120Hz). At dt =
+      // 16.667ms this resolves to exactly 0.12 — today's 60Hz feel,
+      // unchanged. Clamp dt so a stalled/backgrounded tab can't produce
+      // a single huge jump on resume.
+      var dt = prevTs ? Math.min(ts - prevTs, 50) : 16.667;
+      prevTs = ts;
+      var k = 1 - Math.pow(1 - 0.12, dt / 16.667);
+      current += (target - current) * k;
 
       // Once the rendered position completes a full loop, shift BOTH
       // current and target back by exactly one loop-width. Because the
@@ -794,6 +809,7 @@
       } else {
         current = target;
         rafId = null;
+        prevTs = 0;
       }
     };
 
