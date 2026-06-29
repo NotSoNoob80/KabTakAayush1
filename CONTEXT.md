@@ -82,6 +82,17 @@ implementation; this file is the source of truth for what we call things.
   reticle plus this ring plus the camera-active indicator are the only
   feedback channels The Reach exposes.
 
+- **The Cover** — the brief full-bleed image shown on a project's page *during
+  entrance only*, while the **inline thumbnail** the visitor clicked on the
+  Projects index morphs open into it. It carries the same image as that row's
+  thumbnail (`thumbnail.webp`), then dissolves as the **Mosaic** settles
+  underneath. Purely an entrance surface — it has no resting form and is gone
+  once the project is open. The same morph plays in reverse on the way back
+  (browser back *or* the floating "Back to Projects" button). A pointer/keyboard
+  navigation thing, not a thing you can point at while reading a project. The
+  site stays multi-page (not an SPA shell) so this transition stays
+  cross-document.
+
 ## Behavioural vocabulary
 
 - **Small screen** — a screen we serve the compact layout to. Defined by
@@ -187,6 +198,27 @@ implementation; this file is the source of truth for what we call things.
   phone-height frame it shrinks the stage and shows the **trimmed status**
   instead of the full paragraph. Only `prefers-reduced-motion` gets the static
   stacked layout.
+
+- **The Hour** (whole site) — the site's quiet response to the visitor's local
+  time of day: the **negative space** cools toward dawn, warms low at dusk, and
+  goes near-monochrome at night. Driven by the device clock alone (no location,
+  no permission prompt). It grades *only* the space around the work — the page
+  background and the Void's empty depth — and **never a photographic pixel**: not
+  the Mosaic, not the **inline thumbnail**, not the floating **frames** in the
+  Void. The work is shown true at every hour; only the room's light changes. The
+  brand gold and all chrome stay fixed.
+- **Shutter drag** (Void) — the long-exposure reaction: when the camera moves
+  fast, each **frame** smears along its on-screen direction of travel and then
+  resolves razor-sharp as the camera settles — a dragged shutter. Depth-aware
+  (near frames drag more than far ones) and self-limiting (no motion, no smear),
+  so the intro pull-back "racks into focus" and a still Void is perfectly sharp.
+  A frame's *bright* points (a lamp, a glint, a bright sky edge) don't just
+  blur — they leave **light-trails**, the way a long exposure paints moving
+  light, so highlights streak brighter than the motion blur around them. The
+  trail is bounded (it never blows past white) and highlight-only, so it shows
+  vividly on frames that *have* point highlights and not at all on those that
+  don't — see [ADR 0014](docs/adr/0014-shutter-drag-bounded-lighten-light-trails.md).
+  A sibling to the living-Mosaic reactions; off under `prefers-reduced-motion`.
 
 ## Authoring & assets
 

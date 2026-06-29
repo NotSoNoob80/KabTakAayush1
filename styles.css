@@ -43,7 +43,11 @@ html {
 }
 
 body {
-  background: var(--black);
+  /* The Hour (Phase 1) — see hour-tint.js. The grade lands here, on the
+     page's negative space, and nowhere else. Falls back to --black when
+     hour-tint.js hasn't yet set --hour-tint (first paint, no-JS, or
+     prefers-contrast: more). */
+  background: var(--hour-tint, var(--black));
   color: var(--cream);
   font-family: var(--text);
   -webkit-font-smoothing: antialiased;
@@ -75,6 +79,18 @@ body.is-landing {
   body.is-landing {
     height: auto;
     overflow: visible;
+  }
+}
+
+/* The Hour (Phase 1) — contrast-safe override. When the system asks for
+   more contrast, the grade is OFF entirely and the page background pins
+   to neutral --black. Legibility is never traded for atmosphere. The
+   JS half (hour-tint.js) also detects this and skips updates, but this
+   rule wins regardless via !important so the contract holds even if the
+   script is blocked. */
+@media (prefers-contrast: more) {
+  body {
+    background: var(--black) !important;
   }
 }
 
