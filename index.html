@@ -334,6 +334,10 @@
       pointer-events: none;
       display: none;
       transform: translate(0, 0);
+      /* The reticle's transform is rewritten every rendered frame while The
+         Reach is on — promote it to its own compositor layer so each move is
+         composite-only, never a repaint over the canvas. */
+      will-change: transform;
       transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
     }
     .reach-reticle.is-on { display: block; }
@@ -735,6 +739,21 @@
     var LERP_CAM     = 0.075;         // camera chase smoothing
     var SWAY_X       = 0.045;         // idle mouse sway (radians)
     var SWAY_Y       = 0.030;
+    var SWAY_EASE    = 0.05;          // idle sway chase (per 60fps-frame)
+    var RGB_EASE     = 0.10;          // RGB-split strength chase (per 60fps-frame)
+    var DIM_EASE     = 0.08;          // frame dim/undim chase (per 60fps-frame)
+
+    /* Framerate-independent motion. Every ease/friction above is tuned per
+       FRAME at 60fps, but rAF runs at whatever the device gives: a 144Hz
+       monitor ran the whole Void ~2.4× stiffer/faster than designed, and any
+       FPS dip (The Reach's inference sharing the main thread, weak phones)
+       made the chase and inertia visibly sluggish — the motion itself
+       absorbed the jank. When true, the render loop measures real dt and
+       compensates every ease (k → 1-(1-k)^dtN), friction (f → f^dtN) and
+       integration (×dtN) — mathematically identical at exactly 60fps, same
+       feel at any refresh rate. Set false to pin dtN to 1 and restore the
+       previous fixed-per-frame behavior exactly. */
+    var MOTION_DT_COMP = true;
 
     var FLOAT_AMP    = 0.22;          // frame bob amplitude
 
@@ -795,6 +814,24 @@
     var REACH_CURL_FIST_RATIO = 0.55;   // curl < this * calib.curl ⇒ open→clutched
     var REACH_CLUTCH_DWELL_MS = 120;    // intention-dwell on clutch transitions
     var REACH_ONBOARD_MS      = 6000;   // how long the one-time guide cue lingers before fading
+    // Frame-aligned detection: run inference the moment the camera presents a
+    // fresh frame (requestVideoFrameCallback) instead of on a free-running
+    // timer. The timer sampled frames up to a full detection interval stale
+    // and drifted against the camera's cadence — aliasing hiccups, plus the
+    // occasional duplicate-frame inference (pure waste). Still budgeted to
+    // REACH_DETECTION_HZ, so inference cost is unchanged; the win is lower
+    // hand→screen latency (~half a detection interval on average) and
+    // steadier sample spacing. Falls back to the setTimeout loop where rVFC
+    // is unsupported. Set false to restore the plain timer loop exactly.
+    var REACH_USE_RVFC        = true;
+    var REACH_RVFC_BACKSTOP_MS = 300;   // frame callbacks silent this long ⇒ timer backstop drives detection
+    var REACH_DETECT_STALE_MS = 350;    // no inference for this long (camera stalled) ⇒ treat hand as lost
+    // Prewarm on CTA hover (desktop only): the wasm + model CDN fetch is the
+    // slow part of enabling (seconds, once per session). Kicking it off on
+    // first hover means the click usually lands on a warm cache and The Reach
+    // starts near-instantly. Phones have no hover and shouldn't spend data on
+    // a maybe. Set false to load strictly on click, as before.
+    var REACH_PREWARM         = true;
 
     // Mobile: a lighter field of evenly-spread frames.
     if (IS_MOBILE) SLOTS = MOBILE_SLOTS;
@@ -1175,6 +1212,7 @@
     var lastPX = 0, lastPY = 0;
     var introDone = false;
     var clock = new THREE.Clock();
+    var lastFrameTs = 0;                        // previous rAF timestamp — real dt for MOTION_DT_COMP
     var rgbShift = 0;                           // current RGB-split strength
     var navEl = document.querySelector('.nav');
 
@@ -1402,6 +1440,9 @@
       recalibSizeOnNext: false,  // on clutched→open OR focus-exit, re-anchor calib.size (see ADR 0011)
       wasFocused:  false,   // tracks focus→unfocus edge so depth re-anchors when Focus releases
       lastSeenAt:  0,
+      lastDetectAt: 0,      // when inference last actually ran — staleness guard for the frame-aligned loop
+      nextDetectAt: 0,      // frame-aligned detection budget accumulator (REACH_USE_RVFC)
+      lastFrameCbAt: 0,     // when a video frame callback last fired — rVFC liveness for the backstop
       ctaEl:       null,
       indicatorEl: null,
       reticleEl:   null,
@@ -1472,6 +1513,17 @@
         if (reach.enabled) disableReach();
         else enableReach();
       });
+
+      if (REACH_PREWARM && !IS_MOBILE) {
+        // Speculative warm-up: start the wasm + model fetch while the visitor
+        // is still deciding, so the click lands on a warm cache. Failures are
+        // swallowed — loadHandLandmarker clears its cached promise on error,
+        // so the real click (or the next hover) retries from scratch. The
+        // camera is NOT touched here; only the model loads.
+        reach.ctaEl.addEventListener('pointerenter', function () {
+          loadHandLandmarker().catch(function () {});
+        });
+      }
     }
 
     function showReachCta() {
@@ -1583,6 +1635,9 @@
           reach.calib       = null;
           reach.calibSamples = [];
           reach.lastSeenAt  = performance.now();
+          reach.lastDetectAt = 0;
+          reach.nextDetectAt = 0;   // first camera frame detects immediately — fastest possible acquire
+          reach.lastFrameCbAt = 0;
           setReachCtaState('on');
           // The Reach is now live: the gesture guide replaces the
           // scroll/drag/click hint for as long as we are streaming.
@@ -1635,6 +1690,9 @@
       reach.sizeRender = null;
       reach.snapSizeOnNext = false;
       reach.lastApplyTs = 0;
+      reach.lastDetectAt = 0;
+      reach.nextDetectAt = 0;
+      reach.lastFrameCbAt = 0;
       _reachEuroX.reset();
       _reachEuroY.reset();
       _reachEuroSize.reset();
@@ -1650,16 +1708,61 @@
     function reachScheduleDetection() {
       if (!reach.enabled) return;
       var interval = Math.max(16, Math.round(1000 / REACH_DETECTION_HZ));
-      reach.loopTimer = setTimeout(function () {
-        reachDetect();
-        reachScheduleDetection();
-      }, interval);
+      var v = reach.videoEl;
+      var useRvfc = !!(REACH_USE_RVFC && v && v.requestVideoFrameCallback);
+
+      if (useRvfc) {
+        // Frame-aligned path: wake exactly when the camera presents a new
+        // frame, so inference always reads a fresh image — the timer loop
+        // sampled frames up to a full detection interval stale and beat
+        // against the camera's cadence. The accumulator keeps the average
+        // rate at the detection budget (a 60fps camera does NOT double the
+        // inference cost); capping the schedule at `now` makes a stall
+        // resume at the budget instead of bursting to catch up. The chain
+        // dies naturally on teardown: enabled flips false and the videoEl
+        // identity check also kills a stale chain on a quick re-enable.
+        (function armFrame() {
+          v.requestVideoFrameCallback(function (now) {
+            if (!reach.enabled || reach.videoEl !== v) return;
+            reach.lastFrameCbAt = now;
+            if (now >= reach.nextDetectAt) {
+              reach.nextDetectAt += interval;
+              if (reach.nextDetectAt < now) reach.nextDetectAt = now;
+              reachDetect();
+            }
+            armFrame();   // re-arm for the next camera frame
+          });
+        })();
+      }
+
+      // Timer loop: the sole driver where rVFC is unsupported (exactly the
+      // old behavior). With rVFC it stays armed as a silent backstop that
+      // performs no inference while frame callbacks are alive, but takes
+      // over at the full budget cadence if they starve (a browser that
+      // suppresses callbacks for invisible videos, a paused pipeline) — so
+      // detection can never die with the camera still streaming. 300ms is
+      // generous against slow low-light cameras (~15fps ⇒ 66ms gaps) yet
+      // under REACH_DETECT_STALE_MS, so a takeover happens before the
+      // staleness guard would drop the hand.
+      (function armTimer() {
+        reach.loopTimer = setTimeout(function () {
+          if (!reach.enabled || reach.videoEl !== v) return;
+          if (!useRvfc) {
+            reachDetect();
+          } else if (!reach.lastFrameCbAt ||
+                     (performance.now() - reach.lastFrameCbAt) > REACH_RVFC_BACKSTOP_MS) {
+            reachDetect();
+          }
+          armTimer();
+        }, interval);
+      })();
     }
 
     function reachDetect() {
       if (!reach.enabled || !reach.videoEl || !reach.landmarker) return;
       if (reach.videoEl.readyState < 2) return;
       var ts = performance.now();
+      reach.lastDetectAt = ts;   // inference is actually running — feeds the staleness guard
       var result;
       try {
         result = reach.landmarker.detectForVideo(reach.videoEl, ts);
@@ -1830,6 +1933,16 @@
         reach.wasFocused = true;
         return;
       }
+      // Staleness guard: the frame-aligned scheduler only ticks when camera
+      // frames arrive. If frames stop (capture stall, device sleep) the last
+      // hand sample would otherwise steer the Void forever — treat a silent
+      // detector as a lost hand so the field coasts to rest instead of
+      // drifting on a stale offset. Harmless on the timer path, where
+      // inference keeps running and refreshes lastDetectAt regardless.
+      if (reach.hand && reach.lastDetectAt &&
+          (performance.now() - reach.lastDetectAt) > REACH_DETECT_STALE_MS) {
+        reach.hand = null;
+      }
       if (!reach.hand || !reach.calib) {
         reach.handRender = null;   // re-acquire snaps to the fresh position, no glide-from-stale
         reach.handRaw    = null;
@@ -1942,9 +2055,14 @@
 
       if (r > REACH_REST_ZONE) {
         var scale = (r - REACH_REST_ZONE) / r;
-        // Pan: mirror the existing drag sign — hand right ⇒ camera looks right
-        camTarget.x += -ox * scale * REACH_PAN;
-        camTarget.y +=  oy * scale * REACH_PAN;
+        // Pan: mirror the existing drag sign — hand right ⇒ camera looks
+        // right. dtScale keeps the pan RATE framerate-independent, matching
+        // the depth push below — this was the one Reach input still riding
+        // the frame rate, so an inference-induced FPS dip silently slowed
+        // the pan under the visitor's hand.
+        var panDt = MOTION_DT_COMP ? dtScale : 1;
+        camTarget.x += -ox * scale * REACH_PAN * panDt;
+        camTarget.y +=  oy * scale * REACH_PAN * panDt;
       }
 
       // Depth: bigger hand ⇒ closer to camera ⇒ fly forward (z decreases).
@@ -2171,18 +2289,39 @@
       requestAnimationFrame(render);
       var time = clock.getElapsedTime();
 
-      // Drag inertia after release
+      /* MOTION_DT_COMP — real frame dt expressed in 60fps-frames (dtN = 1 at
+         exactly 60fps, ~0.42 at 144Hz, ~2 at 30fps; clamped to ≤4 so a stall
+         resumes gently rather than leaping). Each per-frame constant is then
+         corrected once per frame: eases via 1-(1-k)^dtN, frictions via f^dtN,
+         integrations via ×dtN. All are identities at dtN = 1, so the flag
+         set false (dtN pinned to 1) restores the old behavior exactly. */
+      var frameNow = performance.now();
+      var frameDt  = lastFrameTs ? (frameNow - lastFrameTs) : (1000 / 60);
+      lastFrameTs  = frameNow;
+      if (!(frameDt > 0)) frameDt = 1000 / 60;
+      else if (frameDt > 1000 / 15) frameDt = 1000 / 15;
+      var dtN    = MOTION_DT_COMP ? frameDt * 0.06 : 1;   // 16.667ms → 1
+      var kCam   = 1 - Math.pow(1 - LERP_CAM,   dtN);
+      var kSway  = 1 - Math.pow(1 - SWAY_EASE,  dtN);
+      var kFocus = 1 - Math.pow(1 - FOCUS_EASE, dtN);
+      var kRgb   = 1 - Math.pow(1 - RGB_EASE,   dtN);
+      var kOp    = 1 - Math.pow(1 - DIM_EASE,   dtN);
+
+      // Drag inertia after release — friction decays per unit time, the
+      // integration scales by dtN, so a fling glides the same distance over
+      // the same duration at any frame rate.
       if (!isDragging && !focused) {
-        panVX *= PAN_FRICTION;
-        panVY *= PAN_FRICTION;
-        if (Math.abs(panVX) > 0.0005) camTarget.x += panVX;
-        if (Math.abs(panVY) > 0.0005) camTarget.y += panVY;
+        var fPan = Math.pow(PAN_FRICTION, dtN);
+        panVX *= fPan;
+        panVY *= fPan;
+        if (Math.abs(panVX) > 0.0005) camTarget.x += panVX * dtN;
+        if (Math.abs(panVY) > 0.0005) camTarget.y += panVY * dtN;
       }
 
-      // Mobile vertical-swipe fly momentum (zVel is a per-frame z-delta)
+      // Mobile vertical-swipe fly momentum (zVel is a per-60fps-frame z-delta)
       if (Math.abs(zVel) > 0.0008) {
-        if (!focused) camTarget.z += zVel;
-        zVel *= FLY_FRICTION;
+        if (!focused) camTarget.z += zVel * dtN;
+        zVel *= Math.pow(FLY_FRICTION, dtN);
       } else {
         zVel = 0;
       }
@@ -2191,10 +2330,11 @@
       // inherits the chase, inertia, focus tween, and idle sway for free.
       reachApplyToTarget();
 
-      // Camera chase
-      cam.x += (camTarget.x - cam.x) * LERP_CAM;
-      cam.y += (camTarget.y - cam.y) * LERP_CAM;
-      cam.z += (camTarget.z - cam.z) * LERP_CAM;
+      // Camera chase (kCam = LERP_CAM corrected for the real frame dt, so the
+      // chase converges at the same rate per second at any frame rate)
+      cam.x += (camTarget.x - cam.x) * kCam;
+      cam.y += (camTarget.y - cam.y) * kCam;
+      cam.z += (camTarget.z - cam.z) * kCam;
       camera.position.set(cam.x, cam.y, cam.z);
 
       /* Shutter drag (Phase 3) — derive per-frame camera velocity from
@@ -2207,9 +2347,12 @@
          mutated in place — every frame material sees the new value
          next render via the shared uniform reference. */
       if (SHUTTER_DRAG_ENABLED) {
-        var dvx = cam.x - camPrev.x;
-        var dvy = cam.y - camPrev.y;
-        var dvz = cam.z - camPrev.z;
+        // Normalise the per-frame delta to a per-60fps-frame velocity (÷dtN)
+        // so streak strength reflects camera SPEED, not refresh rate — the
+        // designed 60fps look holds on 144Hz monitors and through FPS dips.
+        var dvx = (cam.x - camPrev.x) / dtN;
+        var dvy = (cam.y - camPrev.y) / dtN;
+        var dvz = (cam.z - camPrev.z) / dtN;
         if (dvx >  SHUTTER_CLAMP_XY) dvx =  SHUTTER_CLAMP_XY;
         else if (dvx < -SHUTTER_CLAMP_XY) dvx = -SHUTTER_CLAMP_XY;
         if (dvy >  SHUTTER_CLAMP_XY) dvy =  SHUTTER_CLAMP_XY;
@@ -2228,11 +2371,11 @@
 
       // Idle mouse sway (eased, reduced while focused)
       var swayMul = focused ? 0.25 : 1;
-      camera.rotation.y += ((-mouseNX * SWAY_X * swayMul) - camera.rotation.y) * 0.05;
-      camera.rotation.x += ((-mouseNY * SWAY_Y * swayMul) - camera.rotation.x) * 0.05;
+      camera.rotation.y += ((-mouseNX * SWAY_X * swayMul) - camera.rotation.y) * kSway;
+      camera.rotation.x += ((-mouseNY * SWAY_Y * swayMul) - camera.rotation.x) * kSway;
 
       // Focus tween progress
-      focusT += (focusGoal - focusT) * FOCUS_EASE;
+      focusT += (focusGoal - focusT) * kFocus;
       if (focused && focusGoal === 0 && focusT < 0.01) {
         // Fully released — restore
         focused.renderOrder = 0;
@@ -2248,7 +2391,7 @@
       var zSpeed    = Math.abs(camTarget.z - cam.z);
       var dragSpeed = Math.sqrt(panVX * panVX + panVY * panVY);
       var rgbTarget = Math.min(0.028, zSpeed * 0.0007 + dragSpeed * 0.020);
-      rgbShift += (rgbTarget - rgbShift) * 0.10;
+      rgbShift += (rgbTarget - rgbShift) * kRgb;
 
       // Frame updates
       for (var i = 0; i < meshes.length; i++) {
@@ -2292,7 +2435,7 @@
         // Dim everything else while a frame is focused
         var targetOp = focused ? DIM_OPACITY : 1;
         var u = m.material.uniforms.uOpacity;
-        u.value += (targetOp - u.value) * 0.08;
+        u.value += (targetOp - u.value) * kOp;
       }
 
       renderer.render(scene, camera);
