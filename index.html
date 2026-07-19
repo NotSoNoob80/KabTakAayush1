@@ -754,6 +754,25 @@
        feel at any refresh rate. Set false to pin dtN to 1 and restore the
        previous fixed-per-frame behavior exactly. */
     var MOTION_DT_COMP = true;
+    /* Hitch filter for MOTION_DT_COMP: the dt estimate is EASED toward the
+       measured frame time instead of consumed raw. An isolated long frame
+       (texture upload, GC, shader compile) would otherwise advance every
+       ease by up to 4 frames' worth in a single step — a visible jump at
+       exactly the moments the page is busiest. Eased, a lone hitch nudges
+       motion only slightly and the chase glides back gracefully, while a
+       SUSTAINED rate change (a 30fps phone, a 144Hz monitor) converges to
+       the true dt within ~25 frames and stays framerate-correct. */
+    var DT_SMOOTH_EASE = 0.12;
+    /* Pre-upload every frame texture to the GPU while the loader still
+       covers the screen (time-sliced so the loader never freezes). Without
+       it, three.js uploads each texture + its mipmaps on the first frame
+       that frame becomes visible — recurring mid-intro hitches as the
+       pull-back sweeps new frames into view. PREUPLOAD_MAX_MS bounds the
+       whole pass: a slow GPU must never pin the visitor at a finished
+       loader, so leftovers just lazy-upload as before (now softened by the
+       DT_SMOOTH_EASE hitch filter). Set false to restore lazy uploads. */
+    var PREUPLOAD_TEX    = true;
+    var PREUPLOAD_MAX_MS = 2000;
 
     var FLOAT_AMP    = 0.22;          // frame bob amplitude
 
@@ -1011,11 +1030,37 @@
       return tex;
     }
 
+    /* Push every loaded texture to the GPU before the scene ever draws it.
+       Runs between "all images loaded" and buildScene, chunked across rAF
+       frames so the loader UI stays live — the whole cost lands behind the
+       loader overlay instead of as hitches spread through the intro
+       pull-back (three.js otherwise uploads a texture + generates its
+       mipmaps on the first frame its mesh enters the frustum). Falls back
+       to the lazy status quo if initTexture is unavailable. */
+    function preuploadTextures(done) {
+      if (!PREUPLOAD_TEX || !renderer.initTexture) { done(); return; }
+      var queue = [];
+      for (var i = 0; i < reelTex.length; i++) if (reelTex[i]) queue.push(reelTex[i]);
+      var t0 = performance.now();
+      (function step() {
+        var frameStart = performance.now();
+        if (frameStart - t0 > PREUPLOAD_MAX_MS) { done(); return; }   // budget spent — rest goes lazy
+        // ~12ms of uploads per frame: a fast GPU clears several textures a
+        // frame and finishes in a few hundred ms; a slow one does fewer per
+        // frame and is cut off by the budget above.
+        while (queue.length && (performance.now() - frameStart) < 12) {
+          try { renderer.initTexture(queue.pop()); } catch (e) {}
+        }
+        if (queue.length) requestAnimationFrame(step);
+        else done();
+      })();
+    }
+
     function tick() {
       loadedN++;
       fillEl.style.transform = 'scaleX(' + (loadedN / TO_LOAD) + ')';
       countEl.textContent    = loadedN + ' / ' + TO_LOAD;
-      if (loadedN >= TO_LOAD) buildScene();
+      if (loadedN >= TO_LOAD) preuploadTextures(buildScene);
     }
 
     for (var j = 0; j < needed.length; j++) {
@@ -1213,6 +1258,7 @@
     var introDone = false;
     var clock = new THREE.Clock();
     var lastFrameTs = 0;                        // previous rAF timestamp — real dt for MOTION_DT_COMP
+    var dtSmoothMs  = 1000 / 60;                // eased dt estimate (DT_SMOOTH_EASE hitch filter)
     var rgbShift = 0;                           // current RGB-split strength
     var navEl = document.querySelector('.nav');
 
@@ -2300,7 +2346,10 @@
       lastFrameTs  = frameNow;
       if (!(frameDt > 0)) frameDt = 1000 / 60;
       else if (frameDt > 1000 / 15) frameDt = 1000 / 15;
-      var dtN    = MOTION_DT_COMP ? frameDt * 0.06 : 1;   // 16.667ms → 1
+      // Hitch filter (DT_SMOOTH_EASE): ease toward the measured dt so a lone
+      // long frame steps motion gently while sustained rates stay correct.
+      dtSmoothMs += (frameDt - dtSmoothMs) * DT_SMOOTH_EASE;
+      var dtN    = MOTION_DT_COMP ? dtSmoothMs * 0.06 : 1;   // 16.667ms → 1
       var kCam   = 1 - Math.pow(1 - LERP_CAM,   dtN);
       var kSway  = 1 - Math.pow(1 - SWAY_EASE,  dtN);
       var kFocus = 1 - Math.pow(1 - FOCUS_EASE, dtN);
