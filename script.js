@@ -1404,7 +1404,10 @@
       'This is basically a slideshow now.',
       'Ten seconds in — still deciding?'
     ];
-    if (indexList && indexItems && indexItems.length > 2) {
+    var indexItems = indexList
+      ? Array.prototype.slice.call(indexList.querySelectorAll('.index__item'))
+      : [];
+    if (indexList && indexItems.length > 2) {
       var indexPicked = false;
       indexItems.forEach(function (item) {
         item.addEventListener('click', function () { indexPicked = true; });

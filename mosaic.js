@@ -194,11 +194,17 @@
       return null;
     };
 
-    /* Render media[index] onto the stage, replacing whatever's there. */
-    var render = function (index) {
+    /* Render media[index] onto the stage. Direct renders (open) swap
+       immediately; deferred renders (prev/next navigation) hold the current
+       frame until the incoming one is displayable, then fade it up — so
+       stepping through the gallery never blanks the stage. `renderToken`
+       makes rapid navigation last-write-wins: a superseded pending swap
+       simply never mounts. */
+    var renderToken = 0;
+    var render = function (index, deferSwap) {
       currentIndex = index;
       var item = media[index];
-      stage.innerHTML = '';
+      var token = ++renderToken;
 
       var node;
       if (item.kind === 'video') {
@@ -212,7 +218,6 @@
         /* Drop the download entry from the controls' overflow menu — the
            work is for viewing here, not saving. */
         node.setAttribute('controlsList', 'nodownload');
-        previewVideo = node;
 
         /* Inherit the inline tile's state so full screen is seamless:
            the same sound on/off, and resume from the same playback
@@ -236,23 +241,65 @@
         node.src = item.src;
         node.alt = '';
         node.decoding = 'async';
-        previewVideo = null;
       }
-      stage.appendChild(node);
 
-      /* Kick playback off inside the tap/click gesture. Mobile browsers
-         won't honour the `autoplay` attribute for an *unmuted* video, so
-         without an explicit play() here the full-screen view loads paused.
-         If the unmuted play is still refused, fall back to muted so it
-         never sits frozen — the native controls let them unmute. */
+      var mounted = false;
+      var backstop = 0;
+      var mount = function () {
+        if (mounted || token !== renderToken) return;   /* superseded or duplicate */
+        mounted = true;
+        if (backstop) { window.clearTimeout(backstop); backstop = 0; }
+        stage.innerHTML = '';
+        /* previewVideo tracks what is actually ON stage — set at mount, not
+           at build, so close() during a pending swap reads the visible one. */
+        previewVideo = (item.kind === 'video') ? node : null;
+        stage.appendChild(node);
+        if (deferSwap && !reducedMotion) {
+          /* Commit the hidden state before revealing — same reflow trick
+             the overlay's own open uses (void overlay.offsetWidth). */
+          node.classList.add('is-media-enter');
+          void node.offsetWidth;
+          node.classList.add('is-media-ready');
+        }
+
+        /* Kick playback off inside the tap/click gesture. Mobile browsers
+           won't honour the `autoplay` attribute for an *unmuted* video, so
+           without an explicit play() here the full-screen view loads paused.
+           If the unmuted play is still refused, fall back to muted so it
+           never sits frozen — the native controls let them unmute. */
+        if (item.kind === 'video') {
+          var playing = node.play();
+          if (playing && typeof playing.catch === 'function') {
+            playing.catch(function () {
+              node.muted = true;
+              var retry = node.play();
+              if (retry && typeof retry.catch === 'function') retry.catch(function () {});
+            });
+          }
+        }
+      };
+
+      if (!deferSwap) { mount(); return; }
+
+      /* Deferred: mount once the frame is displayable. The 400ms backstop
+         swaps regardless — worst case matches the old instant behavior —
+         and keeps the video play() inside the user-activation window. */
+      backstop = window.setTimeout(mount, 400);
       if (item.kind === 'video') {
-        var playing = node.play();
-        if (playing && typeof playing.catch === 'function') {
-          playing.catch(function () {
-            node.muted = true;
-            var retry = node.play();
-            if (retry && typeof retry.catch === 'function') retry.catch(function () {});
-          });
+        if (node.readyState >= 2) {
+          mount();
+        } else {
+          node.addEventListener('loadeddata', mount, { once: true });
+          node.addEventListener('error', mount, { once: true });
+        }
+      } else {
+        if (node.complete && node.naturalWidth) {
+          mount();
+        } else if (node.decode) {
+          node.decode().then(mount, mount);
+        } else {
+          node.addEventListener('load', mount, { once: true });
+          node.addEventListener('error', mount, { once: true });
         }
       }
     };
@@ -263,7 +310,7 @@
       if (media.length <= 1) return;
       cancelHint();
       var n = media.length;
-      render(((currentIndex + delta) % n + n) % n);
+      render(((currentIndex + delta) % n + n) % n, true);
     };
 
     /* The after-10s cue: if the visitor hasn't navigated within 10s of
@@ -320,6 +367,7 @@
     var close = function () {
       if (!overlay || overlay.hasAttribute('hidden')) return;
       cancelHint();
+      renderToken++;   /* abandon any pending deferred swap */
       overlay.classList.remove('is-open');
 
       /* Hand the full-screen video's playback position back to its inline
@@ -727,16 +775,27 @@
       pointerY: 0,
       pointerInside: false,
       scrollY: window.pageYOffset || 0,
-      scrollV: 0
+      scrollV: 0,
+      dtN: 1
     };
     var rafId = 0;
+    var prevTs = 0;
 
     /* The engine is a pure layer coordinator: it asks each registered
        layer whether it is at rest and sleeps when ALL agree. Layers
        own their own input/state checks (pointer for Frame drift desktop,
        position for Frame drift mobile, velocity for Gate shear). */
-    var tick = function () {
+    var tick = function (ts) {
       rafId = 0;
+      /* Real frame dt expressed in 60fps-frames (dtN = 1 at 60Hz, ~0.5 at
+         120Hz, ~2 at 30fps). Clamped so a stall resumes gently — the same
+         recipe as the landing reel's lerp (script.js ~777) and the Void's
+         MOTION_DT_COMP. Layers correct per-frame eases via
+         1-(1-k)^dtN and decays via Math.pow(f, dtN); both are identities
+         at dtN = 1, so 60fps behavior is unchanged. */
+      var dt = prevTs ? Math.min(ts - prevTs, 50) : 16.667;
+      prevTs = ts;
+      state.dtN = dt / 16.667;
       var i;
       for (i = 0; i < layers.length; i++) layers[i].tick(state);
       var idle = true;
@@ -744,6 +803,7 @@
         if (!layers[i].atRest(state)) { idle = false; break; }
       }
       if (!idle) rafId = requestAnimationFrame(tick);
+      else prevTs = 0;   /* sleeping — the next wake must not span the idle gap */
     };
 
     var request = function () {
@@ -819,8 +879,9 @@
           targetX = 0;
           targetY = 0;
         }
-        actualX += (targetX - actualX) * EASE;
-        actualY += (targetY - actualY) * EASE;
+        var k = 1 - Math.pow(1 - EASE, state.dtN);
+        actualX += (targetX - actualX) * k;
+        actualY += (targetY - actualY) * k;
         for (var i = 0; i < entries.length; i++) {
           var e = entries[i];
           var dx = (actualX * MAX_DRIFT * e.depth).toFixed(2);
@@ -888,7 +949,8 @@
     var allClose = false;
 
     MosaicMotion.register({
-      tick: function () {
+      tick: function (state) {
+        var k = 1 - Math.pow(1 - EASE, state.dtN);
         var vh = window.innerHeight || 1;
         var vcy = vh * 0.5;
         var nearAll = true;
@@ -905,7 +967,7 @@
             e.actualY = target;
             e.seeded = true;
           } else {
-            e.actualY += (target - e.actualY) * EASE;
+            e.actualY += (target - e.actualY) * k;
           }
           if (Math.abs(target - e.actualY) > REST) nearAll = false;
           e.node.style.transform =
@@ -962,14 +1024,14 @@
     var currentDeg = 0;
 
     MosaicMotion.register({
-      tick: function () {
+      tick: function (state) {
         /* Decay smoothed velocity so the grid eases back to 0° without
            requiring scroll events to stop it. */
-        smoothedV *= DECAY;
+        smoothedV *= Math.pow(DECAY, state.dtN);
         var targetDeg = smoothedV * FACTOR;
         if (targetDeg >  MAX_DEG) targetDeg =  MAX_DEG;
         if (targetDeg < -MAX_DEG) targetDeg = -MAX_DEG;
-        currentDeg += (targetDeg - currentDeg) * LERP;
+        currentDeg += (targetDeg - currentDeg) * (1 - Math.pow(1 - LERP, state.dtN));
         if (Math.abs(currentDeg) < REST_DEG) currentDeg = 0;
         grid.style.transform = currentDeg
           ? 'skewY(' + currentDeg.toFixed(3) + 'deg)'

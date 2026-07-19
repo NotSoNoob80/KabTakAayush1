@@ -358,6 +358,17 @@ a {
 [data-reveal-delay="3"] { transition-delay: 180ms; }
 [data-reveal-delay="4"] { transition-delay: 240ms; }
 
+/* Reduced motion: reveals keep their opacity fade (content still visibly
+   arrives) but never move or blur. Delays are left in place — a staggered
+   opacity fade is gentle and keeps the reading order legible. */
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    transform: none;
+    filter: none;
+    transition: opacity 240ms var(--ease-out);
+  }
+}
+
 /* ============================================================
    Hero
    ============================================================ */
@@ -2149,8 +2160,9 @@ html.intro-armed {
   transition:
     color 200ms var(--ease-out),
     /* Slight overshoot on the way back up — the "spring" of a
-       released key resettling. */
-    transform 460ms cubic-bezier(0.34, 1.56, 0.64, 1);
+       released key resettling. Matches the Glissando's 320ms SPRING
+       (script.js) so touch and pointer stay one instrument. */
+    transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* ============================================================
@@ -2216,6 +2228,13 @@ html.intro-armed {
 .footer__wordmark--piano .char:hover {
   color: var(--gold);
   transform: translateY(0.16em) scaleY(0.92);
+  /* Strike, not spring: the key under the cursor snaps down in 130ms
+     (the Glissando's STRIKE), while release falls back to the base
+     rule's springy 320ms. The shorthand resets transition-delay, so
+     the delay must stay declared after it. */
+  transition:
+    color 130ms var(--ease-out),
+    transform 130ms var(--ease-out);
   transition-delay: 0ms;
   position: relative;
   z-index: 1;
@@ -2225,12 +2244,18 @@ html.intro-armed {
 .footer__wordmark--piano .char:has(+ .char:hover) {
   color: var(--gold-dim);
   transform: translateY(0.08em) scaleY(0.96);
+  transition:
+    color 130ms var(--ease-out),
+    transform 130ms var(--ease-out);
   transition-delay: 50ms;
 }
 
 .footer__wordmark--piano .char:hover + .char + .char,
 .footer__wordmark--piano .char:has(+ .char + .char:hover) {
   transform: translateY(0.035em) scaleY(0.985);
+  transition:
+    color 130ms var(--ease-out),
+    transform 130ms var(--ease-out);
   transition-delay: 100ms;
 }
 
@@ -2612,6 +2637,20 @@ html.intro-armed {
   object-fit: contain;
   border-radius: 2px;
   background: var(--black-soft);
+}
+
+/* Frame-to-frame swap (arrows / keys / swipe): the incoming media mounts
+   only once displayable, then fades up — navigation never flashes a blank
+   stage or pops a half-decoded image. JS adds these classes only outside
+   reduced motion; the hold-until-ready itself is loading correctness and
+   applies in both modes. */
+.mosaic-preview__stage .is-media-enter {
+  opacity: 0;
+}
+
+.mosaic-preview__stage .is-media-enter.is-media-ready {
+  opacity: 1;
+  transition: opacity 180ms var(--ease-out);
 }
 
 /* Brand the full-screen player's native controls toward the site's
