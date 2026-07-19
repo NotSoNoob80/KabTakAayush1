@@ -1,6 +1,9 @@
 # 003 — Make the piano-key press strike fast and release springy (desktop)
 
-- **Status**: DONE (implemented + verified 2026-07-19; on-device hover feel check still recommended)
+- **Status**: REVERTED (2026-07-20) — the owner feel-checked the strike and rejected it:
+  the slow 460ms spring in *both* directions is the wordmark's intended personality
+  ("smooth and bouncy"). The symmetric press timing is a settled taste decision, not
+  drift. Do not re-flag or re-apply. Original CSS restored byte-for-byte.
 - **Commit**: f9a3ae9
 - **Severity**: MEDIUM
 - **Category**: Interruptibility (asymmetric timing)

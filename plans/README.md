@@ -48,6 +48,10 @@ reduced motion (documented: it is not motion).
 - `.mosaic-preview` centered scale-open — modals are exempt from trigger-origin rules.
 - JS `.btn` pointerdown scale duplicating CSS `:active` — redundant but harmless
   (touch-reliability belt); not worth churn.
+- **Piano wordmark symmetric press timing (finding 3) — owner-rejected 2026-07-20.**
+  The 130ms-strike/320ms-spring asymmetry was implemented, feel-checked by the owner,
+  and reverted: the slow 460ms spring both ways is the intended "smooth and bouncy"
+  personality of the mark. Now a settled taste decision — do not re-flag.
 
 ## Missed opportunities (beyond plan 005)
 
@@ -73,7 +77,7 @@ Plans are independent — no ordering dependencies. Recommended by leverage:
 | --- | --- | --- | --- |
 | 1 | [001 — Fix the `indexItems` ReferenceError](001-fix-indexitems-referenceerror.md) | HIGH | DONE |
 | 2 | [002 — `[data-reveal]` reduced-motion path](002-data-reveal-reduced-motion.md) | MEDIUM | DONE |
-| 3 | [003 — Piano press strike asymmetry](003-piano-press-strike-asymmetry.md) | MEDIUM | DONE |
+| 3 | [003 — Piano press strike asymmetry](003-piano-press-strike-asymmetry.md) | MEDIUM | REVERTED — owner taste |
 | 4 | [004 — Living-Mosaic dt compensation](004-mosaic-motion-dt-comp.md) | MEDIUM | DONE |
 | 5 | [005 — Preview swap-when-ready + fade](005-mosaic-preview-swap-fade.md) | LOW | DONE |
 
