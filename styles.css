@@ -6,14 +6,55 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600&display=swap');
 
+/* ------------------------------------------------------------
+   The theme — two static themes, never a third (ADR 0015).
+
+   Two layers. PRIMITIVES are literal brand colours and never move.
+   SEMANTIC tokens name a *role* (`--bg`, `--ink`, `--accent`) and are
+   what everything below consumes; only their values change per theme.
+
+   Dark lives on `:root`, so it is also the no-JS state and the state
+   the page holds before the inline <head> resolver runs. Light is a
+   `html[data-theme="light"]` override, mirrored once into a
+   `prefers-color-scheme` block purely as the no-JS fallback.
+
+   Ratios are computed, not eyeballed — `tools/contrast-check.ps1`.
+   Change a value there and here together, or the table is a lie.
+   ------------------------------------------------------------ */
 :root {
+  /* Primitives. `--gold` and `--gold-dim` are kept as ALIASES rather than
+     deleted: JS and the Void's inline fallbacks reference them by name, and
+     aliasing avoids a rename through code paths the CSS sweep can't see. */
   --black: #0a0a0a;
   --black-soft: #141412;
-  --gold: #e3b23c;
-  --gold-dim: #a8822c;
   --cream: #f3ede1;
   --grey: #8c887e;
+  --gold: var(--accent);
+  --gold-dim: var(--accent-dim);
+
+  /* Semantic layer — dark theme values. */
+  --bg: #0a0a0a;              /* page ground */
+  --bg-deep: #080808;         /* Void clear colour / loader ground */
+  --surface: #141412;         /* raised surface */
+  --ink: #f3ede1;             /* body text          16.98:1 on --bg */
+  --muted: #8c887e;           /* secondary text      5.60:1 on --bg */
+  --accent: #e3b23c;          /* gold that must be READ  10.09:1 on --bg */
+  --accent-dim: #a8822c;      /* decorative / large gold  5.56:1 on --bg */
+  --accent-fill: #e3b23c;     /* bright brand gold, large fills only */
+  --fill-ink: #0a0a0a;        /* the label ON a gold fill — dark in BOTH themes */
   --line: rgba(243, 237, 225, 0.12);
+
+  /* Channel triplets, so the ~30 hardcoded rgba() values across the site
+     can be written as rgba(var(--bg-rgb), …) and theme for free. */
+  --ink-rgb: 243, 237, 225;
+  --bg-rgb: 10, 10, 10;
+  --bg-deep-rgb: 8, 8, 8;
+  --accent-rgb: 227, 178, 60;
+
+  /* The grain was tuned against near-black; on paper it needs a different
+     blend entirely, so both halves are tokens. */
+  --grain-blend: soft-light;
+  --grain-opacity: 0.07;
 
   --display: 'Anton', 'Archivo Black', sans-serif;
   --text: 'Archivo', sans-serif;
@@ -22,6 +63,52 @@
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 
   --nav-h: 84px;
+}
+
+/* Light — "ink & gold on paper". NOT an inversion: the hue is kept and the
+   value is shifted. Brand gold is 1.96:1 on white, so gold splits into three
+   roles here — read-gold (ochre), decorative-gold, and fill-gold. */
+html[data-theme="light"] {
+  --bg: #faf7ef;              /* paper, lifted out of the --cream family */
+  --bg-deep: #f4f0e6;         /* light Void space — a step below page paper */
+  --surface: #f3ede1;         /* --cream itself becomes the raised surface */
+  --ink: #171512;             /* warm near-black  17.02:1 paper / 15.63:1 surface */
+  --muted: #6e6a5e;           /*                   5.05:1 paper /  4.63:1 surface */
+  --accent: #7a5d15;          /* gold-ink: ochre   5.76:1 paper /  5.29:1 surface */
+  --accent-dim: #8a6a1f;      /* decorative gold   4.71:1 paper (UI bar is 3:1) */
+  --accent-fill: #e3b23c;     /* brand gold survives here, with --fill-ink on top */
+  --fill-ink: #0a0a0a;        /* 10.09:1 on the fill */
+  --line: rgba(23, 21, 18, 0.14);
+  --ink-rgb: 23, 21, 18;
+  --bg-rgb: 250, 247, 239;
+  --bg-deep-rgb: 244, 240, 230;
+  --accent-rgb: 122, 93, 21;
+  --grain-blend: multiply;
+  --grain-opacity: 0.04;
+}
+
+/* No-JS fallback ONLY. The resolver stamps data-theme before first paint, so
+   in practice this block never wins; it exists so a visitor with JS blocked
+   still gets the colour scheme their OS asked for. Kept a literal duplicate
+   of the block above — CSS has no mixin, and one indirection here would cost
+   the pre-paint guarantee. */
+@media (prefers-color-scheme: light) {
+  html:not([data-theme]) {
+    --bg: #faf7ef;
+    --bg-deep: #f4f0e6;
+    --surface: #f3ede1;
+    --ink: #171512;
+    --muted: #6e6a5e;
+    --accent: #7a5d15;
+    --accent-dim: #8a6a1f;
+    --accent-fill: #e3b23c;
+    --fill-ink: #0a0a0a;
+    --line: rgba(23, 21, 18, 0.14);
+    --ink-rgb: 23, 21, 18;
+    --bg-rgb: 250, 247, 239;
+    --grain-blend: multiply;
+    --grain-opacity: 0.04;
+  }
 }
 
 * {
@@ -43,12 +130,13 @@ html {
 }
 
 body {
-  /* The Hour (Phase 1) — see hour-tint.js. The grade lands here, on the
-     page's negative space, and nowhere else. Falls back to --black when
-     hour-tint.js hasn't yet set --hour-tint (first paint, no-JS, or
-     prefers-contrast: more). */
-  background: var(--hour-tint, var(--black));
-  color: var(--cream);
+  /* The theme's ground. This was `var(--hour-tint, var(--black))` — a
+     clock-driven grade that owned the page's negative space. The Hour is
+     retired (ADR 0015); two systems cannot both own the background pixels.
+     Its one hard rule survives here: the theme grades only the room around
+     the work, never a photographic pixel. */
+  background: var(--bg);
+  color: var(--ink);
   font-family: var(--text);
   -webkit-font-smoothing: antialiased;
   /* Browsers default to an I-beam over any text, implying it's
@@ -82,15 +170,26 @@ body.is-landing {
   }
 }
 
-/* The Hour (Phase 1) — contrast-safe override. When the system asks for
-   more contrast, the grade is OFF entirely and the page background pins
-   to neutral --black. Legibility is never traded for atmosphere. The
-   JS half (hour-tint.js) also detects this and skips updates, but this
-   rule wins regardless via !important so the contract holds even if the
-   script is blocked. */
+/* Contrast-safe override, inherited whole from The Hour: when the system asks
+   for more contrast, each theme pins to ITS OWN neutral ground — no
+   atmosphere, no warmth, no lift. Legibility is never traded for mood.
+
+   The Hour's version forced --black unconditionally, which would have handed
+   a light-theme visitor a black page for asking for MORE contrast. Pinned per
+   theme instead: pure near-black in dark, pure paper in light. */
 @media (prefers-contrast: more) {
   body {
-    background: var(--black) !important;
+    background: #0a0a0a !important;
+  }
+
+  html[data-theme="light"] body {
+    background: #fffdf8 !important;
+  }
+}
+
+@media (prefers-contrast: more) and (prefers-color-scheme: light) {
+  html:not([data-theme]) body {
+    background: #fffdf8 !important;
   }
 }
 
@@ -106,8 +205,8 @@ a {
 }
 
 ::selection {
-  background: var(--gold);
-  color: var(--black);
+  background: var(--accent-fill);
+  color: var(--fill-ink);
 }
 
 /* Subtle film-grain overlay across the whole site */
@@ -121,10 +220,54 @@ a {
      of full range. `soft-light` is gentler in general but reads far
      more evenly across both the near-black body and the cream cards,
      so a small opacity bump here actually shows up as grain instead
-     of vanishing into the background. */
-  opacity: 0.07;
-  mix-blend-mode: soft-light;
+     of vanishing into the background.
+
+     That reasoning was all written against a near-black ground, so both
+     halves are tokens now: on paper `soft-light` lifts toward white and
+     reads as haze rather than grain, so the light theme swaps to
+     `multiply` at a lower opacity to keep it reading as texture. */
+  opacity: var(--grain-opacity);
+  mix-blend-mode: var(--grain-blend);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ============================================================
+   The bulb — the theme-switch transition
+
+   Asymmetric on purpose, like a real tungsten fixture: dark->light
+   flickers ON (theme.js drives the opacity curve), light->dark snaps
+   OFF with no overlay at all. A flicker on the way *down* would read
+   as a bug, not as character.
+
+   This element only declares the surface. The curve itself lives in
+   theme.js, because the pulse spacing is deliberately uneven and a
+   CSS keyframe block is the wrong place to argue with.
+
+   Two properties here are load-bearing, not styling:
+     - `pointer-events: none` keeps the page fully interactive for the
+       whole transition. The bulb must never eat a click.
+     - z-index 250 puts it above .grain (200) and above the Void's
+       canvas, so ONE element covers the entire surface — which is what
+       lets it hide the seam while the WebGL clear colour swaps
+       underneath it.
+   ============================================================ */
+.theme-bulb {
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  pointer-events: none;
+  opacity: 0;
+  will-change: opacity;
+}
+
+/* Reduced motion: no flicker in either direction, ever. The swap is an
+   instant clean cut. theme.js checks the same query before it builds the
+   overlay at all — this rule is the belt to that suspenders, so the
+   contract holds even if the element is somehow left in the DOM. */
+@media (prefers-reduced-motion: reduce) {
+  .theme-bulb {
+    display: none !important;
+  }
 }
 
 /* ============================================================
@@ -141,7 +284,7 @@ a {
   justify-content: space-between;
   padding: 0 48px;
   z-index: 100;
-  background: linear-gradient(to bottom, rgba(10,10,10,0.85) 0%, rgba(10,10,10,0.55) 70%, rgba(10,10,10,0) 100%);
+  background: linear-gradient(to bottom, rgba(var(--bg-rgb),0.85) 0%, rgba(var(--bg-rgb),0.55) 70%, rgba(var(--bg-rgb),0) 100%);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
@@ -183,6 +326,9 @@ a {
   list-style: none;
 }
 
+/* The theme toggle is a real <button> reset to text-link appearance, and it
+   Being a real button, Tab / Enter / Space and the focus ring come for free;
+   there is no custom key handling anywhere for it. */
 .nav__links a {
   font-size: 12px;
   letter-spacing: 0.18em;
@@ -209,6 +355,76 @@ a {
   transform: scaleX(1);
 }
 
+/* ------------------------------------------------------------
+   The theme toggle — a sun/moon glyph, not type.
+
+   It carries no label, so it does NOT take the links' underline sweep: an
+   underline sitting beneath a 15px icon reads as an artefact rather than as
+   the nav's voice. Its hover analogue is a shift to `--accent` instead —
+   the same "this is live" signal the underline gives the links.
+
+   WHICH GLYPH SHOWS IS PURE CSS, keyed off `html[data-theme]`. That matters
+   more than it looks: the correct glyph is painted by the same stylesheet
+   pass that paints the theme, so it can never flash the wrong icon before
+   theme.js runs, and it stays correct on a page where JS never loads at all.
+   theme.js only ever touches the accessible name.
+
+   The glyph shows the theme you are IN (moon while dark). The accessible
+   name names what pressing it DOES ("Switch to light theme"), because a
+   control's name has to be its action. If the visual convention should flip
+   to naming the destination instead, it is the two `display` lines below —
+   nothing else changes.
+   ------------------------------------------------------------ */
+.nav__theme {
+  /* Button reset — everything the UA adds that a text link doesn't have. */
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  border: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Padding, not width/height: it makes the tap target while letting the
+     glyph stay optically the size of the type beside it. */
+  padding: 6px;
+  margin: -6px;
+  transition: color 200ms var(--ease-out);
+}
+
+.nav__theme:hover,
+.nav__theme:focus-visible {
+  color: var(--accent);
+}
+
+.nav__theme-icon {
+  display: block;
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Dark is :root's default, so the moon is the default glyph — which is also
+   what a no-JS visitor with no OS preference correctly gets. */
+.nav__theme-icon--sun { display: none; }
+
+html[data-theme="light"] .nav__theme-icon--sun { display: block; }
+html[data-theme="light"] .nav__theme-icon--moon { display: none; }
+
+/* No-JS fallback, mirroring the token block's own. */
+@media (prefers-color-scheme: light) {
+  html:not([data-theme]) .nav__theme-icon--sun { display: block; }
+  html:not([data-theme]) .nav__theme-icon--moon { display: none; }
+}
+
 /* ============================================================
    Layout helpers
    ============================================================ */
@@ -221,7 +437,7 @@ a {
   font-size: 12px;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--gold);
+  color: var(--accent);
 }
 
 /* Back-to-projects button — sits on its own line above the eyebrow
@@ -238,7 +454,7 @@ a {
   font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--cream);
+  color: var(--ink);
   border: 1px solid var(--line);
   overflow: hidden;
   transition: color 200ms var(--ease-out), border-color 200ms var(--ease-out), transform 160ms var(--ease-out);
@@ -248,7 +464,7 @@ a {
   content: '';
   position: absolute;
   inset: 0;
-  background: var(--gold);
+  background: var(--accent-fill);
   clip-path: inset(0 100% 0 0);
   transition: clip-path 320ms var(--ease-out);
   z-index: -1;
@@ -256,8 +472,8 @@ a {
 
 .back-btn:hover,
 .back-btn:focus-visible {
-  color: var(--black);
-  border-color: var(--gold);
+  color: var(--fill-ink);
+  border-color: var(--accent-fill);
 }
 
 .back-btn:hover::before,
@@ -306,7 +522,7 @@ a {
   z-index: 110;
   margin: 0;
   opacity: 0.32;
-  background: rgba(10, 10, 10, 0.55);
+  background: rgba(var(--bg-rgb), 0.55);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
@@ -440,7 +656,7 @@ a {
 }
 
 .landing__title .accent {
-  color: var(--gold);
+  color: var(--accent);
 }
 
 .landing__about {
@@ -450,12 +666,12 @@ a {
 .landing__about p {
   font-size: 15px;
   line-height: 1.65;
-  color: var(--grey);
+  color: var(--muted);
   letter-spacing: 0.01em;
 }
 
 .landing__about strong {
-  color: var(--cream);
+  color: var(--ink);
   font-weight: 500;
 }
 
@@ -529,7 +745,7 @@ a {
      disproportionate stretching. Leaving the box spacing alone keeps
      growth visible, and proportional, on all sides.) */
   overflow: hidden;
-  background: var(--black-soft);
+  background: var(--surface);
   width: clamp(175px, 18vw, 280px);
   height: clamp(220px, 22vw, 340px);
   /* Frames sit on a shared baseline (align-items: flex-end on the
@@ -612,15 +828,15 @@ a {
   left: 24px;
   width: 56px;
   height: 20px;
-  background: rgba(227, 178, 60, 0.32);
-  border: 1px solid rgba(227, 178, 60, 0.45);
+  background: rgba(var(--accent-rgb), 0.32);
+  border: 1px solid rgba(var(--accent-rgb), 0.45);
   transform: rotate(-5deg);
 }
 
 .landing__preview-img {
   display: block;
   object-fit: contain;
-  background: var(--black-soft);
+  background: var(--surface);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -662,15 +878,15 @@ a {
   content: '';
   position: absolute;
   inset: 0;
-  background: var(--gold);
+  background: var(--accent-fill);
   clip-path: inset(0 100% 0 0);
   transition: clip-path 320ms var(--ease-out);
   z-index: -1;
 }
 
 .btn:hover {
-  color: var(--black);
-  border-color: var(--gold);
+  color: var(--fill-ink);
+  border-color: var(--accent-fill);
 }
 
 .btn:hover::before {
@@ -737,14 +953,28 @@ a {
     padding: 15px 2px;
     margin: -15px 0;
   }
+
+  /* Same tap target, built the same way. The negative margin stays VERTICAL
+     only, exactly as the links' does: pulling it in horizontally too would
+     push the button's hit area into the flex gap and let it steal taps that
+     were aimed at "About". A glyph is a smaller target than a word, so it is
+     the one item in this row that has to buy its width honestly. */
+  .nav__theme {
+    padding: 15px 12px;
+    margin: -15px 0;
+  }
 }
 
-/* Below ~400px, tighten one more notch so the three links never
-   wrap or clip against the logo. */
+/* Below ~400px, tighten one more notch so the links never wrap or clip
+   against the logo. The theme toggle made this a FOUR-item row — as a glyph
+   it costs far less width than a LIGHT/DARK label would have, but the gap
+   still comes down a notch to keep the row clear of the logo. */
 @media (max-width: 400px) {
   .nav { padding: 0 14px; }
   .nav__links { gap: 11px; }
-  .nav__links a { font-size: 10px; letter-spacing: 0.08em; }
+  .nav__links a { font-size: 10px; letter-spacing: 0.06em; }
+  .nav__theme { padding: 15px 10px; margin: -15px 0; }
+  .nav__theme-icon { width: 14px; height: 14px; }
   .nav__logo { height: 74px; }
 }
 
@@ -861,7 +1091,7 @@ a {
   .footer .footer__wordmark--piano .char:has(+ .char:hover),
   .footer .footer__wordmark--piano .char:hover + .char + .char,
   .footer .footer__wordmark--piano .char:has(+ .char + .char:hover) {
-    color: var(--cream);
+    color: var(--ink);
     transform: none;
     filter: none;
   }
@@ -882,8 +1112,8 @@ a {
 
 @keyframes footer-char-shimmer {
   0%,
-  100% { color: var(--cream); transform: none; }
-  45%  { color: var(--gold); transform: scale(1.08) translateY(-0.06em); }
+  100% { color: var(--ink); transform: none; }
+  45%  { color: var(--accent); transform: scale(1.08) translateY(-0.06em); }
 }
 
 /* ============================================================
@@ -906,7 +1136,7 @@ a {
   max-width: 560px;
   font-size: 15px;
   line-height: 1.7;
-  color: var(--grey);
+  color: var(--muted);
 }
 
 /* Mobile page-head (project.html / projects.html) — placed AFTER the
@@ -1001,13 +1231,13 @@ a {
   gap: 16px;
   padding: 16px 2px;
   text-decoration: none;
-  color: var(--cream);
+  color: var(--ink);
 }
 
 /* Keyboard focus — a visible ring on the whole row, not just the
    thumbnail's grayscale→colour bloom (which pointer hover also gets). */
 .index__item:focus-visible {
-  outline: 2px solid var(--gold);
+  outline: 2px solid var(--accent);
   outline-offset: 4px;
   border-radius: 2px;
 }
@@ -1030,7 +1260,7 @@ a {
   background-image: var(--thumb);
   background-size: cover;
   background-position: center;
-  background-color: var(--black-soft);
+  background-color: var(--surface);
   border-radius: 2px;
   transition: filter 460ms var(--ease-out);
 }
@@ -1082,7 +1312,7 @@ a {
   }
   .index__item:hover .index__num,
   .index__item:focus-visible .index__num {
-    color: var(--gold);
+    color: var(--accent);
   }
   .index__item:hover::before,
   .index__item:focus-visible::before {
@@ -1100,7 +1330,7 @@ a {
   .index__item:hover .index__title,
   .index__item:focus-visible .index__title {
     transform: translateX(8px);
-    color: var(--gold);
+    color: var(--accent);
   }
 }
 
@@ -1122,7 +1352,7 @@ a {
   font-size: clamp(15px, 0.7vw + 11px, 21px);
   line-height: 1;
   letter-spacing: 0.04em;
-  color: var(--gold-dim);
+  color: var(--accent-dim);
   padding-top: 0.18em;
 }
 
@@ -1137,7 +1367,7 @@ a {
   text-transform: uppercase;
   font-size: clamp(26px, 3.5vw + 12px, 44px);
   line-height: 0.98;
-  color: var(--cream);
+  color: var(--ink);
   flex: 1 1 auto;
   min-width: 0;
   overflow-wrap: break-word;
@@ -1192,7 +1422,7 @@ a {
     letter-spacing: 0.18em;
     text-transform: uppercase;
     text-align: right;
-    color: var(--gold-dim);
+    color: var(--accent-dim);
     overflow-wrap: break-word;
     /* Quiet secondary tone — must sit opposite the big display title
        without competing with it. No motion, no hover affordance: the
@@ -1239,7 +1469,7 @@ a {
   margin: 0;
   overflow: hidden;
   border-radius: 2px;
-  background: var(--black-soft);
+  background: var(--surface);
   grid-column: span 1;
   grid-row: span 1;
   opacity: 0;
@@ -1290,7 +1520,7 @@ a {
   grid-column: 1 / -1;
   padding: 90px 0;
   text-align: center;
-  color: var(--grey);
+  color: var(--muted);
   font-size: 14px;
   letter-spacing: 0.06em;
 }
@@ -1410,7 +1640,7 @@ html.intro-armed {
   font-size: 12px;
   letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: var(--gold-dim);
+  color: var(--accent-dim);
 }
 
 .scroll-cue__rail {
@@ -1429,7 +1659,7 @@ html.intro-armed {
   height: 5px;
   margin-left: -2px;
   border-radius: 50%;
-  background: var(--gold);
+  background: var(--accent-fill);
   animation: scroll-cue-drift 2000ms var(--ease-in-out) infinite;
 }
 
@@ -1488,7 +1718,7 @@ html.intro-armed {
   font-size: clamp(40px, 9vw, 132px);
   line-height: 1.05;
   letter-spacing: -0.01em;
-  color: var(--gold);
+  color: var(--accent);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -1500,7 +1730,7 @@ html.intro-armed {
   font-size: 0.22em;
   letter-spacing: 0.04em;
   text-transform: none;
-  color: var(--cream);
+  color: var(--ink);
   opacity: 0.55;
   vertical-align: middle;
   margin-left: 0.3em;
@@ -1576,6 +1806,29 @@ html.intro-armed {
    per frame from scroll progress — nothing here animates on
    its own; this block only sets the resting/hidden state and
    the card's "paper" look. */
+
+/* --- Paper island -------------------------------------------------------
+   A Listing card is a printed classifieds clipping: it was ALREADY cream
+   paper with black ink in the dark theme, and it stays exactly that in the
+   light theme. So the card re-declares the semantic tokens locally, pinned
+   to the values it renders today. Two things fall out of that:
+
+     - the card cannot flip with the theme (a clipping is not a room), and
+     - the dark theme stays pixel-identical, because every value below is
+       the literal colour that selector resolved to before the sweep.
+
+   Descendants keep consuming `--ink` / `--accent` as normal; only the values
+   under them are pinned. The one thing the light theme DOES add is an edge
+   (slice 9) — cream paper on a paper ground has no silhouette otherwise. */
+.listing__card {
+  --surface: #f3ede1;             /* was var(--cream) */
+  --ink: #0a0a0a;                 /* was var(--black) */
+  --muted: #141412;               /* was var(--black-soft) on .listing__status */
+  --accent: #e3b23c;              /* was var(--gold) */
+  --accent-dim: #a8822c;          /* was var(--gold-dim) */
+  --line: rgba(23, 21, 18, 0.14);
+}
+
 .listing__card {
   position: absolute;
   /* Explicit fill, not `inset: 0` — that shorthand also sets
@@ -1603,8 +1856,8 @@ html.intro-armed {
   gap: 3vmin;
   padding: 8vmin 7vmin;
   overflow: hidden;
-  background: var(--cream);
-  color: var(--black);
+  background: var(--surface);
+  color: var(--ink);
   text-align: left;
   opacity: 0;
   will-change: transform, opacity;
@@ -1632,7 +1885,7 @@ html.intro-armed {
   bottom: 7%;
   pointer-events: none;
   fill: none;
-  stroke: var(--gold-dim);
+  stroke: var(--accent-dim);
   stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -1680,7 +1933,7 @@ html.intro-armed {
 }
 
 .listing__card--art .listing__art--mandala {
-  stroke: var(--gold);
+  stroke: var(--accent);
   opacity: 0.2;
 }
 
@@ -1693,14 +1946,14 @@ html.intro-armed {
      with the card rather than drifting out of proportion with it
      on tall/narrow or short/wide screens. */
   font-size: clamp(64px, 11vmin, 184px);
-  color: var(--black);
+  color: var(--ink);
 }
 
 .listing__price {
   font-family: var(--display);
   font-size: clamp(28px, 4.2vmin, 58px);
   letter-spacing: 0.02em;
-  color: var(--gold-dim);
+  color: var(--accent-dim);
 }
 
 .listing__status {
@@ -1712,7 +1965,7 @@ html.intro-armed {
   max-width: 62%;
   font-size: clamp(15px, 1.7vmin, 21px);
   line-height: 1.65;
-  color: var(--black-soft);
+  color: var(--muted);
 }
 
 /* Desktop shows the full paragraph; phones swap to a single trimmed line.
@@ -1746,8 +1999,8 @@ html.intro-armed {
   font-size: 10px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--gold-dim);
-  border: 1.5px solid var(--gold-dim);
+  color: var(--accent-dim);
+  border: 1.5px solid var(--accent-dim);
   transform: rotate(-8deg);
 }
 
@@ -1756,6 +2009,12 @@ html.intro-armed {
    gold type and rule turns it back into something stamped *onto* the
    paper rather than printed faintly alongside it. */
 .listing__stamp--sold {
+  /* The plate is a DARK chip sitting on the paper island, in both themes —
+     it is what makes the gold read at all (see the note above). So it pins
+     the ground triplet back to dark rather than inheriting the island's, or
+     the light theme would hand it a pale plate and put brand gold back on
+     near-white at 1.96:1 — the exact failure this plate was added to fix. */
+  --bg-rgb: 10, 10, 10;
   top: 50%;
   left: 50%;
   right: auto;
@@ -1766,36 +2025,79 @@ html.intro-armed {
   line-height: 1.28;
   letter-spacing: 0.06em;
   text-align: center;
-  color: var(--gold);
-  border: 3px solid var(--gold);
-  background: rgba(10, 10, 10, 0.92);
+  color: var(--accent);
+  border: 3px solid var(--accent);
+  background: rgba(var(--bg-rgb), 0.92);
   box-shadow: 0 20px 60px -16px rgba(0, 0, 0, 0.7);
   opacity: 0;
   transform: translate(-50%, -50%) rotate(-11deg) scale(1.5);
   will-change: transform, opacity;
 }
 
+/* --- The light theme's card edge ---------------------------------------
+   On a dark ground a cream clipping has all the silhouette it needs. On the
+   paper ground both are pale and the card dissolves into the page, so light
+   gives it a hairline.
+
+   Two notes on HOW, because the obvious approaches don't work here:
+
+   - The edge is an inset pseudo-element, not a `border` on the card. The card
+     carries a torn-notch `clip-path`, and a border is cut by it at exactly
+     the corners that make the shape read.
+   - There is no drop-shadow half. `clip-path` also clips `box-shadow` — the
+     card's existing `box-shadow` is already painted and thrown away, in both
+     themes. The only thing that WOULD cast a shadow through a clip-path is a
+     `filter: drop-shadow()`, and both the card and its stage have transforms
+     rewritten every frame by the Listing's scrub. Hanging a filter on a
+     per-frame-animated element to buy a shadow is a motion regression traded
+     for decoration, and this work does not touch motion. The hairline alone
+     separates the card from the paper.
+
+   Dark is untouched: the whole block is light-only. */
+html[data-theme="light"] .listing__card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  pointer-events: none;
+  z-index: 8;
+}
+
+/* Art's card is the dark clipping — it already has all the edge it needs. */
+html[data-theme="light"] .listing__card--art::after {
+  display: none;
+}
+
 /* Art's card: same paper, but lit like the brand's gold accent —
-   the calm, settled note the sequence resolves on. */
+   the calm, settled note the sequence resolves on.
+
+   It is the one DARK clipping in the set, so it re-pins the island's tokens
+   back to the dark values — otherwise its gold would sit on the paper
+   island's ochre assumption and land on near-black at ~2.6:1. Same
+   pixel-identical rule: every value here is what the selector resolved to
+   before the sweep. */
 .listing__card--art {
-  background: var(--black-soft);
-  color: var(--cream);
+  --surface: #141412;             /* was var(--black-soft) */
+  --ink: #f3ede1;                 /* was var(--cream) */
+  --muted: #8c887e;               /* was var(--grey) */
+  background: var(--surface);
+  color: var(--ink);
 }
 
 .listing__card--art .listing__title,
 .listing__card--art .listing__price {
-  color: var(--gold);
+  color: var(--accent);
 }
 
 .listing__card--art .listing__status {
-  color: var(--grey);
+  color: var(--muted);
 }
 
 .listing__card--art::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 38%, rgba(227, 178, 60, 0.16), transparent 70%);
+  background: radial-gradient(circle at 50% 38%, rgba(var(--accent-rgb), 0.16), transparent 70%);
   pointer-events: none;
 }
 
@@ -1955,13 +2257,13 @@ html.intro-armed {
   line-height: 1.02;
 }
 
-.footer__cta .accent { color: var(--gold); }
+.footer__cta .accent { color: var(--accent); }
 
 .footer__col h4 {
   font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--grey);
+  color: var(--muted);
   margin-bottom: 16px;
 }
 
@@ -1970,7 +2272,7 @@ html.intro-armed {
   display: block;
   font-size: 14px;
   line-height: 2;
-  color: var(--cream);
+  color: var(--ink);
 }
 
 .footer__col a {
@@ -1990,7 +2292,7 @@ html.intro-armed {
   bottom: 2px;
   width: 100%;
   height: 1px;
-  background: var(--gold);
+  background: var(--accent-fill);
   transform: scaleX(0);
   transform-origin: left;
   transition: transform 220ms var(--ease-out);
@@ -2011,7 +2313,7 @@ html.intro-armed {
   font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--grey);
+  color: var(--muted);
   flex-wrap: wrap;
   gap: 12px;
 }
@@ -2077,7 +2379,7 @@ html.intro-armed {
    are compositor/paint-cheap and interruptible mid-hover. */
 .footer__wordmark .char {
   display: inline-block;
-  color: var(--cream);
+  color: var(--ink);
   /* Pulls every letter (but the last) in toward its neighbour —
      guarantees the crammed, occasionally-overlapping feel the
      larger font-size aims for, regardless of how much slack
@@ -2090,7 +2392,7 @@ html.intro-armed {
 }
 
 .footer__wordmark .char:hover {
-  color: var(--gold);
+  color: var(--accent);
   transform: scale(1.1) translateY(-0.05em);
   will-change: transform;
   /* Lift the hovered letter above its overlapping neighbours so
@@ -2108,7 +2410,7 @@ html.intro-armed {
    flipping past a frame and catching its glow on the next one. */
 .footer__wordmark .char:hover + .char,
 .footer__wordmark .char:has(+ .char:hover) {
-  color: var(--gold-dim);
+  color: var(--accent-dim);
   transform: scale(1.03);
 }
 
@@ -2134,7 +2436,7 @@ html.intro-armed {
 }
 
 .footer__wordmark--flicker .char:hover {
-  color: var(--gold);
+  color: var(--accent);
   /* `steps()` instead of an eased curve — the letter should jump
      between frames, not glide between them. */
   animation: footer-char-flicker 480ms steps(2, jump-none) infinite;
@@ -2144,7 +2446,7 @@ html.intro-armed {
 
 .footer__wordmark--flicker .char:hover + .char,
 .footer__wordmark--flicker .char:has(+ .char:hover) {
-  color: var(--gold-dim);
+  color: var(--accent-dim);
 }
 
 /* ---- Piano-key variant -------------------------------------------
@@ -2183,13 +2485,13 @@ html.intro-armed {
   z-index: 70;
   max-width: min(280px, calc(100vw - 56px));
   padding: 12px 18px;
-  background: rgba(10, 10, 10, 0.7);
-  border: 1px solid rgba(227, 178, 60, 0.28);
+  background: rgba(var(--bg-rgb), 0.7);
+  border: 1px solid rgba(var(--accent-rgb), 0.28);
   border-radius: 2px;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
-  color: var(--gold);
+  color: var(--accent);
   font-family: var(--text);
   font-style: italic;
   font-size: 13px;
@@ -2225,7 +2527,7 @@ html.intro-armed {
 }
 
 .footer__wordmark--piano .char:hover {
-  color: var(--gold);
+  color: var(--accent);
   transform: translateY(0.16em) scaleY(0.92);
   transition-delay: 0ms;
   position: relative;
@@ -2234,7 +2536,7 @@ html.intro-armed {
 
 .footer__wordmark--piano .char:hover + .char,
 .footer__wordmark--piano .char:has(+ .char:hover) {
-  color: var(--gold-dim);
+  color: var(--accent-dim);
   transform: translateY(0.08em) scaleY(0.96);
   transition-delay: 50ms;
 }
@@ -2313,8 +2615,8 @@ html.intro-armed {
   padding: 0;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: rgba(10, 10, 10, 0.62);
-  color: var(--cream);
+  background: rgba(var(--bg-rgb), 0.62);
+  color: var(--ink);
   cursor: pointer;
   opacity: 0;
   transform: translateY(4px);
@@ -2336,8 +2638,8 @@ html.intro-armed {
 
 .mosaic__sound:hover,
 .mosaic__sound:focus-visible {
-  border-color: rgba(243, 237, 225, 0.36);
-  background: rgba(10, 10, 10, 0.78);
+  border-color: rgba(var(--ink-rgb), 0.36);
+  background: rgba(var(--bg-rgb), 0.78);
   outline: none;
 }
 
@@ -2346,8 +2648,8 @@ html.intro-armed {
 }
 
 .mosaic__sound.is-on {
-  border-color: rgba(227, 178, 60, 0.55);
-  color: var(--gold);
+  border-color: rgba(var(--accent-rgb), 0.55);
+  color: var(--accent);
 }
 
 .mosaic__sound-icon {
@@ -2378,8 +2680,8 @@ html.intro-armed {
   padding: 10px 18px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(10, 10, 10, 0.4);
-  color: var(--cream);
+  background: rgba(var(--bg-rgb), 0.4);
+  color: var(--ink);
   font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -2392,8 +2694,8 @@ html.intro-armed {
 
 .mosaic-sound-toggle:hover,
 .mosaic-sound-toggle:focus-visible {
-  border-color: rgba(243, 237, 225, 0.36);
-  background: rgba(10, 10, 10, 0.62);
+  border-color: rgba(var(--ink-rgb), 0.36);
+  background: rgba(var(--bg-rgb), 0.62);
   outline: none;
 }
 
@@ -2402,8 +2704,8 @@ html.intro-armed {
 }
 
 .mosaic-sound-toggle.is-on {
-  border-color: rgba(227, 178, 60, 0.55);
-  color: var(--gold);
+  border-color: rgba(var(--accent-rgb), 0.55);
+  color: var(--accent);
 }
 
 .mosaic-sound-toggle .mosaic__sound-icon--on { display: none; }
@@ -2481,7 +2783,7 @@ html.intro-armed {
   content: "";
   position: absolute;
   inset: 1px;
-  border: 1px solid var(--gold-dim);
+  border: 1px solid var(--accent-dim);
   border-radius: inherit;
   pointer-events: none;
   z-index: 2;
@@ -2496,7 +2798,7 @@ html.intro-armed {
   content: "";
   position: absolute;
   inset: 3px;
-  border: 2px solid var(--gold);
+  border: 2px solid var(--accent);
   border-radius: inherit;
   pointer-events: none;
   opacity: 0;
@@ -2519,6 +2821,30 @@ html.intro-armed {
 }
 
 .mosaic__grid--film .mosaic__item--video.is-lit .mosaic__settle {
+  opacity: 1;
+}
+
+/* Signal inversion guard (light theme).
+
+   Dimming by opacity composites the resting films against whatever is behind
+   them. On near-black that darkens them, which is what "off" looks like. On
+   paper the SAME rule lightens them — and a pale, lifted film can read as
+   the highlighted one, exactly backwards from what it means.
+
+   So the resting dim goes deeper on paper: further from the lit film's full
+   contrast, unmistakably the recessive state. Note what is NOT changed —
+   `.is-lit` stays at opacity 1 in both themes, so the film the visitor is
+   actually watching is presented identically either way. Only the resting
+   state, which is UI signal rather than presentation, differs.
+
+   The mount and the 8px rise carry the same signal independently, and
+   neither of those inverts, so "off" never rests on this value alone.
+   Whether 0.42 is far enough on a real display is an eyeball item. */
+html[data-theme="light"] .mosaic__grid--film .mosaic__item--video .mosaic__settle {
+  opacity: 0.42;
+}
+
+html[data-theme="light"] .mosaic__grid--film .mosaic__item--video.is-lit .mosaic__settle {
   opacity: 1;
 }
 
@@ -2593,7 +2919,7 @@ html.intro-armed {
 .mosaic-preview__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(8, 8, 8, 0.94);
+  background: rgba(var(--bg-deep-rgb), 0.94);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
@@ -2622,7 +2948,7 @@ html.intro-armed {
   height: auto;
   object-fit: contain;
   border-radius: 2px;
-  background: var(--black-soft);
+  background: var(--surface);
 }
 
 /* Frame-to-frame swap (arrows / keys / swipe): the incoming media mounts
@@ -2651,18 +2977,18 @@ html.intro-armed {
    brings the controls in — reads as the video "dimming" on hover. The
    browser's own control backing is enough; we only recolour the parts. */
 .mosaic-preview__stage video {
-  accent-color: var(--gold);
+  accent-color: var(--accent);
   color-scheme: dark;
 }
 
 .mosaic-preview__stage video::-webkit-media-controls-current-time-display,
 .mosaic-preview__stage video::-webkit-media-controls-time-remaining-display {
-  color: var(--cream);
+  color: var(--ink);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .mosaic-preview__stage video::-webkit-media-controls-timeline {
-  accent-color: var(--gold);
+  accent-color: var(--accent);
 }
 
 .mosaic-preview__stage video::-webkit-media-controls-play-button,
@@ -2684,8 +3010,8 @@ html.intro-armed {
   justify-content: center;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: rgba(10, 10, 10, 0.66);
-  color: var(--cream);
+  background: rgba(var(--bg-rgb), 0.66);
+  color: var(--ink);
   cursor: pointer;
   z-index: 2;
   transition:
@@ -2696,8 +3022,8 @@ html.intro-armed {
 
 .mosaic-preview__close:hover,
 .mosaic-preview__close:focus-visible {
-  border-color: rgba(243, 237, 225, 0.36);
-  background: rgba(10, 10, 10, 0.82);
+  border-color: rgba(var(--ink-rgb), 0.36);
+  background: rgba(var(--bg-rgb), 0.82);
   outline: none;
 }
 
@@ -2729,8 +3055,8 @@ html.intro-armed {
   justify-content: center;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: rgba(10, 10, 10, 0.66);
-  color: var(--cream);
+  background: rgba(var(--bg-rgb), 0.66);
+  color: var(--ink);
   cursor: pointer;
   z-index: 2;
   transition:
@@ -2748,8 +3074,8 @@ html.intro-armed {
 
 .mosaic-preview__nav:hover,
 .mosaic-preview__nav:focus-visible {
-  border-color: rgba(243, 237, 225, 0.36);
-  background: rgba(10, 10, 10, 0.82);
+  border-color: rgba(var(--ink-rgb), 0.36);
+  background: rgba(var(--bg-rgb), 0.82);
   outline: none;
 }
 
@@ -2786,8 +3112,8 @@ html.intro-armed {
   padding: 8px 16px;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: rgba(10, 10, 10, 0.74);
-  color: var(--cream);
+  background: rgba(var(--bg-rgb), 0.74);
+  color: var(--ink);
   font-size: 0.78rem;
   letter-spacing: 0.04em;
   white-space: nowrap;
@@ -2819,7 +3145,7 @@ html.intro-armed {
   }
   50% {
     transform: translateY(-50%) scale(1.12);
-    border-color: rgba(243, 237, 225, 0.5);
+    border-color: rgba(var(--ink-rgb), 0.5);
   }
 }
 

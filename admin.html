@@ -4,6 +4,21 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin — KabTakAayush</title>
+
+  <!-- The theme, resolved BEFORE the stylesheet paints. Deliberately inline
+       and duplicated into every page: an external script cannot be guaranteed
+       to run before first paint, and no-FOUC is a hard constraint. Only the
+       pre-paint stamp lives here — all behaviour after first paint is theme.js.
+       A localStorage throw (private mode) degrades to the OS preference. -->
+  <script>
+  (function(){var t;try{t=localStorage.getItem('kta-theme')}catch(_){}
+  if(t!=='light'&&t!=='dark')t=window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';
+  document.documentElement.setAttribute('data-theme',t);})();
+  </script>
+  <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#faf7ef" media="(prefers-color-scheme: light)" />
+  <script src="theme.js"></script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
@@ -13,22 +28,111 @@
        instead of emitting a snippet to paste by hand. See ADR 0004. -->
   <script src="projects-data.js"></script>
   <style>
+    /* The Admin carries its own copy of the theme rather than loading
+       styles.css — it always has, and it is a private tool, so the duplication
+       is cheaper than coupling it to the site's stylesheet. The token NAMES
+       are the site's semantic names so the two read the same side by side.
+
+       Held to functional QA only: it is private, so it does not get the full
+       contrast protocol or an accessibility pass. It does get the theme and
+       the toggle, because "one dark rectangle left on a light machine" is
+       exactly the thing this work exists to remove. */
     :root {
-      --black:    #0a0a0a;
-      --soft:     #141412;
-      --soft2:    #1c1c19;
-      --gold:     #e3b23c;
-      --gold-dim: #a8822c;
-      --cream:    #f3ede1;
-      --grey:     #8c887e;
-      --line:     rgba(243,237,225,0.1);
-      --red:      #c0392b;
-      --ease:     cubic-bezier(0.23,1,0.32,1);
+      --bg:         #0a0a0a;
+      --surface:    #141412;
+      --surface-2:  #1c1c19;
+      --ink:        #f3ede1;
+      --muted:      #8c887e;
+      --accent:     #e3b23c;
+      --accent-dim: #a8822c;
+      --fill-ink:   #0a0a0a;   /* the label ON a gold fill, both themes */
+      --line:       rgba(var(--ink-rgb),0.1);
+      --red:        #c0392b;
+      --ink-rgb:    243, 237, 225;
+      --bg-rgb:     10, 10, 10;
+      --accent-rgb: 227, 178, 60;
+      --muted-rgb:  140, 136, 126;
+      --ease:       cubic-bezier(0.23,1,0.32,1);
+    }
+
+    html[data-theme="light"] {
+      --bg:         #faf7ef;
+      --surface:    #f3ede1;
+      --surface-2:  #ece5d6;
+      --ink:        #171512;
+      --muted:      #6e6a5e;
+      --accent:     #7a5d15;
+      --accent-dim: #8a6a1f;
+      --fill-ink:   #0a0a0a;
+      --red:        #a5301f;
+      --ink-rgb:    23, 21, 18;
+      --bg-rgb:     250, 247, 239;
+      --accent-rgb: 122, 93, 21;
+      --muted-rgb:  110, 106, 94;
+    }
+
+    /* No-JS fallback only — same duplication rationale as styles.css. */
+    @media (prefers-color-scheme: light) {
+      html:not([data-theme]) {
+        --bg:         #faf7ef;
+        --surface:    #f3ede1;
+        --surface-2:  #ece5d6;
+        --ink:        #171512;
+        --muted:      #6e6a5e;
+        --accent:     #7a5d15;
+        --accent-dim: #8a6a1f;
+        --fill-ink:   #0a0a0a;
+        --red:        #a5301f;
+        --ink-rgb:    23, 21, 18;
+        --bg-rgb:     250, 247, 239;
+        --accent-rgb: 122, 93, 21;
+        --muted-rgb:  110, 106, 94;
+      }
+    }
+
+    /* The theme toggle — the same sun/moon glyph the site nav carries, so the
+       private tool and the public site use one control, not two. Which glyph
+       shows is pure CSS off html[data-theme]; theme.js only sets the
+       accessible name. */
+    .nav__theme {
+      appearance: none;
+      -webkit-appearance: none;
+      background: none;
+      border: 0;
+      margin: -6px;
+      padding: 6px;
+      font: inherit;
+      color: var(--muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 160ms var(--ease);
+    }
+    .nav__theme:hover,
+    .nav__theme:focus-visible { color: var(--accent); }
+
+    .nav__theme-icon {
+      display: block;
+      width: 15px;
+      height: 15px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .nav__theme-icon--sun { display: none; }
+    html[data-theme="light"] .nav__theme-icon--sun { display: block; }
+    html[data-theme="light"] .nav__theme-icon--moon { display: none; }
+    @media (prefers-color-scheme: light) {
+      html:not([data-theme]) .nav__theme-icon--sun { display: block; }
+      html:not([data-theme]) .nav__theme-icon--moon { display: none; }
     }
     *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
     body {
-      background: var(--black);
-      color: var(--cream);
+      background: var(--bg);
+      color: var(--ink);
       font-family: 'Archivo', sans-serif;
       min-height: 100vh;
       padding: 64px 56px 120px;
@@ -37,10 +141,14 @@
 
     /* ── Header ── */
     .header-label {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
       font-size: 11px;
       letter-spacing: 0.2em;
       text-transform: uppercase;
-      color: var(--grey);
+      color: var(--muted);
       margin-bottom: 12px;
     }
     .header-row {
@@ -54,25 +162,25 @@
       font-family: 'Anton', sans-serif;
       font-size: clamp(36px, 6vw, 72px);
       text-transform: uppercase;
-      color: var(--gold);
+      color: var(--accent);
       line-height: 1;
     }
     .project-badge {
       display: flex;
       align-items: center;
       gap: 6px;
-      background: var(--soft);
+      background: var(--surface);
       border: 1px solid var(--line);
       border-radius: 40px;
       padding: 6px 8px 6px 14px;
       font-size: 13px;
-      color: var(--grey);
+      color: var(--muted);
       flex-shrink: 0;
     }
     .project-badge strong {
       font-family: 'Anton', sans-serif;
       font-size: 18px;
-      color: var(--cream);
+      color: var(--ink);
       letter-spacing: 0.04em;
     }
     .badge-adj {
@@ -80,9 +188,9 @@
       gap: 2px;
     }
     .badge-btn {
-      background: var(--soft2);
+      background: var(--surface-2);
       border: 1px solid var(--line);
-      color: var(--grey);
+      color: var(--muted);
       font-size: 14px;
       line-height: 1;
       width: 26px;
@@ -94,7 +202,7 @@
       justify-content: center;
       transition: color 140ms, border-color 140ms;
     }
-    .badge-btn:hover { color: var(--cream); border-color: var(--gold-dim); }
+    .badge-btn:hover { color: var(--ink); border-color: var(--accent-dim); }
 
     /* ── Tabs ── */
     .tabs {
@@ -105,13 +213,13 @@
     }
     .tab {
       background: none; border: none; border-bottom: 2px solid transparent;
-      color: var(--grey); font-family: 'Archivo', sans-serif;
+      color: var(--muted); font-family: 'Archivo', sans-serif;
       font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
       padding: 12px 18px; cursor: pointer; margin-bottom: -1px;
       transition: color 160ms var(--ease), border-color 160ms var(--ease);
     }
-    .tab:hover { color: var(--cream); }
-    .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+    .tab:hover { color: var(--ink); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
     .section { display: none; }
     .section.active { display: block; }
@@ -130,8 +238,8 @@
 
     /* ── Drop zone (thumbnail) ── */
     .drop-zone {
-      border: 1px dashed rgba(243,237,225,0.18);
-      background: var(--soft);
+      border: 1px dashed rgba(var(--ink-rgb),0.18);
+      background: var(--surface);
       border-radius: 8px;
       aspect-ratio: 4/3;
       display: flex;
@@ -145,12 +253,12 @@
       transition: border-color 200ms var(--ease), background 200ms var(--ease);
       user-select: none;
     }
-    .drop-zone:hover, .drop-zone.over { border-color: var(--gold-dim); background: #1a1a17; }
+    .drop-zone:hover, .drop-zone.over { border-color: var(--accent-dim); background: #1a1a17; }
     .drop-zone.over { border-style: solid; }
     .drop-icon { font-size: 26px; opacity: 0.3; pointer-events: none; transition: opacity 180ms; }
     .drop-label {
       font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;
-      color: var(--grey); text-align: center; line-height: 1.6;
+      color: var(--muted); text-align: center; line-height: 1.6;
       pointer-events: none; transition: opacity 180ms;
     }
     .drop-preview {
@@ -162,8 +270,8 @@
     .drop-zone.loaded .drop-preview { display: block; }
     .drop-clear {
       position: absolute; top: 10px; right: 10px;
-      background: rgba(10,10,10,0.75); border: 1px solid var(--line);
-      color: var(--cream); font-size: 11px; letter-spacing: 0.08em;
+      background: rgba(var(--bg-rgb),0.75); border: 1px solid var(--line);
+      color: var(--ink); font-size: 11px; letter-spacing: 0.08em;
       text-transform: uppercase; padding: 5px 9px; border-radius: 4px;
       cursor: pointer; display: none; backdrop-filter: blur(6px);
     }
@@ -173,17 +281,17 @@
     .fields { display: flex; flex-direction: column; gap: 28px; }
     .field-label {
       display: block; font-size: 10px; letter-spacing: 0.18em;
-      text-transform: uppercase; color: var(--grey); margin-bottom: 9px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 9px;
     }
     .field-input {
-      width: 100%; background: var(--soft); border: 1px solid var(--line);
-      color: var(--cream); font-family: 'Archivo', sans-serif;
+      width: 100%; background: var(--surface); border: 1px solid var(--line);
+      color: var(--ink); font-family: 'Archivo', sans-serif;
       font-size: 16px; padding: 13px 16px; border-radius: 6px; outline: none;
       transition: border-color 180ms var(--ease); appearance: none;
     }
     textarea.field-input { resize: vertical; min-height: 96px; line-height: 1.6; }
-    .field-input:focus { border-color: var(--gold-dim); }
-    .field-input::placeholder { color: rgba(140,136,126,0.45); }
+    .field-input:focus { border-color: var(--accent-dim); }
+    .field-input::placeholder { color: rgba(var(--muted-rgb),0.45); }
 
     /* ── Type chips ── */
     .type-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
@@ -191,16 +299,16 @@
     .type-option input { position: absolute; opacity: 0; width: 0; height: 0; }
     .type-chip {
       display: flex; align-items: center; justify-content: center;
-      text-align: center; background: var(--soft); border: 1px solid var(--line);
+      text-align: center; background: var(--surface); border: 1px solid var(--line);
       border-radius: 6px; padding: 13px 6px; cursor: pointer;
       font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
-      color: var(--grey); line-height: 1.3;
+      color: var(--muted); line-height: 1.3;
       transition: border-color 160ms var(--ease), color 160ms var(--ease), background 160ms var(--ease);
     }
     .type-option input:checked ~ .type-chip {
-      border-color: var(--gold); color: var(--gold); background: rgba(227,178,60,0.06);
+      border-color: var(--accent); color: var(--accent); background: rgba(var(--accent-rgb),0.06);
     }
-    .type-chip:hover { border-color: var(--gold-dim); color: var(--cream); }
+    .type-chip:hover { border-color: var(--accent-dim); color: var(--ink); }
 
     /* ── Gallery section ── */
     .gallery-section { max-width: 960px; margin-bottom: 36px; }
@@ -209,15 +317,15 @@
       margin-bottom: 12px;
     }
     .gallery-clear-all {
-      background: none; border: none; color: var(--grey); font-size: 11px;
+      background: none; border: none; color: var(--muted); font-size: 11px;
       letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
       padding: 4px 0; transition: color 140ms;
     }
     .gallery-clear-all:hover { color: var(--red); }
 
     .gallery-drop {
-      border: 1px dashed rgba(243,237,225,0.18);
-      background: var(--soft);
+      border: 1px dashed rgba(var(--ink-rgb),0.18);
+      background: var(--surface);
       border-radius: 8px;
       min-height: 140px;
       padding: 28px;
@@ -225,7 +333,7 @@
       transition: border-color 200ms var(--ease), background 200ms var(--ease);
       position: relative;
     }
-    .gallery-drop:hover, .gallery-drop.over { border-color: var(--gold-dim); background: #1a1a17; }
+    .gallery-drop:hover, .gallery-drop.over { border-color: var(--accent-dim); background: #1a1a17; }
     .gallery-drop.over { border-style: solid; }
     .gallery-drop.has-files { cursor: default; }
 
@@ -236,18 +344,18 @@
     .gallery-empty-icon { font-size: 24px; opacity: 0.3; }
     .gallery-empty-label {
       font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;
-      color: var(--grey); text-align: center; line-height: 1.6;
+      color: var(--muted); text-align: center; line-height: 1.6;
     }
     .gallery-add-btn {
       display: inline-flex; align-items: center; gap: 6px;
-      background: var(--soft2); border: 1px solid var(--line);
-      color: var(--grey); font-family: 'Archivo', sans-serif;
+      background: var(--surface-2); border: 1px solid var(--line);
+      color: var(--muted); font-family: 'Archivo', sans-serif;
       font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
       padding: 8px 14px; border-radius: 4px; cursor: pointer;
       transition: border-color 140ms, color 140ms;
       pointer-events: all;
     }
-    .gallery-add-btn:hover { border-color: var(--gold-dim); color: var(--cream); }
+    .gallery-add-btn:hover { border-color: var(--accent-dim); color: var(--ink); }
 
     /* Hide empty state when files present */
     .gallery-drop.has-files .gallery-empty { display: none; }
@@ -262,7 +370,7 @@
     .gallery-drop.has-files .file-grid { display: grid; }
 
     .file-card {
-      background: var(--soft2);
+      background: var(--surface-2);
       border: 1px solid var(--line);
       border-radius: 6px;
       overflow: hidden;
@@ -280,13 +388,13 @@
     }
     .file-icon-glyph { font-size: 28px; opacity: 0.4; }
     .file-icon-name {
-      font-size: 10px; color: var(--grey); text-align: center;
+      font-size: 10px; color: var(--muted); text-align: center;
       padding: 0 6px; word-break: break-all; line-height: 1.3;
     }
     .file-badge {
       position: absolute; bottom: 4px; left: 4px;
-      background: rgba(10,10,10,0.82); border: 1px solid rgba(243,237,225,0.15);
-      color: var(--gold); font-size: 9px; letter-spacing: 0.06em;
+      background: rgba(var(--bg-rgb),0.82); border: 1px solid rgba(var(--ink-rgb),0.15);
+      color: var(--accent); font-size: 9px; letter-spacing: 0.06em;
       font-family: 'Courier New', monospace;
       padding: 2px 6px; border-radius: 3px; pointer-events: none;
     }
@@ -299,16 +407,16 @@
     .file-grid.is-dragging .file-card { transition: transform 140ms var(--ease); }
     .file-order {
       position: absolute; top: 4px; left: 4px;
-      background: rgba(227,178,60,0.92); color: var(--black);
+      background: rgba(var(--accent-rgb),0.92); color: var(--fill-ink);
       font-family: 'Courier New', monospace; font-size: 10px; font-weight: 700;
       letter-spacing: 0.04em; padding: 2px 6px; border-radius: 3px;
       pointer-events: none; min-width: 20px; text-align: center;
     }
-    .file-card.bad .file-order { background: rgba(192,57,43,0.92); color: var(--cream); }
+    .file-card.bad .file-order { background: rgba(192,57,43,0.92); color: #f3ede1; }
     .file-remove {
       position: absolute; top: 4px; right: 4px;
-      background: rgba(10,10,10,0.8); border: 1px solid rgba(243,237,225,0.15);
-      color: var(--cream); font-size: 10px; width: 20px; height: 20px;
+      background: rgba(var(--bg-rgb),0.8); border: 1px solid rgba(var(--ink-rgb),0.15);
+      color: var(--ink); font-size: 10px; width: 20px; height: 20px;
       border-radius: 50%; cursor: pointer; display: flex;
       align-items: center; justify-content: center;
       opacity: 0; transition: opacity 140ms;
@@ -324,21 +432,21 @@
     /* ── Notice / warning ── */
     .notice {
       max-width: 960px; margin-bottom: 28px;
-      border: 1px solid var(--gold-dim); border-radius: 6px;
-      background: rgba(227,178,60,0.06); color: var(--cream);
+      border: 1px solid var(--accent-dim); border-radius: 6px;
+      background: rgba(var(--accent-rgb),0.06); color: var(--ink);
       padding: 14px 18px; font-size: 13px; line-height: 1.55;
       display: none;
     }
     .notice.show { display: block; }
     .notice.warn { border-color: var(--red); background: rgba(192,57,43,0.08); }
-    .notice strong { color: var(--gold); }
+    .notice strong { color: var(--accent); }
     .notice.warn strong { color: var(--red); }
     .notice ul { margin: 6px 0 0 18px; }
 
     /* ── Generate button ── */
     .btn-generate {
       width: 100%; max-width: 960px;
-      background: var(--gold); color: var(--black);
+      background: var(--accent); color: var(--fill-ink);
       font-family: 'Anton', sans-serif; font-size: 20px;
       text-transform: uppercase; letter-spacing: 0.04em;
       border: none; padding: 18px 24px; border-radius: 6px;
@@ -354,14 +462,14 @@
     }
     .progress.show { display: block; }
     .progress-label {
-      font-size: 12px; letter-spacing: 0.08em; color: var(--grey);
+      font-size: 12px; letter-spacing: 0.08em; color: var(--muted);
       margin-bottom: 8px; text-transform: uppercase;
     }
     .progress-track {
-      height: 6px; background: var(--soft2); border-radius: 3px; overflow: hidden;
+      height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden;
     }
     .progress-bar {
-      height: 100%; width: 0%; background: var(--gold);
+      height: 100%; width: 0%; background: var(--accent);
       transition: width 200ms var(--ease);
     }
 
@@ -371,45 +479,45 @@
     .output-block { margin-bottom: 40px; }
     .output-heading {
       font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
-      color: var(--grey); margin-bottom: 14px;
+      color: var(--muted); margin-bottom: 14px;
     }
-    .output-step { color: var(--gold-dim); margin-right: 6px; }
+    .output-step { color: var(--accent-dim); margin-right: 6px; }
     .code-box {
-      background: var(--soft); border: 1px solid var(--line); border-radius: 6px;
+      background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
       padding: 22px 24px; font-family: 'Courier New', monospace; font-size: 13px;
-      line-height: 1.7; color: var(--cream); white-space: pre; overflow-x: auto;
+      line-height: 1.7; color: var(--ink); white-space: pre; overflow-x: auto;
     }
     .copy-row { display: flex; align-items: center; gap: 16px; margin-top: 12px; }
     .copy-btn {
-      background: transparent; border: 1px solid var(--gold-dim); color: var(--gold);
+      background: transparent; border: 1px solid var(--accent-dim); color: var(--accent);
       font-family: 'Archivo', sans-serif; font-size: 11px; letter-spacing: 0.14em;
       text-transform: uppercase; padding: 9px 18px; border-radius: 4px;
       cursor: pointer; transition: background 160ms var(--ease);
     }
-    .copy-btn:hover { background: rgba(227,178,60,0.08); }
-    .copy-confirm { font-size: 12px; color: var(--gold); opacity: 0; transition: opacity 200ms; }
+    .copy-btn:hover { background: rgba(var(--accent-rgb),0.08); }
+    .copy-confirm { font-size: 12px; color: var(--accent); opacity: 0; transition: opacity 200ms; }
     .copy-confirm.show { opacity: 1; }
 
     /* ── Checklist ── */
     .checklist { display: flex; flex-direction: column; gap: 10px; }
     .check-item {
       display: flex; align-items: flex-start; gap: 14px; padding: 14px 18px;
-      background: var(--soft); border: 1px solid var(--line); border-radius: 6px;
+      background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
       font-size: 14px; line-height: 1.5;
     }
     .check-num {
-      font-family: 'Anton', sans-serif; font-size: 20px; color: var(--gold);
+      font-family: 'Anton', sans-serif; font-size: 20px; color: var(--accent);
       line-height: 1; flex-shrink: 0; margin-top: 1px;
     }
-    .check-text { color: var(--cream); }
+    .check-text { color: var(--ink); }
     .check-text code {
       font-family: 'Courier New', monospace; font-size: 12px;
-      background: rgba(243,237,225,0.06); padding: 1px 6px;
-      border-radius: 3px; color: var(--gold-dim);
+      background: rgba(var(--ink-rgb),0.06); padding: 1px 6px;
+      border-radius: 3px; color: var(--accent-dim);
     }
-    .check-sub { font-size: 12px; color: var(--grey); margin-top: 4px; }
+    .check-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
 
-    .field-hint { font-size: 11px; color: var(--grey); margin-top: 8px; line-height: 1.5; }
+    .field-hint { font-size: 11px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
 
     @media (max-width: 680px) {
       body { padding: 48px 24px 80px; }
@@ -420,7 +528,13 @@
 </head>
 <body>
 
-  <p class="header-label">KabTakAayush — Admin</p>
+  <p class="header-label">
+    KabTakAayush — Admin
+    <button class="nav__theme" type="button" aria-label="Switch to light theme" title="Switch to light theme">
+      <svg class="nav__theme-icon nav__theme-icon--moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg class="nav__theme-icon nav__theme-icon--sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+    </button>
+  </p>
   <div class="header-row">
     <h1>Admin</h1>
     <div class="project-badge" id="badge-wrap">

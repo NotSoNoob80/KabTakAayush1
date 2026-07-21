@@ -7,8 +7,11 @@ implementation; this file is the source of truth for what we call things.
 ## Pages & their nicknames
 
 - **The Void** — the homepage (`index.html`). A WebGL field of floating
-  photo **frames** the visitor flies through. Has no normal page chrome of
-  its own; it is its own self-contained experience.
+  photo **frames** the visitor flies through. The site nav stays visible over
+  it behind a soft scrim (the old desktop "peek when the pointer nears the
+  top" behaviour is retired); everything below the nav is its own
+  self-contained experience. The Void renders in both **themes** — black
+  space in dark, paper-white space in light.
 - **The Projects index** (or just **the index**) — `projects.html`. A single,
   centred, full-page-scrolling list of project **titles**, each row carrying its
   own **inline thumbnail**. The *same* layout at every width — no separate
@@ -199,14 +202,43 @@ implementation; this file is the source of truth for what we call things.
   instead of the full paragraph. Only `prefers-reduced-motion` gets the static
   stacked layout.
 
-- **The Hour** (whole site) — the site's quiet response to the visitor's local
-  time of day: the **negative space** cools toward dawn, warms low at dusk, and
-  goes near-monochrome at night. Driven by the device clock alone (no location,
-  no permission prompt). It grades *only* the space around the work — the page
-  background and the Void's empty depth — and **never a photographic pixel**: not
-  the Mosaic, not the **inline thumbnail**, not the floating **frames** in the
-  Void. The work is shown true at every hour; only the room's light changes. The
-  brand gold and all chrome stay fixed.
+- **The theme** (whole site) — the site renders in one of two themes: **dark**
+  (the original cinematic black & gold) and **light** ("ink & gold on paper":
+  a warm paper ground in the `--cream` family, near-black ink text, and the
+  brand gold darkened to an ochre wherever it must be read). A first visit
+  follows the device's `prefers-color-scheme`, and a visitor who never touches
+  **the theme toggle** keeps following live OS changes; one tap of the toggle
+  makes an explicit choice that sticks on that device and wins forever after.
+  The theme grades only the room around the work — **never a photographic
+  pixel** (the same hard rule The Hour lived by).
+- **The theme toggle** — the control at the end of the nav links: a small
+  sun/moon **glyph**, not a word. It shows the theme you are currently *in* —
+  a moon while the site is dark, a sun while it is light. It carries no
+  underline sweep (an underline under a 15px icon reads as an artefact); its
+  hover signal is a shift to the accent gold instead. Present on every page —
+  the Void and the Admin included.
+
+  Which glyph is visible is decided in **CSS**, keyed off `data-theme`, not in
+  script — so it is painted by the same pass that paints the theme and can
+  never flash the wrong icon. Script owns only the accessible name, which
+  names the *action* ("Switch to light theme") because a control's name has to
+  say what pressing it does.
+
+  It was originally a destination-labelled **text** control reading LIGHT /
+  DARK, in the nav's 12px letterspaced voice — changed to a glyph by the
+  owner, 2026-07-21.
+- **The bulb** — the theme-switch transition, asymmetric like a real tungsten
+  bulb: switching dark→light *flickers on* (two-three soft, irregular
+  luminance pulses, well under a second, never a strobe), while light→dark
+  *snaps off* instantly. Under `prefers-reduced-motion` there is no flicker —
+  the swap is instant both ways.
+- **The Hour** (retired) — the site once graded its **negative space** by the
+  visitor's local hour: cool at dawn, warm at dusk, near-mono at night, driven
+  by the device clock alone. Retired in favour of the two static **themes**:
+  the grade was near-invisible in practice, and its "near-black with a hint"
+  rules could not survive a light ground. Its one hard rule — never grade a
+  photographic pixel — lives on in **the theme**. See
+  [ADR 0015](docs/adr/0015-two-static-themes-retire-the-hour.md).
 - **Shutter drag** (Void) — the long-exposure reaction: when the camera moves
   fast, each **frame** smears along its on-screen direction of travel and then
   resolves razor-sharp as the camera settles — a dragged shutter. Depth-aware
@@ -219,6 +251,9 @@ implementation; this file is the source of truth for what we call things.
   vividly on frames that *have* point highlights and not at all on those that
   don't — see [ADR 0014](docs/adr/0014-shutter-drag-bounded-lighten-light-trails.md).
   A sibling to the living-Mosaic reactions; off under `prefers-reduced-motion`.
+  The **light-trail** pass is dark-**theme**-only — a lighten-only trail cannot
+  read against the light Void's bright ground; the motion smear itself runs in
+  both themes.
 
 ## Authoring & assets
 

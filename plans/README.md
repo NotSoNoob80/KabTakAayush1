@@ -21,8 +21,13 @@ intent, one system that missed the framerate-independence pass, and small polish
 Settled decisions respected (audited, deliberately NOT re-litigated): the Void's intro/
 chase/One-Euro/rVFC architecture (ADR 0010/0011 + de-jank history), gate shear skipped on
 video mosaics (lever A), the About scrub kept on phones (ADR 0003), film-grain overlays,
-the 520–900ms gallery reveal pacing (marketing-surface budget), The Hour not gating on
-reduced motion (documented: it is not motion).
+the 520–900ms gallery reveal pacing (marketing-surface budget).
+
+> **Stale as of 2026-07-21**: this audit also listed "The Hour not gating on reduced
+> motion" as a respected settled decision. The Hour has since been **retired entirely**
+> in favour of two static themes — see
+> [ADR 0015](../docs/adr/0015-two-static-themes-retire-the-hour.md). Its successor,
+> **the bulb**, *is* motion and *does* gate on `prefers-reduced-motion`.
 
 ## Findings
 
@@ -53,21 +58,30 @@ reduced motion (documented: it is not motion).
   and reverted: the slow 460ms spring both ways is the intended "smooth and bouncy"
   personality of the mark. Now a settled taste decision — do not re-flag.
 
-## Missed opportunities (beyond plan 005)
+## Opportunities pass (2026-07-20, `find-animation-opportunities` @ 62fd172)
 
-Additive, unplanned — pick up only if wanted:
+A dedicated restraint-gated sweep for missing motion. Four candidates survived the
+gate → [plan 006](006-reach-ui-entrance-feedback.md) (onboard-line stagger, Reach CTA
+press feedback, reticle fade-in — all index.html) and
+[plan 007](007-preview-directional-swipe.md) (preview finger-tracking swipe +
+directional entrances).
 
-1. **Universal sound toggle pops in** (mosaic.js:702): injected into the page head after
-   grid build with no entrance — a one-class fade+rise (~200ms, `--ease-out`) would stop
-   the late layout pop.
-2. **Nav underline retract origin** (styles.css:194–210): the hover underline grows from
-   the left and shrinks back to the left; flipping `transform-origin` to `right` in the
-   non-hover state makes it wipe through — a classic one-line polish.
-3. **Cross-page continuity**: the projects list → project page jump is a full teleport.
-   Cross-document View Transitions (`@view-transition { navigation: auto; }` + a
-   `view-transition-name` on the clicked row/title) are a progressive enhancement that
-   would let the title morph across the navigation in supporting browsers. Bigger bite;
-   prototype behind a review.
+Rejected in that pass (do not re-suggest):
+
+1. **Universal sound toggle entrance** — the original audit listed this as a missed
+   opportunity; re-vetting killed it. mosaic.js builds the toggle *synchronously during
+   parse*, before first paint (mosaic.js:670–704 runs in the same script task as the
+   grid build) — nothing ever pops in. The audit note was wrong; corrected here.
+2. **Cross-document View Transitions** (projects ↔ project) — the seam already owns a
+   deliberate arrival animation on each side (the intro-armed tile bloom; the index row
+   cascade). Layering a navigation crossfade would double-animate the same moment.
+3. **Nav-link `:active` press** — text links; the underline is the affordance, and the
+   frequency tier argues near-imperceptible or nothing.
+4. **Reach CTA label-swap width animation** ("The Reach" → "Release · Esc") — animating
+   width is a layout property (breaks the transform/opacity discipline), and the state
+   change is already loudly signaled by the gold fill flip.
+5. **Nav underline retract-origin flip** — the underline already animates; that's a
+   refinement of existing motion (improve-animations territory), not an opportunity.
 
 ## Execution order
 
@@ -80,6 +94,8 @@ Plans are independent — no ordering dependencies. Recommended by leverage:
 | 3 | [003 — Piano press strike asymmetry](003-piano-press-strike-asymmetry.md) | MEDIUM | REVERTED — owner taste |
 | 4 | [004 — Living-Mosaic dt compensation](004-mosaic-motion-dt-comp.md) | MEDIUM | DONE |
 | 5 | [005 — Preview swap-when-ready + fade](005-mosaic-preview-swap-fade.md) | LOW | DONE |
+| 6 | [006 — Reach UI: onboard stagger, CTA press, reticle fade](006-reach-ui-entrance-feedback.md) | LOW (additive) | TODO |
+| 7 | [007 — Preview finger-tracking swipe + directional entrances](007-preview-directional-swipe.md) | MEDIUM (additive) | TODO |
 
 All five executed 2026-07-19 against commit f9a3ae9. Verified live on localhost:8123:
 projects.html loads with a clean console and the post-1407 wiring fires again (secret-egg

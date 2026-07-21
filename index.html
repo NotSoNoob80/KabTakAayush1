@@ -5,6 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>KabTakAayush — Visual Storyteller</title>
   <meta name="description" content="Aayush — photography &amp; film. Step inside the void: frames worth keeping." />
+
+  <!-- The theme, resolved BEFORE the stylesheet paints. Deliberately inline
+       and duplicated into every page: an external script cannot be guaranteed
+       to run before first paint, and no-FOUC is a hard constraint. Only the
+       pre-paint stamp lives here — all behaviour after first paint is theme.js.
+       A localStorage throw (private mode) degrades to the OS preference. -->
+  <script>
+  (function(){var t;try{t=localStorage.getItem('kta-theme')}catch(_){}
+  if(t!=='light'&&t!=='dark')t=window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';
+  document.documentElement.setAttribute('data-theme',t);})();
+  </script>
+  <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#faf7ef" media="(prefers-color-scheme: light)" />
+
   <link rel="stylesheet" href="styles.css" />
   <style>
     /* ─── Void-page overrides ─── */
@@ -13,7 +27,7 @@
     html, body {
       height: 100%;
       overflow: hidden;
-      background: #080808;
+      background: var(--bg-deep);
     }
 
     body { cursor: grab; }
@@ -31,16 +45,33 @@
       touch-action: none;
     }
 
-    /* Nav floats above canvas — hidden until the pointer nears the top */
+    /* Nav floats above the canvas and is ALWAYS VISIBLE, on every device.
+
+       The desktop "peek when the pointer nears the top edge" behaviour is
+       retired: it hid the site's only navigation behind a gesture nobody
+       intended, made the header react to ordinary pointer movement, and left
+       the homepage as the one page where the theme toggle was undiscoverable.
+       Mobile never had it (no hover), so this also makes the two behave
+       identically for the first time.
+
+       In its place, a soft short scrim: the site nav's own gradient at a
+       higher top-stop alpha and no blur. It is what keeps the nav's type
+       readable when a bright frame drifts directly behind it — .65 is not a
+       taste value, it is the alpha at which dark-theme nav type clears 4.5:1
+       over a blown-out white frame (tools/contrast-check.ps1). */
     .nav {
       position: fixed;
       top: 0; left: 0; right: 0;
       z-index: 25;
-      background: transparent;
-      transform: translateY(-110%);
-      transition: transform 0.45s cubic-bezier(0.23, 1, 0.32, 1);
+      background: linear-gradient(
+        to bottom,
+        rgba(var(--bg-rgb), 0.65) 0%,
+        rgba(var(--bg-rgb), 0.34) 60%,
+        rgba(var(--bg-rgb), 0) 100%
+      );
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
     }
-    .nav.is-peek { transform: translateY(0); }
     .nav img, .nav a {
       -webkit-user-drag: none;
       user-select: none;
@@ -119,7 +150,7 @@
       font-size: 9px;
       letter-spacing: 0.35em;
       text-transform: uppercase;
-      color: var(--gold, #c5a44c);
+      color: var(--gold, #e3b23c);
       opacity: 0;
       transition: opacity 0.7s ease;
     }
@@ -130,7 +161,7 @@
       position: fixed;
       inset: 0;
       z-index: 100;
-      background: #080808;
+      background: var(--bg-deep);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -145,20 +176,20 @@
       font-size: 11px;
       letter-spacing: 0.45em;
       text-transform: uppercase;
-      color: var(--gold, #c5a44c);
+      color: var(--gold, #e3b23c);
     }
 
     .vl-track {
       width: 180px;
       height: 1px;
-      background: rgba(255, 255, 255, 0.08);
+      background: rgba(var(--ink-rgb), 0.08);
       position: relative;
       overflow: hidden;
     }
     .vl-fill {
       position: absolute;
       inset: 0;
-      background: var(--gold, #c5a44c);
+      background: var(--gold, #e3b23c);
       transform-origin: left center;
       transform: scaleX(0);
       transition: transform 0.12s linear;
@@ -168,16 +199,14 @@
       font-family: var(--text, 'Helvetica Neue', sans-serif);
       font-size: 10px;
       letter-spacing: 0.2em;
-      color: rgba(255, 255, 255, 0.2);
+      color: rgba(var(--ink-rgb), 0.2);
     }
 
     /* ─── Mobile / narrow-viewport layout (desktop untouched) ─── */
     @media (max-width: 767px), (pointer: coarse) {
-      /* No hover on touch, so the peek-on-pointer nav would never appear.
-         Keep the compact nav (styles.css) always visible instead — it's the
-         only route to Projects/About once the center CTAs hide themselves. */
+      /* Mobile keeps its existing always-visible behaviour and inherits the
+         same scrim as desktop — the two are finally the same nav. */
       .nav {
-        transform: translateY(0);
         padding-top: env(safe-area-inset-top);
       }
 
@@ -240,9 +269,9 @@
       font-size: 10px;
       letter-spacing: 0.32em;
       text-transform: uppercase;
-      color: var(--gold, #c5a44c);
-      background: rgba(197, 164, 76, 0.04);
-      border: 1px solid rgba(197, 164, 76, 0.55);
+      color: var(--gold, #e3b23c);
+      background: rgba(var(--accent-rgb), 0.04);
+      border: 1px solid rgba(var(--accent-rgb), 0.55);
       border-radius: 99px;
       padding: 9px 18px 9px 13px;
       display: inline-flex;
@@ -259,21 +288,21 @@
     /* Idle pulse — only while the CTA is visible and the Reach is neither on
        nor failed. Soft outer gold glow that breathes once every 2.4s. */
     @keyframes reach-cta-pulse {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(197, 164, 76, 0); }
-      50%      { box-shadow: 0 0 0 5px rgba(197, 164, 76, 0.16); }
+      0%, 100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0); }
+      50%      { box-shadow: 0 0 0 5px rgba(var(--accent-rgb), 0.16); }
     }
     .reach-cta.is-visible:not(.is-on):not(.is-failed) {
       animation: reach-cta-pulse 2.4s ease-in-out infinite;
     }
     .reach-cta:hover {
-      color: #080808;
-      background: var(--gold, #c5a44c);
-      border-color: var(--gold, #c5a44c);
+      color: var(--fill-ink);
+      background: var(--gold, #e3b23c);
+      border-color: var(--gold, #e3b23c);
     }
     .reach-cta.is-on {
-      color: #080808;
-      background: var(--gold, #c5a44c);
-      border-color: var(--gold, #c5a44c);
+      color: var(--fill-ink);
+      background: var(--gold, #e3b23c);
+      border-color: var(--gold, #e3b23c);
     }
     .reach-cta.is-failed {
       color: rgba(255, 120, 120, 0.85);
@@ -328,9 +357,9 @@
       margin-left: -11px;
       margin-top: -11px;
       border-radius: 50%;
-      border: 1px solid rgba(197, 164, 76, 0.7);
-      background: rgba(197, 164, 76, 0.06);
-      color: var(--gold, #c5a44c);
+      border: 1px solid rgba(var(--accent-rgb), 0.7);
+      background: rgba(var(--accent-rgb), 0.06);
+      color: var(--gold, #e3b23c);
       pointer-events: none;
       display: none;
       transform: translate(0, 0);
@@ -342,9 +371,9 @@
     }
     .reach-reticle.is-on { display: block; }
     .reach-reticle.is-pushing {
-      background: rgba(197, 164, 76, 0.22);
-      border-color: var(--gold, #c5a44c);
-      box-shadow: 0 0 18px rgba(197, 164, 76, 0.35);
+      background: rgba(var(--accent-rgb), 0.22);
+      border-color: var(--gold, #e3b23c);
+      box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.35);
     }
     /* Gesture mode: the hand SVG IS the cursor — fade out the circle so the
        silhouette reads cleanly. The pushing glow still composes via box-shadow. */
@@ -361,7 +390,7 @@
       height: 32px;
       margin-left: -16px;
       margin-top: -16px;
-      color: var(--gold, #c5a44c);
+      color: var(--gold, #e3b23c);
       opacity: 0;
       transform: scale(0.85);
       transform-origin: center;
@@ -389,7 +418,7 @@
       margin-left: -19px;
       margin-top: -19px;
       border-radius: 50%;
-      border: 1.5px solid var(--gold, #c5a44c);
+      border: 1.5px solid var(--gold, #e3b23c);
       pointer-events: none;
       opacity: 0;
       transition: opacity 120ms ease;
@@ -406,7 +435,7 @@
       font-size: 9px;
       letter-spacing: 0.35em;
       text-transform: uppercase;
-      color: var(--gold, #c5a44c);
+      color: var(--gold, #e3b23c);
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.5s ease;
@@ -427,7 +456,7 @@
       pointer-events: none;
       opacity: 0;
       transition: opacity 0.7s ease;
-      color: var(--gold, #c5a44c);
+      color: var(--gold, #e3b23c);
     }
     .reach-guide.is-visible { opacity: 0.7; }
     .reach-guide__item {
@@ -464,7 +493,7 @@
       text-align: center;
       opacity: 0;
       transition: opacity 0.8s ease;
-      color: var(--gold, #c5a44c);
+      color: var(--gold, #e3b23c);
     }
     .reach-onboard.is-visible { opacity: 0.85; }
     .reach-onboard__line {
@@ -503,7 +532,7 @@
       pointer-events: none;
       opacity: 0;
       transition: opacity 0.6s ease;
-      color: var(--gold, #c5a44c);
+      color: var(--gold, #e3b23c);
       font-family: var(--text, 'Helvetica Neue', sans-serif);
       font-size: clamp(11px, 1.5vw, 14px);
       letter-spacing: 0.3em;
@@ -556,6 +585,43 @@
     @media (prefers-reduced-motion: reduce) {
       .reach-cta { display: none !important; }
     }
+
+    /* ─── The light Void ───────────────────────────────────────────────
+       Everything above themes for free through the semantic tokens. These
+       three do not, because each was tuned against near-black specifically
+       and needs a different *kind* of value on paper, not a different
+       shade of the same one. */
+
+    /* The centre logo's shadow. A dark drop-shadow on paper does not read as
+       lift — it reads as a hole punched in the page. Light gets a soft warm
+       shadow at a fraction of the opacity so the mark sits ON the paper.
+
+       OPEN: whether logo.png itself holds against paper is a live check the
+       owner has to make on a real display. The gold letters carry dark
+       outlines and should hold; if they don't, the fallback is a
+       light-variant asset, not a heavier shadow. */
+    html[data-theme="light"] #void-center .center-logo {
+      filter: drop-shadow(0 8px 30px rgba(90, 70, 30, 0.18));
+    }
+
+    /* The Void's own grain. 0.14 of a saturate(0) noise reads as texture over
+       near-black; over paper the same layer reads as dirt, because it is
+       lightening a ground that is already near the top of the range. Lower
+       and multiplied so it darkens into the paper instead. */
+    html[data-theme="light"] #void-grain {
+      opacity: 0.055;
+      mix-blend-mode: multiply;
+    }
+
+    /* The camera-active indicator is NOT themed, and that is deliberate.
+       Its job is privacy honesty in the absence of a self-view, so it must
+       never be the thing that fades. It stays a dark plate with white type
+       and a red dot in both themes; light only makes the plate more opaque,
+       because a 0.4 black over paper composites to a mid grey that white
+       type cannot sit on. */
+    html[data-theme="light"] .reach-indicator {
+      background: rgba(0, 0, 0, 0.66);
+    }
   </style>
 </head>
 <body>
@@ -586,6 +652,10 @@
       <li><a href="index.html" aria-current="page">Home</a></li>
       <li><a href="projects.html">Projects</a></li>
       <li><a href="about.html">About</a></li>
+      <li><button class="nav__theme" type="button" aria-label="Switch to light theme" title="Switch to light theme">
+        <svg class="nav__theme-icon nav__theme-icon--moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="nav__theme-icon nav__theme-icon--sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </button></li>
     </ul>
   </nav>
 
@@ -669,12 +739,11 @@
     <span class="reach-identify__text">Identifying powers</span>
   </div>
 
-  <!-- The Hour (Phase 1) — drives the Void's scene clear colour/fog from
-       the same 24-hour curve that tints page negative space site-wide.
-       Loaded before three.js so the curve is queryable the moment the
-       scene is constructed. The IIFE below subscribes via
-       KTA.hourTint.subscribe — see hour-tint.js for the hard rules. -->
-  <script src="hour-tint.js"></script>
+  <!-- The theme — drives the Void's scene clear colour and fog alongside the
+       page's own ground. Loaded before three.js so KTA.theme is queryable the
+       moment the scene is constructed. The IIFE below subscribes via
+       KTA.theme.subscribe — see theme.js for the hard rules. -->
+  <script src="theme.js"></script>
 
   <!-- Three.js r128 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -711,8 +780,38 @@
     var CELL_Z       = 460;           // wrap cell depth — full scroll loop length
     var IMG_BASE_H   = 6.4;           // base frame height (world units)
     var CAM_FOV      = 55;
-    var BG_COLOR     = 0x080808;
-    var FOG_DENSITY  = 0.0105;        // depth falloff into black
+    /* The Void's space, per theme. Dark is the original near-black; light is
+       --bg-deep, a step below page paper so the space still reads as
+       *behind* the page rather than level with it.
+
+       Fog density is a per-theme pair too: the same falloff that reads as
+       distance against near-black reads flatter against a bright ground,
+       because there is less luminance range left between a far frame and
+       the space it fades into. The light value is nudged up to buy that
+       separation back. Whether it actually reads as depth on a real display
+       is an eyeball item — flagged for the owner's on-device pass. */
+    var BG_COLOR_DARK  = 0x080808;
+    var BG_COLOR_LIGHT = 0xf4f0e6;
+    var FOG_DENSITY_DARK  = 0.0105;   // depth falloff into black
+    var FOG_DENSITY_LIGHT = 0.0126;
+
+    function isLightTheme() {
+      return document.documentElement.getAttribute('data-theme') === 'light';
+    }
+
+    var BG_COLOR    = isLightTheme() ? BG_COLOR_LIGHT : BG_COLOR_DARK;
+    var FOG_DENSITY = isLightTheme() ? FOG_DENSITY_LIGHT : FOG_DENSITY_DARK;
+
+    /* The light-trail gate (see the fragment shader below): 1 in dark, 0 in
+       light. Shared by every frame material the same way sharedCamVel is —
+       one uniform OBJECT held by reference, so flipping the theme is a single
+       assignment rather than a walk over every mesh.
+
+       Declared HERE, above the scene's KTA.theme.subscribe, because subscribe
+       fires its listener immediately on registration and that listener writes
+       to this object. Declared after it, `var` hoisting would leave it
+       undefined at exactly that moment. */
+    var sharedTrail = { value: isLightTheme() ? 0 : 1 };
 
     /* Shutter drag (Phase 3) — `Math.min(dt, 50)` precedent at line ~777
        inspires the velocity clamp below. SHUTTER_GAIN_XY/Z translate world
@@ -943,17 +1042,31 @@
     scene.background = new THREE.Color(BG_COLOR);
     scene.fog = new THREE.FogExp2(BG_COLOR, FOG_DENSITY);
 
-    /* The Hour (Phase 1, Issue 1.2) — the Void's NEGATIVE SPACE follows
-       the same 24-hour curve as the page background. The frame
-       ShaderMaterial (below, around line 979) is INTENTIONALLY UNTOUCHED:
-       the work is what's inside the frames, only the room moves. Fog
-       colour tracks too so the depth falloff fades into the same hue,
-       not into a stale near-black. Self-disables under prefers-contrast:
-       more (hour-tint.js returns voidInt == BG_COLOR in that mode). */
-    if (window.KTA && window.KTA.hourTint) {
-      window.KTA.hourTint.subscribe(function (h) {
-        scene.background.setHex(h.voidInt);
-        if (scene.fog) scene.fog.color.setHex(h.voidInt);
+    /* The Void's NEGATIVE SPACE follows the theme. This was The Hour's
+       subscribe block, and it is a one-line swap rather than a rewrite
+       because KTA.theme deliberately mirrors the KTA.hourTint API shape —
+       fires immediately on registration, returns an unsubscribe, and never
+       breaks the page over a throwing listener.
+
+       The frame ShaderMaterial (below) is INTENTIONALLY UNTOUCHED: the work
+       is what's inside the frames, only the room moves. That was The Hour's
+       boundary and it is the theme's boundary unchanged.
+
+       The swap lands in the same task as the page's own attribute change, so
+       the canvas and the chrome are one event; the bulb's overlay covers the
+       seam on the way through. */
+    if (window.KTA && window.KTA.theme) {
+      window.KTA.theme.subscribe(function (t) {
+        var light = t.theme === 'light';
+        var space = light ? BG_COLOR_LIGHT : BG_COLOR_DARK;
+        scene.background.setHex(space);
+        if (scene.fog) {
+          scene.fog.color.setHex(space);
+          scene.fog.density = light ? FOG_DENSITY_LIGHT : FOG_DENSITY_DARK;
+        }
+        // Light-trails off on paper; the motion smear itself is untouched
+        // and runs in both themes.
+        sharedTrail.value = light ? 0 : 1;
       });
     }
 
@@ -1124,6 +1237,10 @@
       'varying vec2 vUv;',
       '#ifdef KTA_SHUTTER_DRAG',
       'varying vec2 vSmear;',
+      // Light-trail gate, 1 in dark / 0 in light. A uniform rather than a
+      // #define or a second shader: the theme changes at RUNTIME, and a
+      // define would mean recompiling every frame material mid-session.
+      'uniform float uTrail;',
       '#endif',
       '#include <fog_pars_fragment>',
       'void main() {',
@@ -1156,7 +1273,12 @@
       // so bright == col and the mix is a no-op → motion-gated for free.
       '    vec3 bright = max(c0, max(max(cm1, cp1), max(cm2, max(cp2, max(cm3, cp3)))));',
       '    float blum = dot(bright, vec3(0.299, 0.587, 0.114));',
-      '    float g = smoothstep(0.6, 1.0, blum) * 0.7;',  // 0.6 = highlight floor, 0.7 = trail strength
+      // uTrail is 0 in the light theme, which collapses the mix below to a
+      // no-op and leaves pure motion blur. A lighten-only trail cannot read
+      // against a bright ground — it would only wash the frames out — so the
+      // trail is dark-theme-only while the SMEAR itself runs in both.
+      // See ADR 0014 and CONTEXT.md ("shutter drag").
+      '    float g = smoothstep(0.6, 1.0, blum) * 0.7 * uTrail;',  // 0.6 = highlight floor, 0.7 = trail strength
       '    col = mix(col, max(col, bright), g);',
       '  #else',
       '    vec3 col = vec3(',
@@ -1191,6 +1313,7 @@
       uniforms.map.value      = tex;   // set after merge (merge would clone the texture)
       uniforms.uShade.value   = shade;
       uniforms.uCamVelW.value = sharedCamVel; // shared reference — one set, all see it
+      uniforms.uTrail         = sharedTrail;  // shared uniform OBJECT, same reason
 
       return new THREE.ShaderMaterial({
         defines:        SHUTTER_DEFINES,
@@ -1417,10 +1540,6 @@
       window.addEventListener('pointermove', function (e) {
         mouseNX = (e.clientX / W) * 2 - 1;
         mouseNY = (e.clientY / H) * 2 - 1;
-
-        // Nav peeks down only when the pointer nears the top edge
-        if (e.clientY < 90) navEl.classList.add('is-peek');
-        else if (!isDragging) navEl.classList.remove('is-peek');
 
         if (isDragging) {
           var dx = e.clientX - lastPX;
