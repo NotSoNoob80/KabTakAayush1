@@ -481,6 +481,33 @@ html[data-theme="light"] .nav__theme-icon--moon { display: none; }
   clip-path: inset(0 0 0 0);
 }
 
+/* Light sweeps the darker gold-ink instead of the shared bright fill.
+   `--accent-fill` deliberately survives into light carrying `--fill-ink`, which
+   is why this arrived wearing the dark theme's yellow; on paper the mark should
+   be the same ochre the rest of light mode reads in.
+
+   The label has to move with the fill — `--fill-ink` near-black on `--accent`
+   is 3.21:1 and fails, the ground colour on top is 5.76:1. So light inverts
+   dark's arrangement rather than copying it: dark is a bright fill with a dark
+   label, light is a dark fill with a paper label.
+
+   `:focus-visible` is carried through because the base rules treat it as the
+   hover twin — dropping it would leave keyboard focus painting a near-black
+   label onto the new ochre. The sweep itself needs no stacking fix here: the
+   resting button has no background for a `z-index: -1` pseudo to hide under,
+   and the floating variant forms its own stacking context (fixed + z-index,
+   plus the backdrop-filter), where a negative-z child paints after the
+   element's background rather than beneath it. */
+html[data-theme="light"] .back-btn::before {
+  background: var(--accent);
+}
+
+html[data-theme="light"] .back-btn:hover,
+html[data-theme="light"] .back-btn:focus-visible {
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
 .back-btn:active {
   transform: scale(0.97);
 }

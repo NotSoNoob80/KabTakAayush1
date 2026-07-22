@@ -605,11 +605,31 @@
     }
 
     /* The Void's own grain. 0.14 of a saturate(0) noise reads as texture over
-       near-black; over paper the same layer reads as dirt, because it is
-       lightening a ground that is already near the top of the range. Lower
-       and multiplied so it darkens into the paper instead. */
+       near-black; over paper the same layer must not LIGHTEN a ground already
+       near the top of the range, so it is multiplied — it darkens into the
+       paper, mirroring the way dark's grain lightens out of the black. The
+       blend direction is settled; only the amount below is a taste dial.
+
+       TRYING (2026-07-22, owner asked for grain "like dark mode"): 0.30, up
+       from 0.055. Measured against the real feTurbulence texture, grain
+       amplitude is linear in opacity, and the old value was carrying roughly a
+       sixth of dark's:
+
+         dark  0.14 normal   on #080808 → SD 3.19, ground 8   → 20.5
+         light 0.055 multiply on #f4f0e6 → SD 0.55, ground 244 → 242.2
+         light 0.30  multiply on #f4f0e6 → SD 3.01, ground 244 → 234.2
+
+       0.30 puts light within 6% of dark's measured grain. The cost is the
+       ground: multiply can only darken, so the paper sits ~10 levels lower
+       (#f4f0e6 → ~#eae7dd). Dark's grain shifts its ground just as far in the
+       other direction (+12.5), so the two stay symmetric — but "textured
+       paper" vs "dirty paper" is an EYEBALL CALL that no measurement settles.
+
+       TO REVERT: set opacity back to 0.055 and delete this note. To soften
+       without reverting: 0.24 → SD 2.4, 0.20 → SD 2.0, 0.14 → SD 1.4.
+       Not width-scoped, so this is every view. */
     html[data-theme="light"] #void-grain {
-      opacity: 0.055;
+      opacity: 0.30;
       mix-blend-mode: multiply;
     }
 
