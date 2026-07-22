@@ -179,15 +179,39 @@
     var canVibrate = typeof navigator !== 'undefined' &&
       typeof navigator.vibrate === 'function';
 
-    /* Resolve the brand colours from the custom properties once, so the
-       keyframes carry concrete values rather than relying on var()
-       resolution inside WAAPI. */
-    var rootStyle = getComputedStyle(document.documentElement);
-    var COL = {
-      cream: rootStyle.getPropertyValue('--cream').trim() || '#f4f1ea',
-      gold: rootStyle.getPropertyValue('--gold').trim() || '#e3b23c',
-      goldDim: rootStyle.getPropertyValue('--gold-dim').trim() || '#b98f30'
-    };
+    /* Resolve the brand colours from the custom properties, so the keyframes
+       carry concrete values rather than relying on var() resolution inside
+       WAAPI.
+
+       These must be the THEMED tokens, never the primitives. This block read
+       `--cream` originally, which is a raw primitive pinned at #f3ede1 in both
+       themes. In dark that coincidentally equals `--ink`, so the mistake was
+       invisible there — but on paper it is near-white, and every keyframe that
+       returned a letter to "rest" was animating it to 1.09:1 against the page.
+       The struck letter flashed out on press, both neighbours sat invisible
+       for their whole ripple, and the released letter faded to nothing for the
+       length of the spring-back before snapping back. `--ink` is the rest
+       colour the desktop :hover press already uses, and it themes.
+
+       Re-read on every theme change: these are concrete strings baked into
+       keyframes, so a toggle after load would otherwise leave the press
+       playing the outgoing theme's palette. `subscribe` fires immediately on
+       registration, which doubles as the initial read. */
+    var COL = { ink: '#f3ede1', gold: '#e3b23c', goldDim: '#a8822c' };
+
+    function readCols() {
+      var rootStyle = getComputedStyle(document.documentElement);
+      COL.ink = rootStyle.getPropertyValue('--ink').trim() || COL.ink;
+      COL.gold = rootStyle.getPropertyValue('--accent').trim() || COL.gold;
+      COL.goldDim = rootStyle.getPropertyValue('--accent-dim').trim() || COL.goldDim;
+    }
+
+    if (window.KTA && window.KTA.theme &&
+        typeof window.KTA.theme.subscribe === 'function') {
+      window.KTA.theme.subscribe(readCols);
+    } else {
+      readCols();
+    }
 
     /* Strong ease-out strike (the key is already under the finger — it
        must snap down) and an overshooting spring as it resettles. */
@@ -213,7 +237,7 @@
       el.__held = true;
       el.__gliss = el.animate(
         [
-          { transform: 'none', color: COL.cream, transformOrigin: 'bottom' },
+          { transform: 'none', color: COL.ink, transformOrigin: 'bottom' },
           { transform: PRESS_T, color: COL.gold, transformOrigin: 'bottom' }
         ],
         { duration: 130, easing: STRIKE, fill: 'forwards' }
@@ -231,7 +255,7 @@
       el.__gliss = el.animate(
         [
           { transform: PRESS_T, color: COL.gold, transformOrigin: 'bottom' },
-          { transform: 'none', color: COL.cream, transformOrigin: 'bottom' }
+          { transform: 'none', color: COL.ink, transformOrigin: 'bottom' }
         ],
         { duration: 320, easing: SPRING, fill: 'none' }
       );
@@ -244,9 +268,9 @@
       clearGliss(el);
       el.__gliss = el.animate(
         [
-          { transform: 'none', color: COL.cream, transformOrigin: 'bottom', easing: STRIKE },
+          { transform: 'none', color: COL.ink, transformOrigin: 'bottom', easing: STRIKE },
           { transform: NEAR_T, color: COL.goldDim, transformOrigin: 'bottom', offset: 0.3, easing: SPRING },
-          { transform: 'none', color: COL.cream, transformOrigin: 'bottom' }
+          { transform: 'none', color: COL.ink, transformOrigin: 'bottom' }
         ],
         { duration: 360, delay: 40, fill: 'none' }
       );

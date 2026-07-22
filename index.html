@@ -613,6 +613,57 @@
       mix-blend-mode: multiply;
     }
 
+    /* The centre CTAs. A `.btn` carries no fill at rest — it is a label and a
+       hairline, which works everywhere else on the site because it sits on a
+       flat themed ground. The Void is not flat: the buttons float over a live
+       field of photographs. In dark the fog crushes that field to near-black
+       and the cream label wins every time. In light the fog only reaches paper,
+       but the frames themselves stay mid-to-dark, so a near-black label on
+       transparent disappears the moment a frame drifts behind it.
+
+       So light gets the plate dark never needed: paper at 0.72, which holds
+       8.59:1 for the label against the worst case (a black frame directly
+       behind) while still letting the space read through the chip. No
+       backdrop-filter — a blur over a canvas that repaints every frame is
+       exactly the cost this page has spent two rounds removing.
+
+       `isolation` is load-bearing, not decoration. The gold hover sweep is a
+       `::before` at `z-index: -1`, and an element with no stacking context of
+       its own paints such a child BELOW its own background — the plate would
+       swallow the sweep. Isolating makes the button its own context, where a
+       negative-z child paints after the background and before the label:
+       plate, then sweep, then text. */
+    html[data-theme="light"] .void-ctas .btn {
+      background: rgba(var(--bg-rgb), 0.72);
+      border-color: rgba(var(--ink-rgb), 0.20);
+      isolation: isolate;
+    }
+
+    /* And the hover sweep goes to light's OWN gold. `--accent-fill` is the
+       shared bright brand gold that deliberately survives into light with
+       `--fill-ink` on top, which is why these two arrived carrying the dark
+       theme's yellow. Owner's call (2026-07-22): on paper these should sweep
+       the darker gold-ink instead, so the Void's hover matches the ochre the
+       rest of light mode reads in.
+
+       The label has to move with the fill — it is not a separate preference.
+       `--fill-ink` near-black on `--accent` ochre is 3.21:1 and fails; the
+       ground colour on top is 5.76:1 and passes. So light inverts dark's
+       arrangement rather than copying it: dark is a bright fill with a dark
+       label, light is a dark fill with a paper label. Both keep the sweep
+       reading as one solid gold block with legible type on it.
+
+       Scoped to the Void's pair on the owner's instruction — `.btn` and
+       `.back-btn` elsewhere still sweep `--accent-fill` in light. If those
+       ever get the same treatment it belongs in styles.css, not here. */
+    html[data-theme="light"] .void-ctas .btn::before {
+      background: var(--accent);
+    }
+    html[data-theme="light"] .void-ctas .btn:hover {
+      color: var(--bg);
+      border-color: var(--accent);
+    }
+
     /* The camera-active indicator is NOT themed, and that is deliberate.
        Its job is privacy honesty in the absence of a self-view, so it must
        never be the thing that fades. It stays a dark plate with white type
